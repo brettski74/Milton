@@ -1,0 +1,15 @@
+- name: preheat
+  duration: 9
+  target_temperature: 99
+- name: soak
+  duration: 99
+  target_temperature: 169
+- name: reflow
+  duration: 19
+  target_temperature: 204
+- name: hold
+  duration: 4
+  target_temperature: 204
+- name: cool
+  duration: 104
+  target_temperature: 99

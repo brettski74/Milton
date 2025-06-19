@@ -1,0 +1,13 @@
+# Database configuration
+database:
+  host: "localhost"
+  port: 5432
+  name: "hp_controller"
+  user: "hp_user"
+  password: "secret_password"
+  
+  # Connection pool settings
+  pool:
+    min_connections: 5
+    max_connections: 20
+    timeout: 30 

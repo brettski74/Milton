@@ -1,0 +1,12 @@
+# Logging configuration
+package: HP::Interface::DPS
+
+address: 1
+baud_rate: 19200
+
+power:
+  max: 120
+
+current:
+  min: 0.1
+  max: 12

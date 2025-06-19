@@ -1,0 +1,11 @@
+# Base configuration file with includes
+app_name: "HP Controller"
+version: "1.0.0"
+
+# Include other configuration files using YAML tags
+controller: !include controller.yaml
+interface: !include interface.yaml
+
+# Local configuration
+debug: true
+environment: "development" 

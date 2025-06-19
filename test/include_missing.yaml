@@ -1,0 +1,10 @@
+# Configuration with missing include for HP Controller
+app_name: "HP Controller Test"
+version: "1.0.0"
+
+# This include file doesn't exist
+missing_config: !include non_existent_controller.yaml
+
+# Some valid configuration
+valid_setting: "this should still be loaded"
+controller_mode: "manual" 

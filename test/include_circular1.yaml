@@ -1,0 +1,7 @@
+# Circular include test - file 1 for HP Controller
+circular_test:
+  file: "circular1"
+  description: "First file in circular reference for HP Controller"
+
+# This will create a circular reference
+circular_ref: !include include_circular2.yaml 

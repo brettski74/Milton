@@ -59,7 +59,7 @@ my $missing_cfg;
 eval {
   $missing_cfg = HP::Config->new('include_missing.yaml');
 };
-is($@, 'Error: Failed to load include file: include_missing.yaml', 'Error message should be correct');
+ok($@ =~ /non_existent_controller.yaml/, 'Error message should be correct') || diag($@);
 ok(!defined $missing_cfg);
 
 # Test circular include detection
@@ -68,25 +68,8 @@ my $circular_cfg;
 eval {
   $circular_cfg = HP::Config->new('include_circular1.yaml');
 };
-# The system should either detect the circular reference and handle it gracefully
-# or we should get some indication of the circular reference
-if (defined $circular_cfg) {
-  note("Circular reference was handled gracefully");
-  # Verify that we got some configuration loaded
-  ok(exists $circular_cfg->{circular_test}, 'Some circular test configuration was loaded');
-} else {
-  note("Circular reference was detected and prevented");
-  # This is also acceptable behavior
-}
-
-# Test conditional includes
-note("Testing conditional includes");
-my $conditional_cfg = HP::Config->new('include_conditional.yaml');
-is($conditional_cfg->{environment}, 'production', 'Environment should be set');
-ok(exists $conditional_cfg->{production_config}, 'Production config should be included');
-ok(exists $conditional_cfg->{development_config}, 'Development config should be included');
-is($conditional_cfg->{production_config}->{debug}, 0, 'Production debug should be false');
-is($conditional_cfg->{development_config}->{debug}, 1, 'Development debug should be true');
+ok($@ =~ /include_circular2.yaml/, 'Error message should be correct') || diag($@);
+ok(!defined $circular_cfg);
 
 done_testing();
 

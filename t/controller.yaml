@@ -1,13 +1,4 @@
-# Database configuration
-database:
-  host: "localhost"
-  port: 5432
-  name: "hp_controller"
-  user: "hp_user"
-  password: "secret_password"
-  
-  # Connection pool settings
-  pool:
-    min_connections: 5
-    max_connections: 20
-    timeout: 30 
+# Controller configuration for HP Controller
+thermal_constant: 1.234
+thermal_offset: 34.56
+reflow_profile: !include reflow_profile.yaml

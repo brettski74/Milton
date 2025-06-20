@@ -11,11 +11,12 @@ Load and hold hp static configuration with support for !include tags.
 =cut
 
 use strict;
-use warnings;
+use warnings qw(all -uninitialized);
 use YAML::PP;
 use YAML::PP::Schema::Include;
 use Path::Tiny;
 use Carp;
+use Scalar::Util qw(reftype);
 
 my @search_path = ( '.' );
 my %loaded_files;  # Track loaded files to detect circular references
@@ -139,6 +140,85 @@ sub _handle_include {
 }
 
 =head1 METHODS
+
+=head2 clone(@keys)
+
+Clone one or more elements from the configuration, returning deep copies.
+
+=over
+
+=item @keys
+
+A list of keys to clone from the configuration. If no keys are provided, clones the entire configuration.
+
+=back
+
+Returns a reference to a hash containing the cloned elements, or a single cloned element if only one key is provided.
+
+=cut
+
+sub clone {
+  my ($self, @keys) = @_;
+
+  my $node = $self;
+  my @path = ();
+  foreach my $key (@keys) {
+
+    if (reftype($node) eq 'HASH') {
+      croak 'Key '. join('->', @path, $key) .' does not exist in configuration' unless exists $node->{$key};
+      $node = $node->{$key};
+    } elsif (reftype($node) eq 'ARRAY') {
+      if ($key =~ /^\d+$/) {
+        croak 'Index '. join('->', @path, $key) .' does not exist in configuration' unless exists $node->[$key];
+        $node = $node->[$key];
+      } else {
+        pop @path;
+        croak 'Node '. join('->', @path) .' is an array, but key '. $key .' is not an integer';
+      }
+    } else {
+      croak 'Key '. join('->', @path) .' is scalar. Full path '. join('->', @keys) .' does not exist in configuration';
+    }
+    
+    push @path, $key;
+  }
+
+  return _deep_clone($node);
+}
+
+=head2 _deep_clone($data)
+
+Recursively create a deep copy of the given data structure.
+
+=cut
+
+sub _deep_clone {
+  my ($data) = @_;
+  
+  if (!defined $data) {
+    return;
+  }
+
+  # Handle arrays
+  if (reftype($data) eq 'ARRAY') {
+    my $clone = [];
+    foreach my $element (@$data) {
+      push @$clone, _deep_clone($element);
+    }
+    return $clone;
+  }
+  
+  # Handle hashes
+  if (ref($data) eq 'HASH') {
+    my $clone = {};
+    foreach my $key (keys %$data) {
+      $clone->{$key} = _deep_clone($data->{$key});
+    }
+    return $clone;
+  }
+  
+  # Handle scalars (strings, numbers, undef)
+  return $data;
+}
 
 =head1 SUBROUTINES
 

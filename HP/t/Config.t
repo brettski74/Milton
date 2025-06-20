@@ -53,6 +53,31 @@ is($include_cfg->{interface}->{power}->{max}, 120, 'interface->power->max');
 is($include_cfg->{interface}->{current}->{min}, 0.1, 'interface->current->min');
 is($include_cfg->{interface}->{current}->{max}, 12, 'interface->current->max');
 
+
+# Test clone method for hashes
+my $cloned_hash = $include_cfg->clone('controller');
+is($cloned_hash->{thermal_constant}, 1.234, 'cloned_hash->thermal_constant');
+is($cloned_hash->{thermal_offset}, 34.56, 'cloned_hash->thermal_offset');
+is($cloned_hash->{reflow_profile}->[0]->{name}, 'preheat', 'cloned_hash->reflow_profile->1->name');
+is($cloned_hash->{reflow_profile}->[0]->{duration}, 9, 'cloned_hash->reflow_profile->1->duration');
+is($cloned_hash->{reflow_profile}->[0]->{target_temperature}, 99, 'cloned_hash->reflow_profile->1->target_temperature');
+is($cloned_hash->{reflow_profile}->[1]->{name}, 'soak', 'cloned_hash->reflow_profile->2->name');
+is($cloned_hash->{reflow_profile}->[1]->{duration}, 99, 'cloned_hash->reflow_profile->2->duration');
+
+#Test clone method for arrays
+my $cloned_array = $include_cfg->clone('controller', 'reflow_profile');
+is($cloned_array->[0]->{name}, 'preheat', 'cloned_array->1->name');
+is($cloned_array->[0]->{duration}, 9, 'cloned_array->1->duration');
+is($cloned_array->[0]->{target_temperature}, 99, 'cloned_array->1->target_temperature');
+is($cloned_array->[1]->{name}, 'soak', 'cloned_array->2->name');
+is($cloned_array->[1]->{duration}, 99, 'cloned_array->2->duration');
+
+# Test clone method for a hash within an array
+my $cloned_hash_in_array = $include_cfg->clone('controller', 'reflow_profile', 1);
+is($cloned_hash_in_array->{name}, 'soak', 'cloned_hash_in_array->name');
+is($cloned_hash_in_array->{duration}, 99, 'cloned_hash_in_array->duration');
+is($cloned_hash_in_array->{target_temperature}, 169, 'cloned_hash_in_array->target_temperature');
+
 # Test error handling for missing include files
 note("Testing error handling for missing include files");
 my $missing_cfg;

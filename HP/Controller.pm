@@ -14,6 +14,11 @@ HP::Controller - Base class to define the interface for HP control modules.
 
 Create a new controller object with the specified properties.
 
+This class merely defines the interface for controllers. It does not implement any functionality.
+
+The sole purpose of a controller is to provide a method to set the temperature of the hotplate. More direct control
+based on power, voltage or current can be achieved directly via the HP::Interface object.
+
 =cut
 
 sub new {
@@ -42,27 +47,23 @@ sub getTemperature {
   return;
 }
 
-=head2 setTemperature($currentTemperature, $futureTemperature, $now, $when)
+=head2 setTemperature($status, $target_temp
 
-Attempt to achieve a certain hotplate temperature by a specified time.
+Attempt to achieve a certain hotplate temperature by the next sample period.
 
 =over
 
-=item $currentTemperature
+=item $status
 
-The estimated current temperature of the hotplate.
+The hash representing the current status of the hotplate.
 
-=item $futureTemperature
+=item $target_temp
 
-The desired temperature to achieve on the hotplate.
+The desired temperature to achieve on the hotplate by the next sample period.
 
-=item $now
+=item Return Value
 
-A timestamp representing the current number of seconds since a fixed epoch.
-
-=item $when
-
-A timestamp representing the number of seconds since the fixed epoch when we expect the $futureTemperature to be reached on the hotplate.
+The power to be applied to the hotplate to achieve the target temperature.
 
 =back
 

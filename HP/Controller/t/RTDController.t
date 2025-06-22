@@ -1,0 +1,65 @@
+#!/usr/bin/perl
+
+use lib '.';
+use Test2::V0;
+use HP::Controller::RTDController;
+
+my $EPS = 0.0000001;
+
+# Create a mock interface for testing
+my $mock_interface = {
+    name => 'mock_interface',
+    # Add any interface methods that might be needed
+};
+
+# Test basic constructor with 2-point calibration
+note("Testing RTDController constructor with 2-point calibration");
+my $config = {
+    temperatures => [
+        { resistance => 1.0, temperature => 25.0 },
+        { resistance => 2.0, temperature => 225.0 }
+    ]
+};
+
+my $rtd_controller = HP::Controller::RTDController->new($config, $mock_interface);
+isa_ok($rtd_controller, 'HP::Controller::RTDController');
+isa_ok($rtd_controller, 'HP::Controller');
+
+# Test that the RT estimator was created
+ok(exists $rtd_controller->{rt_estimator}, 'RT estimator should be created');
+isa_ok($rtd_controller->{rt_estimator}, 'HP::PiecewiseLinear');
+
+# Test resistance to temperature conversion - exact points
+note("Testing resistance to temperature conversion at calibration points");
+my $sts = { voltage => 10.0, current => 10.0 };  # = 1 ohm
+is($rtd_controller->getTemperature($sts), float(25.0, tolerance => $EPS), '1 ohm == 25 celsius');
+is($sts->{resistance}, 1.0, 'resistance = 1.0');
+is($sts->{temperature}, 25.0, 'temperature = 25.0');
+
+my $sts2 = { voltage => 12.0, current => 6.0 };  # R = 2 ohms
+is($rtd_controller->getTemperature($sts2), float(225.0, tolerance => $EPS), '2 ohm == 225 celsius');
+is($sts2->{resistance}, 2.0, 'resistance = 2.0');
+is($sts2->{temperature}, 225.0, 'temperature = 225.0');
+
+# Test interpolation between calibration points
+note("Testing interpolation between calibration points");
+my $sts3 = { voltage => 10.5, current => 7.0 };  # R = 1.5 ohms
+is($rtd_controller->getTemperature($sts3), float(125.0, tolerance => $EPS), '1.5 ohm == 125 celsius');
+is($sts3->{resistance}, float(1.5, tolerance => $EPS), 'resistance = 1.5');
+is($sts3->{temperature}, float(125.0, tolerance => $EPS), 'temperature = 125.0');
+
+# Test extrapolation below range
+note("Testing extrapolation below calibration range");
+my $sts4 = { voltage => 9.5, current => 10.0 };  # R = 0.95 ohm
+is($rtd_controller->getTemperature($sts4), float(15.0, tolerance => $EPS), '0.95 ohm == 15 celsius');
+is($sts4->{resistance}, float(0.95, tolerance => $EPS), 'resistance = 0.95');
+is($sts4->{temperature}, float(15.0, tolerance => $EPS), 'temperature = 15.0');
+
+# Test extrapolation above range
+note("Testing extrapolation above calibration range");
+my $sts5 = { voltage => 15.0, current => 5.0 };  # R = 3 ohms
+is($rtd_controller->getTemperature($sts5), float(425.0, tolerance => $EPS), '3 ohm == 425 celsius');
+is($sts5->{resistance}, float(3.0, tolerance => $EPS), 'resistance = 3.0');
+is($sts5->{temperature}, float(425.0, tolerance => $EPS), 'temperature = 425.0');
+
+done_testing(); 

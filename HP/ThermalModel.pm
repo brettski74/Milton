@@ -315,7 +315,7 @@ sub _setKt {
     }
   }
 }
-=head2 predict($power, $temperature)
+=head2 predictDeltaT($power, $temperature)
 
 Predict the temperature change after a given power is applied.
 
@@ -338,10 +338,34 @@ The current temperature of the system.
 
 =cut
 
-sub predict {
+sub predictDeltaT {
     my ($self, $power, $temperature) = @_;
-    my $delta_T = $power * $self->kp + ($temperature - $self->ambient) * $self->kt;
+    my $delta_T = $power * $self->kp - ($temperature - $self->ambient) * $self->kt;
     return $delta_T;
+}
+
+=head2 predictPower($current_temp, $target_temp)
+
+Predict the power required to achieve a given temperature change.
+
+=over
+
+=item $current_temp
+
+The current temperature of the system.
+
+=item $target_temp
+
+The target temperature of the system after one sample period.
+
+=back
+
+=cut
+
+sub predictPower {
+  my ($self, $current_temp, $target_temp) = @_;
+  my $power = ($target_temp - $current_temp + $self->{kt} * ($current_temp - $self->{ambient})) / $self->{kp};
+  return $power;
 }
 
 1;

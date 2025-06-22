@@ -7,7 +7,9 @@ The following perl modules are required:
 |AnyEvent|7.17|perl-anyevent|||
 |Carp|||||
 |EV|4.34|perl-ev|||
+|List::Util|
 |Path::Tiny|0.148|perl-path-tiny|||
+|Statistics::Regression|0.53||||
 |Term::ReadKey|2.38|perl-term-readkey|||
 |YAML::PP|0.39|perl-yaml-pp|||
 

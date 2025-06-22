@@ -18,7 +18,7 @@ is($pwl->estimate(10), 10, 'Should return exact value for existing point');
 
 # Test adding multiple points
 note("Testing multiple point addition");
-$pwl->addPoint(0, 0, 20, 40, 30, 90);
+$pwl->addPoint(0, 0, 30, 90, 20, 40);
 is($pwl->length(), 4, 'Should have 4 points total');
 
 # Test that points are sorted by x value
@@ -27,6 +27,10 @@ is($points[0]->[0], 0, 'First point x should be 0');
 is($points[1]->[0], 10, 'Second point x should be 10');
 is($points[2]->[0], 20, 'Third point x should be 20');
 is($points[3]->[0], 30, 'Fourth point x should be 30');
+
+# Check the start and end points
+is($pwl->start(), 0, 'Start point should be 0');
+is($pwl->end(), 30, 'End point should be 30');
 
 # Test interpolation between points
 note("Testing interpolation");

@@ -129,4 +129,28 @@ sub length {
   return scalar(@$self);
 }
 
+=head2 start
+
+The lowest X value represented by this estimator.
+
+=cut
+
+sub start {
+  my ($self) = @_;
+
+  return $self->[0]->[0];
+}
+
+=head2 end
+
+The highest X value represented by this estimator.
+
+=cut
+
+sub end {
+  my ($self) = @_;
+
+  return $self->[-1]->[0];
+}
+
 1;

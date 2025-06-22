@@ -3,18 +3,20 @@
 
 .PHONY: test test-verbose clean
 
+TEST_DIRS=$(shell find . -type d -name t)
+
 # Default target
 all: test
 
 # Run all tests
 test:
 	@echo "Running tests..."
-	@prove -l t/ HP/t/
+	@prove -l $(TEST_DIRS)
 
 # Run tests with verbose output
 test-verbose:
 	@echo "Running tests with verbose output..."
-	@prove -lv t/ HP/t/
+	@prove -lv $(TEST_DIRS)
 
 # Run specific test file
 test-file:

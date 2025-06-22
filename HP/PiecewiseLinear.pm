@@ -15,6 +15,8 @@ sub new {
 
   bless $self, $class;
 
+  $self->addPoint(@_) if @_;
+
   return $self;
 }
 
@@ -85,12 +87,12 @@ sub estimate {
 
   # Handle extrapolation below range
   if ($x < $self->[0]->[0]) {
-    return $self->estimateFromPoints($x, @{$self->[0]}, @{$self->[1]});
+    return $self->_estimateFromPoints($x, @{$self->[0]}, @{$self->[1]});
   }
 
   # Handle extrapolation above range
   if ($x > $self->[-1]->[0]) {
-    return $self->estimateFromPoints($x, @{$self->[-2]}, @{$self->[-1]});
+    return $self->_estimateFromPoints($x, @{$self->[-2]}, @{$self->[-1]});
   }
 
   # Handle exact matches
@@ -106,14 +108,20 @@ sub estimate {
     last if ($x < $self->[$idx]->[0]);
   }
 
-  return $self->estimateFromPoints($x, @{$self->[$idx-1]}, @{$self->[$idx]});
+  return $self->_estimateFromPoints($x, @{$self->[$idx-1]}, @{$self->[$idx]});
 }
 
-sub estimateFromPoints {
+sub _estimateFromPoints {
   my ($self, $x, $xlo, $ylo, $xhi, $yhi) = @_;
 
   return ($ylo * ($xhi - $x) + $yhi * ($x - $xlo)) / ($xhi - $xlo);
 }
+
+=head2 length
+
+Return the number of points in the piecewise linear estimator.
+
+=cut
 
 sub length {
   my ($self) = @_;

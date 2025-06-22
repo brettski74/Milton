@@ -75,10 +75,4 @@ is($pwl5->estimate(5), 10, 'Interpolate between two points');
 is($pwl5->estimate(-5), -10, 'Extrapolate below two points');
 is($pwl5->estimate(15), 30, 'Extrapolate above two points');
 
-# Test estimateFromPoints method directly
-note("Testing estimateFromPoints method");
-my $pwl6 = HP::PiecewiseLinear->new();
-is($pwl6->estimateFromPoints(5, 0, 0, 10, 20), 10, 'Direct interpolation calculation');
-is($pwl6->estimateFromPoints(15, 10, 20, 20, 40), 30, 'Direct interpolation calculation');
-
 done_testing(); 

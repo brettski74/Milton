@@ -54,7 +54,7 @@ sub addPoint {
   return $self;
 }
 
-=head2 estimator($x)
+=head2 estimate($x)
 
 Return the interpolated/extrapolated Y value for the specified X value.
 
@@ -72,16 +72,39 @@ The estimated Y value for the specified X value.
 
 =cut
 
-sub estimator {
+sub estimate {
   my ($self, $x) = @_;
 
-  my $idx;
-  for ($idx=1; $idx < $#$self; $idx++) {
-    last if ($x < $self->[$idx]->[0]);
+  # Handle empty estimator
+  return undef if @$self == 0;
+
+  # Handle single point
+  if (@$self == 1) {
+    return $self->[0]->[1];
   }
 
-  # my ($xlo, $ylo) = @{$self->[$idx-1]};
-  # my ($xhi, $yhi) = @{$self->[$idx]};
+  # Handle extrapolation below range
+  if ($x < $self->[0]->[0]) {
+    return $self->estimateFromPoints($x, @{$self->[0]}, @{$self->[1]});
+  }
+
+  # Handle extrapolation above range
+  if ($x > $self->[-1]->[0]) {
+    return $self->estimateFromPoints($x, @{$self->[-2]}, @{$self->[-1]});
+  }
+
+  # Handle exact matches
+  for my $point (@$self) {
+    if ($x == $point->[0]) {
+      return $point->[1];
+    }
+  }
+
+  # Find the segment for interpolation
+  my $idx;
+  for ($idx = 1; $idx < @$self; $idx++) {
+    last if ($x < $self->[$idx]->[0]);
+  }
 
   return $self->estimateFromPoints($x, @{$self->[$idx-1]}, @{$self->[$idx]});
 }

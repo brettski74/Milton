@@ -16,8 +16,8 @@ Create a new controller object with the specified properties.
 
 This class merely defines the interface for controllers. It does not implement any functionality.
 
-The sole purpose of a controller is to provide a method to set the temperature of the hotplate. More direct control
-based on power, voltage or current can be achieved directly via the HP::Interface object.
+The sole purpose of a controller is to provide a method to get and set the temperature of the hotplate.
+More direct control based on power, voltage or current can be achieved directly via the HP::Interface object.
 
 =cut
 

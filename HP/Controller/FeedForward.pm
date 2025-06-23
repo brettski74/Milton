@@ -3,6 +3,8 @@ package HP::Controller::FeedForward;
 use strict;
 use Carp qw(croak);
 use base qw(HP::Controller::RTDController);
+use Statistics::Regression;
+use HP::ThermalModel;
 
 =head1 NAME
 
@@ -26,7 +28,7 @@ sub new {
   my $self = $class->SUPER::new($config, $interface);
 
   # Verify mandatory parameters
-  croak "resistance not specified." unless $config->{resistance};
+  croak "HP::resistance not specified." unless $config->{resistance};
   croak "capacity not specified." unless $config->{capacity};
 
   # Set defaults if required
@@ -39,13 +41,13 @@ sub new {
   $self->{model} = HP::ThermalModel->new($self);
 
   # How many samples until we re-evaluate kp and kt?
-  $self->{countdown} = $self->{initial-regression-samples} || $self->{regression-samples} || 10;
+  $self->{countdown} = $self->{'initial-regression-samples'} || $self->{'regression-samples'} || 10;
 
   # IIR filter coefficient for smoothing the power output
   $self->{alpha} = $self->{alpha} || 0.3;
 
   # Keep a log of the status every sample period
-  $self->{log} = []
+  $self->{log} = [];
 
   return $self;
 }
@@ -65,7 +67,7 @@ sub setTemperature {
   $status->{power} = $power;
   $self->{interface}->setPower($power);
 
-  $status->{target-temp} = $target_temp;
+  $status->{'target-temp'} = $target_temp;
 
   $self->_logStatus($status);
 
@@ -90,7 +92,7 @@ sub _logStatus {
   if (@{$self->{log}}) {
     my $last = $self->{log}[-1];
     my $delta_T = $status->{temperature} - $last->{temperature};
-    $last->{delta-T} = $delta_T;
+    $last->{'delta-T'} = $delta_T;
     $self->{regression}->addPoint($delta_T, $last);
     $self->{countdown}--;
 
@@ -98,7 +100,7 @@ sub _logStatus {
       my ($kp, $kt) = $self->{regression}->theta();
       $self->{model}->setKp($kp);
       $self->{model}->setKt($kt);
-      $self->{countdown} = $self->{regression-samples} || 20;
+      $self->{countdown} = $self->{'regression-samples'} || 20;
     }
   }
 

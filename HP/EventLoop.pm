@@ -49,14 +49,13 @@ sub new {
   $self->_initialize_object('controller');
 
   my $cmd_pkg = "HP::Command::$command";
-  eval {
-    use $cmd_pkg;
-    $self->{command} = $cmd_pkg->new($self->{config}->clone('command', $command), $self->{interface}, $self->{controller}, @args);
-  };
+  eval "use $cmd_pkg";
 
   if ($@) {
     croak "Failed to load $cmd_pkg: $@";
   }
+
+  $self->{command} = $cmd_pkg->new($self->{config}->clone('command', $command), $self->{controller}, $self->{interface}, @args);
 
   return $self;
 }
@@ -79,7 +78,6 @@ sub poll {
 
   my $status = $self->{interface}->poll();
   $status->{event} = $event;
-  $status->{}
 
   while (@attrs) {
     my $key = shift @attrs;
@@ -103,7 +101,11 @@ Run the event loop.
 =cut
 
 sub _cleanShutdown {
+  my $self = shift;
+
   ReadMode('normal');
+
+  $self->{interface}->shutdown;
 
   exit(0);
 }
@@ -122,35 +124,35 @@ sub run {
     if ($cmd->can('keyEvent')) {
       ReadMode('cbreak');
 
-      $self->{key-watcher} = AnyEvent->io(fh => \*STDIN
-                                        , poll => 'r'
-                                        , cb = sub {
-                                          my $status = { event => 'keyEvent'
-                                                       , now => AnyEvent->now
-                                                       };
+      $self->{'key-watcher'} = AnyEvent->io(fh => \*STDIN
+                                          , poll => 'r'
+                                          , cb => sub {
+                                            my $status = { event => 'keyEvent'
+                                                         , now => AnyEvent->now
+                                                         };
                                         
-                                          $status->{key} = ReadKey(-1);
+                                            $status->{key} = ReadKey(-1);
                                           
-                                          if (! $cmd->keyEvent($status)) {
-                                            $evl->send;
-                                          }
-                                        });
+                                            if (! $cmd->keyEvent($status)) {
+                                              $evl->send;
+                                            }
+                                          });
     }
 
-    $self->{timer-watcher} = AnyEvent->timer(after => 0
-                                           , interval => $self->{config}->{period}
-                                           , cb => sub {
-                                             my $status = $self->poll('timerEvent'
-                                                                    , now => AnyEvent->now
-                                                                    );
-                                             if (! $cmd->timerEvent($status)) {
-                                               $evl->send;
-                                             }
-                                           });
+    $self->{'timer-watcher'} = AnyEvent->timer(after => 0
+                                             , interval => $self->{config}->{period}
+                                             , cb => sub {
+                                               my $status = $self->poll('timerEvent'
+                                                                      , now => AnyEvent->now
+                                                                      );
+                                               if (! $cmd->timerEvent($status)) {
+                                                 $evl->send;
+                                               }
+                                             });
   
-    my $int_watcher = AnyEvent->signal(signal => 'INT', cb => \&_cleanShutdown);
-    my $term_watcher = AnyEvent->signal(signal => 'TERM', cb => \&_cleanShutdown);
-    my $quit_watcher = AnyEvent->signal(signal => 'QUIT', cb => \&_cleanShutdown);
+    my $int_watcher = AnyEvent->signal(signal => 'INT', cb => sub { $self->_cleanShutdown });
+    my $term_watcher = AnyEvent->signal(signal => 'TERM', cb => sub { $self->_cleanShutdown });
+    my $quit_watcher = AnyEvent->signal(signal => 'QUIT', cb => sub { $self->_cleanShutdown });
 
     $evl->recv;
 
@@ -166,19 +168,15 @@ sub _initialize_object {
 
   my $package = $self->{config}->{$key}->{package};
 
-  eval {
-    use $package;
-    $self->{$key} = $self->{config}->{$key}->{package}->new($self->{config}->clone($key));
-  };
-
+  eval "use $package";
+  
   if ($@) {
     croak "Failed to load $key package: $@";
   }
 
+  $self->{$key} = $self->{config}->{$key}->{package}->new($self->{config}->clone($key));
+
   return;
 }
 
-
-
-
-
+1;

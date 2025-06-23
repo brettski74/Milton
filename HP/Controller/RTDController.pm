@@ -73,7 +73,7 @@ sub getTemperature {
   my $est = $self->{rt_estimator};
 
   # If there is insufficient current flowing, temperature cannot be estimated.
-  return if ($status->{current} < $self->{minimum-current});
+  return if ($status->{current} < $self->{'current'}->{'minimum'});
 
   my $resistance = $status->{voltage} / $status->{current};
 

@@ -124,4 +124,14 @@ sub setPower {
   return $self->setVoltage($voltage);
 }
 
+=head2 shutdown
+
+Shut off the power to the hotplate and close the connection.
+
+=cut
+
+sub shutdown {
+  return;
+}
+
 1;

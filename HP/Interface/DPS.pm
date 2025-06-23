@@ -4,7 +4,7 @@ use strict;
 use base qw(HP::Interface Exporter);
 use IO::Dir;
 use Readonly;
-use List::Util qw(min);
+use List::Util qw(min max);
 
 use Device::Modbus::RTU::Client;
 use Math::Round;
@@ -45,11 +45,11 @@ Readonly my %DPS_MODELS => ( 5020 => { name => 'DPS5020'
 
   my $interface = HP::Interface::DPS->new(baudrate => 19200
                                         , address  => 1
-                                        , current  => { max => 12
-                                                      , min => 0.1
+                                        , current  => { maximum => 12
+                                                      , minimum => 0.1
                                                       }
-                                        , voltage  => { max => 30
-                                                      , min => 1
+                                        , voltage  => { maximum => 30
+                                                      , minimum => 1
                                                       }
                                         );
 
@@ -360,7 +360,7 @@ sub setPower {
 
     # if the output current is zero, then turn on the output and set minimum current
     if (! $self->iout) {
-      $self->setCurrent($self->{Imin} || 1);
+      $self->setCurrent($self->{'current'}->{'minimum'} || 1);
 
       # Re-poll to get the output voltage and current
       $self->poll;
@@ -369,7 +369,7 @@ sub setPower {
     $r = $self->vout / $self->iout;
   }
 
-  my $vset = min(max(sqrt($pwr * $r), $self->{Vmin}), $self->{Vmax});
+  my $vset = min(max(sqrt($pwr * $r), $self->{voltage}->{'minimum'}), $self->{voltage}->{'maximum'});
   
   return $self->setVoltage($vset);
 }
@@ -391,16 +391,16 @@ The output current setting in amperes.
 sub setCurrent {
   my ($self, $amps, $volts) = @_;
 
-  if ($self->{Imin} > 0 && $amps < $self->{Imin}) {
-    $amps = $self->{Imin};
+  if ($self->{'current'}->{'minimum'} > 0 && $amps < $self->{'current'}->{'minimum'}) {
+    $amps = $self->{'current'}->{'minimum'};
   }
 
-  if ($amps > $self->{Imax}) {
-    $amps = $self->{Imax};
+  if ($amps > $self->{'current'}->{'maximum'}) {
+    $amps = $self->{'current'}->{'maximum'};
   }
 
-  if (!defined($volts) || $volts > $self->{Vmax}) {
-    $volts = $self->{Vmax};
+  if (!defined($volts) || $volts > $self->{'voltage'}->{'maximum'}) {
+    $volts = $self->{'voltage'}->{'maximum'};
   }
 
   $self->set(voltage => $volts, current => $amps, enable => 1);
@@ -427,14 +427,14 @@ The output current limit specified in amps. If not specified, this defaults to t
 sub setVoltage {
   my ($self, $volts, $amps) = @_;
 
-  if ($volts > $self->{Vmax}) {
-    $volts = $self->{Vmax};
+  if ($volts > $self->{'voltage'}->{'maximum'}) {
+    $volts = $self->{'voltage'}->{'maximum'};
   }
 
-  if (!defined($amps) || $amps > $self->{Imax}) {
-    $amps = $self->{Imax};
-  } elsif ($self->{Imin} > 0 && $amps < $self->{Imin}) {
-    $amps = $self->{Imin};
+  if (!defined($amps) || $amps > $self->{'current'}->{'maximum'}) {
+    $amps = $self->{'current'}->{'maximum'};
+  } elsif ($self->{'current'}->{'minimum'} > 0 && $amps < $self->{'current'}->{'minimum'}) {
+    $amps = $self->{'current'}->{'minimum'};
   }
 
   $self->set(voltage => $volts, current => $amps, enable => 1);
@@ -471,14 +471,14 @@ If not defined and the minimum current has previously been changed using this me
 sub setMinCurrent {
   my ($self, $minCurrent) = @_;
 
-  if (exists($self->{Imin}) && !exists($self->{__Imin}) && defined $minCurrent) {
-    $self->{__Imin} = $self->{Imin};
+  if (exists($self->{'current'}->{'minimum'}) && !exists($self->{'current'}->{'__minimum'}) && defined $minCurrent) {
+    $self->{'current'}->{'__minimum'} = $self->{'current'}->{'minimum'};
   }
 
-  if (!defined $minCurrent && exists($self->{__Imin})) {
-    $self->{Imin} = $self->{__Imin};
+  if (!defined $minCurrent && exists($self->{'current'}->{'__minimum'})) {
+    $self->{'current'}->{'minimum'} = $self->{'current'}->{'__minimum'};
   } else {
-    $self->{Imin} = $minCurrent;
+    $self->{'current'}->{'minimum'} = $minCurrent;
   }
 
   return;

@@ -3,7 +3,7 @@ package HP::Command::calibrate;
 use strict;
 use warnings;
 
-use HP::Command;
+use base qw(HP::Command);
 use Scalar::Util qw(looks_like_number);
 use Readonly;
 use Carp;
@@ -217,7 +217,7 @@ sub initialize {
   }
 
   my $temps = $self->{temperatures};
-  foreach my $temp (@$temps) {}
+  foreach my $temp (@$temps) {
     if (!looks_like_number($temp)) {
       if (exists $ALLOYS{$temp}) {
         $temp = $ALLOYS{$temp};
@@ -246,7 +246,7 @@ sub preprocess {
 
   # Ensure that we have some power flowing into the hotplate so that resistance can be measured.
   $self->{interface}->setPower($self->{config}->{initial_power});
-  $self->{stage} = 'warmUp'
+  $self->{stage} = 'warmUp';
 
   return $self;
 }
@@ -281,11 +281,10 @@ Handle the warm up stage of the calibration cycle.
 sub _warmUp {
   my ($self, $status) = @_;
 
-    $self->{interface}->setPower($self->{config}->{initial_power});
+  $self->{interface}->setPower($self->{config}->{'initial-power'});
 
-    if ($self->{'log-columns'}) {
-      print join(',', @{$status}{@{$self->{'log-columns'}}}), "\n";
-    }
+  if ($self->{'log-columns'}) {
+    print join(',', @{$status}{@{$self->{'log-columns'}}}), "\n";
   }
 
   return $self;

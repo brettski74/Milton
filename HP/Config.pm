@@ -229,7 +229,8 @@ Add one or more directories to the search path for configuration files.
 =cut
 
 sub addSearchDir {
-  push @search_path, @_;
+  my ($class, @dirs) = @_;
+  push @search_path, @dirs;
 }
 
 =head2 searchPath

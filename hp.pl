@@ -2,6 +2,19 @@
 
 use AnyEvent;
 use Term::ReadKey;
+use Getopt::Long qw(:config no_ignore_case bundling require_order);
+
+my $args = { config => 'config.yaml' };
+GetOptions($args, 'config=s', 'library=s@');
+
+my $command = shift;
+HP::Config->addSearchDir(@{$args->{library}}
+                       , "$ENV{HOME}/hp"
+                       , "/etc/hp"
+                       );
+
+my $config = HP::Config->new($args->{config});
+
 
 ReadMode('cbreak');
 

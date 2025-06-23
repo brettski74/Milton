@@ -33,6 +33,19 @@ sub new {
   return $self;
 }
 
+=head2 resetCalibration($status)
+
+Reset the calibration of this controller. This may be called during hotplate calibration if it is desired to ignore the old
+calibration data and start fresh from some (hopefully) sane defaults.
+
+=cut
+
+sub resetCalibration {
+  my ($self) = @_;
+
+  $self->{rt_estimator} = HP::PiecewiseLinear->new;
+}
+
 =head2 getTemperature($status)
 
 Get the current temperature of the hotplate based on it's latest measured resistance.
@@ -58,6 +71,9 @@ Returns the estimated temperature of the hotplate in degrees celsius.
 sub getTemperature {
   my ($self, $status) = @_;
   my $est = $self->{rt_estimator};
+
+  # If there is insufficient current flowing, temperature cannot be estimated.
+  return if ($status->{current} < $self->{minimum-current});
 
   my $resistance = $status->{voltage} / $status->{current};
 

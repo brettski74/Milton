@@ -18,7 +18,7 @@ eval{
 ok(!defined $cfg);
 
 # Simple basic load via search path
-HP::Config::addSearchDir('t');
+is([ HP::Config->addSearchDir('t') ], [ '.', 't' ], 'searchPath');
 my $cfg2 = HP::Config->new('testconfig.yaml');
 is($cfg2->{test1}, 'value1');
 is($cfg2->{test2}, 'value2');

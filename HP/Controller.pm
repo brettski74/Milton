@@ -73,4 +73,36 @@ sub setTemperature {
   return;
 }
 
+=head2 setAmbient($temperature)
+
+Set the current ambient temperature.
+
+=over
+
+=item $temperature
+
+The current ambient temperature in degrees celsius.
+
+=item Return Value
+
+The previously set value of ambient temperature, if any.
+
+=back
+
+=cut
+
+sub setAmbient {
+  return;
+}
+
+=head2 getAmbient()
+
+Get the current ambient temperature.
+
+=cut
+
+sub getAmbient {
+  return;
+}
+
 1;

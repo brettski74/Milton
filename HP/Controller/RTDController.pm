@@ -3,6 +3,9 @@ package HP::Controller::RTDController;
 use strict;
 use HP::PiecewiseLinear;
 use base qw(HP::Controller);
+use Readonly;
+
+Readonly my $ALPHA_CU => 0.00393;
 
 =head1 NAME
 
@@ -44,6 +47,7 @@ sub resetCalibration {
   my ($self) = @_;
 
   $self->{rt_estimator} = HP::PiecewiseLinear->new;
+  $self->{reset} = 1;
 }
 
 =head2 getTemperature($status)
@@ -78,7 +82,7 @@ sub getTemperature {
   my $resistance = $status->{voltage} / $status->{current};
 
   # If the estimator is empty, give it some sane defaults assuming a copper heating element
-  if ($est->length() == 0) {
+  if ($est->length() == 0 && !$self->{reset}) {
     my $ambient = $self->{ambient} || 20.0;
     # A 1 ohm copper resistor at 20C will measure about 1.7 ohms at 200C.
     $est->addPoint($resistance, $ambient);
@@ -88,8 +92,17 @@ sub getTemperature {
   if ($est->length() == 1) {
     my $r0 = $est->[0]->[0];
     my $t0 = $est->[0]->[1];
-    my $r1 = $r0 * 1.7;
-    my $t1 = $t0 + 180.0;
+    my ($r1, $t1);
+
+    if ($t0 == 20) {
+      $t1 = 19;
+      $r1 = $r0 * (1 - $ALPHA_CU);
+    } else {
+      # Back-calculate R0 for T0=20C
+      $t1 = 20;
+      $r1 = ($r0 / (1 + $ALPHA_CU * ($t0 - $t1)));
+    }
+    print "Auto-adding calibration point at T=$t1, R=$r1\n";
     $est->addPoint($r1, $t1);
   }
 
@@ -99,6 +112,74 @@ sub getTemperature {
   $status->{temperature} = $temperature;
 
   return $temperature;
+}
+
+=head2 setAmbient($temperature)
+
+Set the current ambient temperature.
+
+=over
+
+=item $temperature
+
+The current ambient temperature in degrees celsius.
+
+=item Return Value
+
+The previously set value of ambient temperature, if any.
+
+=cut
+
+sub setAmbient {
+  my ($self, $temperature) = @_;
+  my $ambient = $self->{ambient};
+  $self->{ambient} = $temperature;
+  return $ambient;
+}
+
+=head2 getAmbient()
+
+Get the current ambient temperature.
+
+=cut
+
+sub getAmbient {
+  my ($self) = @_;
+  return $self->{ambient};
+}
+
+=head2 setCalibrationPoint($temperature, $resistance)
+
+Set a calibration point for the RTD estimator.
+
+=over
+
+=item $temperature
+
+The measured temperature of the hotplate at this calibration point.
+
+=item $resistance
+
+The measured resistance of the hotplate at this calibration point.
+
+=back
+
+=cut
+
+sub setCalibrationPoint {
+  my ($self, $temperature, $resistance) = @_;
+  $self->{rt_estimator}->addPoint($resistance, $temperature);
+}
+
+=head2 estimatorLength()
+
+Get the number of calibration points in the RTD estimator.
+
+=cut
+
+sub estimatorLength {
+  my ($self) = @_;  
+  return $self->{rt_estimator}->length();
 }
 
 1;

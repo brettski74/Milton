@@ -5,6 +5,7 @@ use AnyEvent;
 use EV;
 use Carp;
 use Term::ReadKey;
+use HP::DataLogger;
 
 =head1 NAME
 
@@ -56,6 +57,7 @@ sub new {
   }
 
   $self->{command} = $cmd_pkg->new($self->{config}->clone('command', $command), $self->{controller}, $self->{interface}, @args);
+  $self->{logger} = HP::DataLogger->new($self->{config}->clone('logging'), command => $command);
 
   return $self;
 }
@@ -78,6 +80,7 @@ sub poll {
 
   my $status = $self->{interface}->poll();
   $status->{event} = $event;
+  $status->{period} = $self->{config}->{period};
 
   while (@attrs) {
     my $key = shift @attrs;
@@ -88,6 +91,17 @@ sub poll {
   }
 
   $self->{controller}->getTemperature($status);
+
+  # Make previous values available
+  if (exists $self->{'last-timer-status'}) {
+    $status->{last} = $self->{'last-timer-status'};
+
+    if ($event eq 'timerEvent') {
+      $self->{'last-timer-status'}->{next} = $status;
+      $self->{'last-timer-status'} = $status;
+    }
+
+  }
 
   push(@{$self->{history}}, $status);
 
@@ -115,7 +129,9 @@ sub run {
   my $cmd = $self->{command};
 
   if ($cmd->can('preprocess')) {
-    $cmd->preprocess($self->poll('preprocess'));
+    my $status = $self->poll('preprocess');
+    $cmd->preprocess($status);
+    $self->{logger}->log($status);
   }
 
   if ($cmd->can('timerEvent')) {
@@ -128,38 +144,51 @@ sub run {
                                           , poll => 'r'
                                           , cb => sub {
                                             my $status = { event => 'keyEvent'
-                                                         , now => AnyEvent->now
+                                                         , now => (AnyEvent->now - $self->{'start-time'})
+                                                         , time => (AnyEvent->time - $self->{'start-time'})
                                                          };
                                         
                                             $status->{key} = ReadKey(-1);
                                           
                                             if (! $cmd->keyEvent($status)) {
+                                              $self->{logger}->log($status);
                                               $evl->send;
                                             }
+                                            $self->{logger}->log($status);
                                           });
     }
 
-    $self->{'timer-watcher'} = AnyEvent->timer(after => 0
-                                             , interval => $self->{config}->{period}
+    $self->{'timer-watcher'} = AnyEvent->timer(interval => $self->{config}->{period}
                                              , cb => sub {
+                                              my $now = AnyEvent->now;
+                                              if (!exists $self->{'start-time'}) {
+                                                $self->{'start-time'} = $now;
+                                              }
+                                              $now -= $self->{'start-time'};
+
                                                my $status = $self->poll('timerEvent'
-                                                                      , now => AnyEvent->now
+                                                                      , now => $now
                                                                       );
                                                if (! $cmd->timerEvent($status)) {
+                                                 $self->{logger}->log($status);
                                                  $evl->send;
-                                               }
+                                                }
+                                                $self->{logger}->log($status);
                                              });
-  
+
     my $int_watcher = AnyEvent->signal(signal => 'INT', cb => sub { $self->_cleanShutdown });
     my $term_watcher = AnyEvent->signal(signal => 'TERM', cb => sub { $self->_cleanShutdown });
     my $quit_watcher = AnyEvent->signal(signal => 'QUIT', cb => sub { $self->_cleanShutdown });
 
     $evl->recv;
 
+    $self->_cleanShutdown;
   }
 
   if ($cmd->can('postprocess')) {
-    $cmd->postprocess($self->poll('postprocess'), $self->{history});
+    my $status = $self->poll('postprocess');
+    $cmd->postprocess($status, $self->{history});
+    $self->{logger}->log($status);
   }
 }
 

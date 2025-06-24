@@ -204,6 +204,55 @@ status object passed to the postprocess method.
 #  return;
 #}
 
+=head2 prompt($prompt, default, @keys)
+
+Prompt the user for a value.
+
+=over
+
+=item $prompt
+
+The text prompt to display to the user.
+
+=item $default
+
+The default value to use if the user presses enter without typing anything.
+
+=item Return Value
+
+The value entered by the user, or the default value if nothing was entered. If the user presses enter without typing anything,
+the default value will be returned.
+
+=back
+
+=cut
+
+sub prompt {
+  my ($self, $prompt, $default) = @_;
+
+  print "$prompt [$default] ";
+  my $value = <STDIN>;
+  chomp $value;
+  $value =~ s/^\s+//;
+  $value =~ s/\s+$//;
+
+  if ($value eq '') {
+    return $default;
+  }
+
+  return $value;
+}
+
+=head2 beep
+
+Beep the terminal.
+
+=cut
+
+sub beep {
+  print "\a";
+}
+
 =head1 AUTHOR
 
 =cut

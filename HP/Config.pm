@@ -43,7 +43,7 @@ finds. If $filename is undefined, then it will be defaulted to hp.yaml.
 
 sub new {
   my ($class, $filename) = @_;
-  
+
   # Reset loaded files tracking for new config load
   %loaded_files = ();
 
@@ -71,7 +71,7 @@ Resolve a filename to a full path, searching in the search path if needed.
 sub _resolve_file_path {
   my ($filename) = @_;
   my $path;
-    
+
   # Check if filename is unqualified
   if ($filename !~ /\//) {
     $filename ||= 'hp.yaml';
@@ -85,7 +85,7 @@ sub _resolve_file_path {
     $path = path($filename);
     croak "Config file '$filename' not found" unless $path->is_file;
   }
-  
+
   return $path;
 }
 
@@ -97,7 +97,7 @@ Handle !include tags by loading the specified file and returning its contents.
 
 sub _handle_include {
   my ($ypp, $node) = @_;
-  
+
   my $include_file = $node->value;
   
   # Resolve the include file path relative to the current file being loaded
@@ -193,7 +193,7 @@ Recursively create a deep copy of the given data structure.
 
 sub _deep_clone {
   my ($data) = @_;
-  
+
   if (!defined $data) {
     return;
   }
@@ -231,6 +231,7 @@ Add one or more directories to the search path for configuration files.
 sub addSearchDir {
   my ($class, @dirs) = @_;
   push @search_path, @dirs;
+  return @search_path;
 }
 
 =head2 searchPath

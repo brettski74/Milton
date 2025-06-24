@@ -351,8 +351,8 @@ sub setPower {
     return $self->on(0);
   }
 
-  if ($pwr > $self->{Pmax}) {
-    $pwr = $self->{Pmax};
+  if ($pwr > $self->{'power'}->{'maximum'}) {
+    $pwr = $self->{'power'}->{'maximum'};
   }
 
   # Need the current heating element resistance if not provided
@@ -370,7 +370,7 @@ sub setPower {
   }
 
   my $vset = min(max(sqrt($pwr * $r), $self->{voltage}->{'minimum'}), $self->{voltage}->{'maximum'});
-  
+
   return $self->setVoltage($vset);
 }
 

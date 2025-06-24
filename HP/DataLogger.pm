@@ -1,7 +1,7 @@
 package HP::DataLogger;
 
 use strict;
-use warnings;
+use warnings qw(all -uninitialized);
 use Carp;
 use IO::File;
 
@@ -38,27 +38,35 @@ A hash reference containing the configuration for the data logger.
 =cut
 
 sub new {
-  my ($class, $config) = @_;
+  my ($class, $config, @extra) = @_;
 
-  if (!$config->{enabled} || lc($config->{enabled}) eq 'false') {
-    bless $config, 'HP::DataLogger::Null';
+  my $self = { %$config, @extra };
+
+  if (!$self->{enabled} || lc($self->{enabled}) eq 'false') {
+    $self = { enabled => 0, 'column-names' => [] };
+    bless $self, 'HP::DataLogger::Null';
   } else {
-    bless $config, $class;
-    $config->{filename} = $config->_expandFilename($config->{fielname});
-    $config->{fh} = IO::File->new($config->{filename}, 'w') || croak "Failed to open log file $config->{filename}: $!";
-    $config->{formatString} = $config->_buildFormatString;
-    $config->{header} = $config->_buildHeader;
-    $config->{'column-names'} = [map { $_->{key} } @{$config->{columns}}];
+    bless $self, $class;
+    $self->{filename} = $self->_expandFilename($self->{filename});
+    $self->{fh} = IO::File->new($self->{filename}, 'w') || croak "Failed to open log file $self->{filename}: $!";
+    $self->{formatString} = $self->_buildFormatString;
+    $self->{header} = $self->_buildHeader;
+    $self->{'column-names'} = [map { $_->{key} } @{$self->{columns}}];
 
-    $config->{fh}->print($config->{header});
+    if ($self->{tee} && $self->{tee} ne 'false') {
+      $self->{tee} = 1;
+    }
+
+    $self->{fh}->print($self->{header});
+    print $self->{header} if $self->{tee};
   }
 
-  return $config;
+  return $self;
 }
 
 sub _expandFilename {
   my ($self, $filename) = @_;
-  my ($year, $month, $day, $hour, $minute, $second) = localtime;
+  my ($second, $minute, $hour, $day, $month, $year) = localtime;
   my $timestamp = sprintf('%04d%02d%02d-%02d%02d%02d', $year+1900, $month+1, $day, $hour, $minute, $second);
 
   $filename =~ s/%c/$self->{command}/g;
@@ -111,8 +119,21 @@ A hash reference containing the status data to log.
 
 sub log {
   my ($self, $status) = @_;
+  my @values = ();
 
-  $self->{fh}->printf($self->{formatString}, @{$status}{@{$self->{'column-names'}}});
+  foreach my $column (@{$self->{columns}}) {
+    my $tmp = $status;
+    my $name = $column->{key};
+
+    while ($name =~ s/^([^.]+)\.//) {
+      $tmp = $tmp->{$1};
+    }
+
+    push(@values, $tmp->{$name});
+  }
+
+  $self->{fh}->printf($self->{formatString}, @values);
+  printf($self->{formatString}, @values) if $self->{tee};
 }
 
 =head2 logFilename
@@ -148,20 +169,27 @@ Closes the log file.
 sub close {
   my ($self) = @_;
 
-  $self->{fh}->close;
+  if ($self->{fh}) {  
+    my $rc = $self->{fh}->close;
+    
+    # Re-bless myself as a null logger
+    bless $self, 'HP::DataLogger::Null';
+
+    return $rc;
+  }
+
+  return;
 }
 
 package HP::DataLogger::Null;
+
+use base 'HP::DataLogger';
 
 sub log {
   return;
 }
 
-sub logFilename {
-  return;
-}
-
-sub logColumns {
+sub close {
   return;
 }
 

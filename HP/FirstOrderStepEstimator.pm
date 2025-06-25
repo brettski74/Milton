@@ -2,7 +2,7 @@ package HP::FirstOrderStepEstimator;
 
 use strict;
 use warnings qw(all -uninitialized);
-use Statistics::LineFit;
+use Carp;
 
 =head1 NAME
 
@@ -20,7 +20,7 @@ HP::FirstOrderStepEstimator - First-order step response estimator for electrical
     );
     
     # Fit data to estimate time constant and step response
-    $estimator->setData($data_points, 'temperature', 'time');
+    $estimator->fitCurve($data_points, 'temperature', 'time');
     
     # Access estimated parameters
     my $tau = $estimator->{tau};           # Time constant (seconds)
@@ -67,7 +67,27 @@ Returns a blessed FirstOrderStepEstimator object.
 
 =head1 METHODS
 
-=head2 setData($data, $ylabel, $xlabel)
+=head2 setRegressionThreshold($threshold)
+
+Set the regression threshold.
+
+When using a log-linear regression, the logarithm of the output values tends to amplify the effects of noise as
+the value gets closer to the final value.  This can cause bias towards the noiser later data points. To
+counteract this, the regression can be limited to values below a certain threshold, specified as a propostion
+of the difference between the initial and final values. The default threshold is 0.8, which seems like a good
+compromise between capturing as much of the exponential curve as possible while still being robust to noise.
+If desired, this can be set to a higher or lower value as demanded by the application and the noise level in
+the data.
+
+=over
+
+=item $threshold
+
+The threshold to use for the regression as a proportion of the difference between the initial and final values.
+
+=back
+
+=head2 fitCurve($data, $ylabel, $xlabel)
 
 Fits the provided data to estimate the first-order step response parameters.
 
@@ -118,7 +138,7 @@ Returns the estimator object for method chaining.
 
 =head1 OBJECT PROPERTIES
 
-After calling setData(), the following properties are available:
+After calling fitCurve(), the following properties are available:
 
 =over
 
@@ -159,7 +179,7 @@ Only calculated if resistance was provided in the constructor.
     );
     
     # Fit the data
-    $estimator->setData($data, 'temperature', 'time');
+    $estimator->fitCurve($data, 'temperature', 'time');
     
     # Results
     print "Time constant: $estimator->{tau} seconds\n";
@@ -211,47 +231,115 @@ L<HP::Controller>, L<HP::PiecewiseLinear>
 =cut
 
 sub new {
-  my ($class, $initial, $final, $resistance) = @_;
+  my ($class, %config) = @_;
 
-  my $self = { initial => $initial, final => $final, resistance => $resistance };
+  my $self = { resistance => $config{resistance}
+             , regressionThreshold => $config{regressionThreshold} || 0.8 # Default to 0.8
+             };
 
   bless $self, $class;
 
   return $self;
 }
 
-sub setData {
-  my ($self, $data, $ylabel, $xlabel) = @_;
-  my $xdata = [];
-  my $ydata = [];
+sub getRegressionThreshold {
+  my $self = shift;
+  my $threshold = $self->{regressionThreshold};
 
-  my $initial = $self->{initial};
-  my $final   = $self->{final};
-  my $direction = ($final > $initial) ? 1 : -1;
-  my $threshold = $initial + 0.632 * ($final - $initial);
+  if (@_) {
+    $self->{regressionThreshold} = shift;
+  }
 
+  return $threshold;
+}
+
+sub _setupResponseParameters {
+  my ($self, $data, $ylabel, $xlabel, $config) = @_;
+
+  my $final   = defined($config->{final}) ? $config->{final} : $data->[-1]->{$ylabel};
+  my $initial = defined($config->{initial}) ? $config->{initial} : $data->[0]->{$ylabel};
+
+  my $step;
+  my $direction;
+  my $threshold;
+
+  if ($final > $initial) {
+    $step = $final - $initial;
+    $direction = 1;
+    $threshold = defined($config->{threshold}) ? $config->{threshold} : $initial + $step * $self->{regressionThreshold};
+  } elsif ($final < $initial) {
+    $step = $initial - $final;
+    $direction = -1;
+    $threshold = defined($config->{threshold}) ? $config->{threshold} : $initial - $step * $self->{regressionThreshold};
+  } else {
+    croak "Initial value ($initial) and final value ($final) cannot be the same";
+  }
+
+  return ($initial, $final, $step, $direction, $threshold);
+}
+
+sub fitCurve {
+  my ($self, $data, $ylabel, $xlabel, %config) = @_;
+
+  my ($initial, $final, $step, $direction, $threshold) = $self->_setupResponseParameters($data, $ylabel, $xlabel, \%config);
+
+  # Regression sum variables
+  my $xsum = 0;
+  my $ysum = 0;
+  my $x2sum = 0;
+  my $xysum = 0;
+  my $n = 0;
+
+  # build up the regression sum variables
   for my $point (@$data) {
     my $y = $point->{$ylabel};
     # For rising response, stop at threshold; for falling, stop at threshold
     if (($direction == 1 && $y > $threshold) || ($direction == -1 && $y < $threshold)) {
       last;
     }
-    push @$xdata, $point->{$xlabel};
-    push @$ydata, log($final - $y);
+
+    my $x = $point->{$xlabel};
+    my $logy = log($direction * ($final - $y));
+
+    $xsum += $x;
+    $ysum += $logy;
+    $x2sum += $x * $x;
+    $xysum += $x * $logy;
+    $n++;
   }
 
-  my $line = Statistics::LineFit->new;
-  $line->setData($xdata, $ydata);
-  my ($intercept, $slope) = $line->coefficients;
+  if ($n < 2) {
+    croak "Not enough data points to perform regression";
+  }
 
-  $self->{tau} = -1 / $slope;
-  $self->{step} = exp($intercept);
+  # calculate the gradient and intercept of the regression line
+  my $gradient = ($n * $xysum - $xsum * $ysum) / ($n * $x2sum - $xsum * $xsum);
+  my $intercept = ($ysum - $gradient * $xsum) / $n;
+
+  # calculate the time constant and step response magnitude
+  my $tau = -1 / $gradient;
+
+  my $result = { xsum => $xsum
+               , ysum => $ysum
+               , x2sum => $x2sum
+               , xysum => $xysum
+               , n => $n
+               , gradient => $gradient
+               , intercept => $intercept
+               , tau => $tau
+               , step => exp($intercept) * $direction
+               , initial => $initial
+               };
+  
+  # Use the step+initial for the final value - should be a better fit, I think...
+  $result->{final} = $initial + $result->{step};
 
   if ($self->{resistance}) {
-    $self->{capacitance} = $self->{tau} / $self->{resistance};
+    $result->{capacitance} = $result->{tau} / $self->{resistance};
+    $result->{resistance} = $self->{resistance};
   }
 
-  return $self;
+  return $result;
 }
 
 1;

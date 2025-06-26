@@ -231,7 +231,7 @@ Add one or more directories to the search path for configuration files.
 sub addSearchDir {
   my ($class, @dirs) = @_;
   foreach my $dir (@dirs) {
-    if ($dir) {
+    if ($dir && -d $dir) {
       push @search_path, $dir;
     }
   }

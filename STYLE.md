@@ -10,4 +10,5 @@ The modules in this repository following the following general guidelines:
 - Element names in hashes should use dashes to distinguish separate-words.
 - POD documentation for methods and subroutines should immediately precede the method or subroutine that it describes.
 - Perl modules should generally always use strict and use warnings qw(all -uninitialized).
+- Boolean false return values should use a bare return wherever possible to ensure they are false in both scalar and list contexts.
 

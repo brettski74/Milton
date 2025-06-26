@@ -103,6 +103,19 @@ sub poll {
   return $status;
 }
 
+sub _now {
+  my ($self) = @_;
+  my $now = AnyEvent->now;
+  if (!exists $self->{'start-time'}) {
+    $self->{'start-time'} = $now;
+  }
+  return $now - $self->{'start-time'};
+}
+
+sub _time {
+  return AnyEvent->time - $self->{'start-time'};
+}
+
 =head2 run
 
 Run the event loop.
@@ -125,8 +138,8 @@ sub _keyWatcher {
   my $cmd = $self->{command};
 
   my $status = { event => 'keyEvent'
-               , now => (AnyEvent->now - $self->{'start-time'})
-               , time => (AnyEvent->time - $self->{'start-time'})
+               , now => $self->_now
+               , time => $self->_time
                };
                                         
   $status->{key} = ReadKey(-1);
@@ -143,14 +156,8 @@ sub _timerWatcher {
 
   my $cmd = $self->{command};
 
-  my $now = AnyEvent->now;
-  if (!exists $self->{'start-time'}) {
-    $self->{'start-time'} = $now;
-  }
-  $now -= $self->{'start-time'};
-
   my $status = $self->poll('timerEvent'
-                         , now => $now
+                         , now => $self->_now
                          );
   if (! $cmd->timerEvent($status)) {
     $self->{logger}->log($status);

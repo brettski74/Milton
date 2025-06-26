@@ -1,0 +1,4 @@
+command-value-1: 200
+command-value-3: blue
+nested:
+  inner-value: 42 

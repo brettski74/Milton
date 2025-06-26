@@ -29,6 +29,28 @@ $cfg2->merge('command/test.yaml', 'command', 'test');
 is($cfg2->{command}->{test}->{'command-value-1'}, 100);
 is($cfg2->{command}->{test}->{'command-value-2'}, 'red');
 
+# Test merging with pre-existing keys (deep merge)
+note("Testing merge with pre-existing keys");
+$cfg2->merge('command/override.yaml', 'command', 'test');
+is($cfg2->{command}->{test}->{'command-value-1'}, 200, 'command-value-1 should be overridden');
+is($cfg2->{command}->{test}->{'command-value-2'}, 'red', 'command-value-2 should be preserved');
+is($cfg2->{command}->{test}->{'command-value-3'}, 'blue', 'command-value-3 should be added');
+is($cfg2->{command}->{test}->{nested}->{'inner-value'}, 42, 'nested structure should be merged');
+is($cfg2->{command}->{test}->{list}->[0]->{name}, 'item1', 'list item 1 should be preserved');
+is($cfg2->{command}->{test}->{list}->[0]->{value}, 100, 'list item 1 should be preserved');
+is($cfg2->{command}->{test}->{list}->[1]->{name}, 'item2', 'list item 2 should be preserved');
+is($cfg2->{command}->{test}->{list}->[1]->{value}, 200, 'list item 2 should be preserved');
+is($cfg2->{command}->{test}->{list}->[2]->{name}, 'item3', 'list item 3 should be preserved');
+is($cfg2->{command}->{test}->{list}->[2]->{value}, 300, 'list item 3 should be preserved');
+is($cfg2->{command}->{test}->{list}->[3]->{name}, 'item4', 'list item 4 should be preserved');
+is($cfg2->{command}->{test}->{list}->[3]->{value}, 400, 'list item 4 should be preserved');
+
+# Test merging a list item
+$cfg2->merge('command/list_item.yaml', 'command', 'test', 'list', 1);
+is($cfg2->{command}->{test}->{list}->[1]->{name}, 'item2', 'list item 2 should be preserved');
+is($cfg2->{command}->{test}->{list}->[1]->{value}, 873, 'list item 2 should be overridden');
+is($cfg2->{command}->{test}->{list}->[1]->{'added-value'}, 'always', 'list item 2 should have added-value');
+
 # Test file include functionality
 note("Testing file include functionality");
 

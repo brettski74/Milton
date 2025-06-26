@@ -1,2 +1,11 @@
 command-value-1: 100
 command-value-2: red
+list:
+  - name: item1
+    value: 100
+  - name: item2
+    value: 200
+  - name: item3
+    value: 300
+  - name: item4
+    value: 400

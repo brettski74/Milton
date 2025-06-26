@@ -46,17 +46,11 @@ sub new {
 
   bless $self, $class;
 
-  $self->_initialize_object('interface');
-  $self->_initialize_object('controller');
+  $self->_initializeObject('interface');
+  $self->_initializeObject('controller');
 
-  my $cmd_pkg = "HP::Command::$command";
-  eval "use $cmd_pkg";
+  $self->_initializeCommand($command, @args);
 
-  if ($@) {
-    croak "Failed to load $cmd_pkg: $@";
-  }
-
-  $self->{command} = $cmd_pkg->new($self->{config}->clone('command', $command), $self->{controller}, $self->{interface}, @args);
   $self->{logger} = HP::DataLogger->new($self->{config}->clone('logging'), command => $command);
 
   return $self;
@@ -100,7 +94,8 @@ sub poll {
       $self->{'last-timer-status'}->{next} = $status;
       $self->{'last-timer-status'} = $status;
     }
-
+  } elsif ($event eq 'timerEvent') {
+    $self->{'last-timer-status'} = $status;
   }
 
   push(@{$self->{history}}, $status);
@@ -124,6 +119,46 @@ sub _cleanShutdown {
   exit(0);
 }
 
+sub _keyWatcher {
+  my ($self, $evl) = @_;
+
+  my $cmd = $self->{command};
+
+  my $status = { event => 'keyEvent'
+               , now => (AnyEvent->now - $self->{'start-time'})
+               , time => (AnyEvent->time - $self->{'start-time'})
+               };
+                                        
+  $status->{key} = ReadKey(-1);
+                                          
+  if (! $cmd->keyEvent($status)) {
+    $self->{logger}->log($status);
+    $evl->send;
+  }
+  $self->{logger}->log($status);
+}
+
+sub _timerWatcher {
+  my ($self, $evl) = @_;
+
+  my $cmd = $self->{command};
+
+  my $now = AnyEvent->now;
+  if (!exists $self->{'start-time'}) {
+    $self->{'start-time'} = $now;
+  }
+  $now -= $self->{'start-time'};
+
+  my $status = $self->poll('timerEvent'
+                         , now => $now
+                         );
+  if (! $cmd->timerEvent($status)) {
+    $self->{logger}->log($status);
+    $evl->send;
+  }
+  $self->{logger}->log($status);
+}
+
 sub run {
   my $self = shift;
   my $cmd = $self->{command};
@@ -143,37 +178,13 @@ sub run {
       $self->{'key-watcher'} = AnyEvent->io(fh => \*STDIN
                                           , poll => 'r'
                                           , cb => sub {
-                                            my $status = { event => 'keyEvent'
-                                                         , now => (AnyEvent->now - $self->{'start-time'})
-                                                         , time => (AnyEvent->time - $self->{'start-time'})
-                                                         };
-                                        
-                                            $status->{key} = ReadKey(-1);
-                                          
-                                            if (! $cmd->keyEvent($status)) {
-                                              $self->{logger}->log($status);
-                                              $evl->send;
-                                            }
-                                            $self->{logger}->log($status);
+                                            $self->_keyWatcher($evl);
                                           });
     }
 
     $self->{'timer-watcher'} = AnyEvent->timer(interval => $self->{config}->{period}
                                              , cb => sub {
-                                              my $now = AnyEvent->now;
-                                              if (!exists $self->{'start-time'}) {
-                                                $self->{'start-time'} = $now;
-                                              }
-                                              $now -= $self->{'start-time'};
-
-                                               my $status = $self->poll('timerEvent'
-                                                                      , now => $now
-                                                                      );
-                                               if (! $cmd->timerEvent($status)) {
-                                                 $self->{logger}->log($status);
-                                                 $evl->send;
-                                                }
-                                                $self->{logger}->log($status);
+                                                $self->_timerWatcher($evl);
                                              });
 
     my $int_watcher = AnyEvent->signal(signal => 'INT', cb => sub { $self->_cleanShutdown });
@@ -192,7 +203,7 @@ sub run {
   }
 }
 
-sub _initialize_object {
+sub _initializeObject {
   my ($self, $key) = @_;
 
   my $package = $self->{config}->{$key}->{package};
@@ -206,6 +217,19 @@ sub _initialize_object {
   $self->{$key} = $self->{config}->{$key}->{package}->new($self->{config}->clone($key));
 
   return;
+}
+
+sub _initializeCommand {
+  my ($self, $command, @args) = @_;
+
+  my $cmd_pkg = "HP::Command::$command";
+  eval "use $cmd_pkg";
+
+  if ($@) {
+    croak "Failed to load $cmd_pkg: $@";
+  }
+
+  $self->{command} = $cmd_pkg->new($self->{config}->clone('command', $command), $self->{controller}, $self->{interface}, @args);
 }
 
 1;

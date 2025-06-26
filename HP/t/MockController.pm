@@ -2,28 +2,24 @@ package HP::t::MockController;
 
 use strict;
 use warnings;
+use base qw(HP::Controller::RTDController);
 
 =head1 NAME
 
-HP::t::MockController - Mock Controller for testing
+HP::t::MockController - Mock RTDController for testing
 
 =head1 DESCRIPTION
 
-A mock controller that provides predictable behavior for testing.
+A mock controller that provides a simple two-point calibration by default.
 
 =cut
 
 sub new {
-    my ($class) = @_;
-    return bless {}, $class;
-}
-
-sub getTemperature {
-    my ($self, $status) = @_;
-    # Add some mock temperature data
-    $status->{controller_temp} = 85.2;
-    $status->{target_temp} = 100.0;
-    return;
+    my ($class, @args) = @_;
+    my $self = $class->SUPER::new(@args);
+    $self->setCalibrationPoint(0, 1);
+    $self->setCalibrationPoint(100, 2);
+    return $self;
 }
 
 1; 

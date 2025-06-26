@@ -37,6 +37,24 @@ sub new {
     return $self;
 }
 
+sub _now {
+  my ($self) = @_;
+
+  if (exists $self->{'last-timer-status'}) {
+    return $self->{'last-timer-status'}->{'now'};
+  }
+  return 0;
+}
+
+sub _time {
+  my ($self) = @_;
+
+  if (exists $self->{'last-timer-status'}) {
+    return $self->{'last-timer-status'}->{'time'} || $self->_now;
+  }
+  return $self->_now;
+}
+
 sub _initializeObject {
     my ($self, $key) = @_;
     

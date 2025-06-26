@@ -220,6 +220,50 @@ sub _deep_clone {
   return $data;
 }
 
+=head2 merge($filename, @path)
+
+Merge a YAML file into the configuration at the specified path.
+
+=over
+
+=item $filename
+
+The name of the YAML file to merge.
+
+=item @path
+
+The path where the file contents should be merged. If no path is provided,
+the contents are merged at the root level.
+
+=back
+
+=cut
+
+sub merge {
+  my ($self, $filename, @path) = @_;
+  
+  # Load the YAML file
+  my $ypp = YAML::PP->new;
+  my $path = _resolve_file_path($filename);
+  
+  my $data = $ypp->load_file($path->stringify);
+  croak "File '$filename' did not return a hash" unless ref($data) eq 'HASH';
+  
+  # Navigate to the target location in the config
+  my $target = $self;
+  foreach my $key (@path) {
+    $target->{$key} = {} unless exists $target->{$key};
+    $target = $target->{$key};
+  }
+  
+  # Merge the data into the target location
+  foreach my $key (keys %$data) {
+    $target->{$key} = $data->{$key};
+  }
+  
+  return $self;
+}
+
 =head1 SUBROUTINES
 
 =head2 addSearchDir(@dirs)

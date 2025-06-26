@@ -277,7 +277,7 @@ sub preprocess {
   my $merge = Hash::Merge->new('RIGHT_PRECEDENT');
   %$status = $merge->merge($status, $sts);
   $status->{stage} = 'preprocess';
-  $status->{temperature} = $self->{starting-temperature};
+  $status->{temperature} = $self->{'starting-temperature'};
   $status->{resistance} = $status->{voltage} / $status->{current};
   $self->{controller}->setCalibrationPoint($status->{temperature}, $status->{resistance});
   print "Calibration point set: $status->{'temperature'} => $status->{'resistance'}\n";
@@ -545,8 +545,8 @@ sub _calculateThermalResistance {
 
   my $thermalResistance = ($warmUpThermalResistance + $coolDownThermalResistance) / 2;
 
-  my $self->{'thermal-resistance'} = $thermalResistance;
-  my $self->{'thermal-resistance-error'} = ($warmUpPower - $coolDownPower) / ($warmUpResistance - $coolDownResistance) / 2;
+  $self->{'thermal-resistance'} = $thermalResistance;
+  $self->{'thermal-resistance-error'} = ($warmUpPower - $coolDownPower) / ($warmUpResistance - $coolDownResistance) / 2;
 
   print "Thermal resistance: $thermalResistance, error: +/-$self->{'thermal-resistance-error'}\n";
   

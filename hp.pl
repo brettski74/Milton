@@ -19,6 +19,9 @@ HP::Config->addSearchDir(@{$args->{library}}
                        );
 
 my $config = HP::Config->new($args->{config});
+if (HP::Config->configFileExists("command/$command.yaml")) {
+  $config->merge("command/$command.yaml", 'command', $command);
+}
 
 my $evl = HP::EventLoop->new($config, $command, @ARGV);
 

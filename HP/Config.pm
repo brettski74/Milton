@@ -46,7 +46,6 @@ sub new {
   my ($class, $filename) = @_;
 
   my $self = _load_file($filename);
-  croak "Config file '$filename' did not return a hash" unless ref($self) eq 'HASH';
 
   return bless $self, $class;
 }
@@ -155,7 +154,52 @@ sub _descend {
   return $node;
 }
 
-=head1 METHODS
+=head1 CLASS METHODS
+
+=head2 addSearchDir(@dirs)
+
+Add one or more directories to the search path for configuration files.
+
+=cut
+
+sub addSearchDir {
+  my ($class, @dirs) = @_;
+  foreach my $dir (@dirs) {
+    if ($dir && -d $dir) {
+      push @search_path, $dir;
+    }
+  }
+  return @search_path;
+}
+
+=head2 searchPath
+
+Return the current list of directories that will be searched for configuration files.
+
+=cut
+
+sub searchPath {
+  return @search_path;
+}
+
+=head2 configFileExists($filename)
+
+Check if a configuration file exists in the search path.
+
+=cut
+
+sub configFileExists {
+  my ($class, $filename) = @_;
+
+  eval {
+    my $path = _resolve_file_path($filename);
+    return $path->is_file;
+  };
+
+  return;
+}
+
+=head1 INSTANCE METHODS
 
 =head2 clone(@keys)
 
@@ -226,34 +270,6 @@ sub merge {
   }
 
   return $self;
-}
-
-=head1 SUBROUTINES
-
-=head2 addSearchDir(@dirs)
-
-Add one or more directories to the search path for configuration files.
-
-=cut
-
-sub addSearchDir {
-  my ($class, @dirs) = @_;
-  foreach my $dir (@dirs) {
-    if ($dir && -d $dir) {
-      push @search_path, $dir;
-    }
-  }
-  return @search_path;
-}
-
-=head2 searchPath
-
-Return the current list of directories that will be searched for configuration files.
-
-=cut
-
-sub searchPath {
-  return @search_path;
 }
 
 1;

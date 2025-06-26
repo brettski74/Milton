@@ -3,10 +3,13 @@ package HP::Command::calibrate;
 use strict;
 use warnings qw(all -uninitialized);
 
+
 use base qw(HP::Command);
 use Scalar::Util qw(looks_like_number);
 use Readonly;
 use Carp;
+use Time::HiRes qw(sleep);
+use Hash::Merge;
 
 Readonly my %ALLOYS => ( In97Ag3 => 143
                        , In52Sn48 => 118
@@ -68,30 +71,31 @@ The calibration cycle will progress through the following stages:
 
 =over
 
-=item Constant Power Warm Up
+=item Warm Up
 
 A constant power level is applied to the hotplate and the temperature difference between successive samples is monitored
 and recorded. The temperature deltas are passed through an IIR low pass filter and when the filtered result falls below
 a suitable threshold, the hotplate is assumed to be very close to the steady state temperature for the given power level.
 Based on that, an initial estimate of the thermal resistance and heat capacity are calculated and used in the next stage
-to effect control of the hotplate. Since we don't have a resistance to temperature mapping at this point, we use an
-approximation based on the cold resistance of the hotplate and the temperature coefficient of copper.
+to effect control of the hotplate. Since we probably don't have a resistance to temperature mapping at this point, we use
+an approximation based on the cold resistance of the hotplate and the temperature coefficient of copper.
 
 =item Slow Temperature Ramp
 
 Once a steady state temperature is reached in the previous stage, the hotplate is then heated at a constant slow rate
 until the maximum calibration temperature is reached. At this point, we can build a complete resistance to temperature
-mapping.
+mapping. The ramp continues for a small amount above the maximum calibration temperature as a certainty margin before
+advancing to the next stage.
 
 =item Short Hold
 
-The temperature increase is continued until the maximum calibration temperature is exceeded by a small safety margin and
-and then held there for a short period of time to ensure the hotplate is at a steady state again.
+After the temperature ramp, the hotplate will be held at a constant temperature for a short time to ensure that the
+final stage starts from a steady state and avoids any inaccuracies due to thermal inertia and offset effects.
 
 =item Cool Down
 
-The initial calibration power is re-applied to the hotplate and it is allowed to cool back down to a steady state. The
-same steady state condition using an IIR low pass filter is used to determine steady state.
+The initial calibration power is re-applied to the hotplate and it is allowed to cool down back to a steady state. The
+same steady state condition using an IIR low pass filter is used to determine steady state as in the warm up stage.
 
 =back
 
@@ -137,7 +141,7 @@ spot. Similarly, if the wire is too long, the transition to a more ball-shaped g
 =item hold-time
 
 The time in seconds that the hotplate is held at the maximum temperature during the short hold stage of the calibration
-cycle. This defaults to 10 seconds.
+cycle. This defaults to 15 seconds.
 
 =item initial-current
 
@@ -157,9 +161,9 @@ mechanical details of the hotplate assembly, a thermal resistance of 2.4K/W will
 The rate in Celsius/Kelvin per second at which the hotplate is heated during the slow temperature ramp. This defaults to
 0.5K/s.
 
-=item steady-state-alpha
+=item steady-state-smoothing
 
-The alpha value for the IIR low pass filter used to determine steady state temperature. This defaults to 0.9. Must be a
+The smoothing factor for the IIR low pass filter used to determine steady state temperature. This defaults to 0.9. Must be a
 value between 0 and 1. Values closer to one will result in a slower response to temperature changes and a longer period of
 time for the calibration cycle to settle and move on to the next stage but will be more accurate in determining steady state.
 
@@ -193,10 +197,11 @@ Return a hash of default configuration values for this command.
 sub defaults {
   return { 'initial-current' => 1.0
          , 'ramp-rate' => 0.3
-         , 'steady-state-alpha' => 0.1
+         , 'steady-state-smoothing' => 0.9
          , 'steady-state-samples' => 10
          , 'steady-state-threshold' => 0.0001
-         , 'hold-time' => 10
+         , 'hold-time' => 15
+         , 'temperatures' => [ 100, 140, 180, 200 ]
          };
 }
 
@@ -220,20 +225,23 @@ sub initialize {
   my ($self) = @_;
 
   my $temps = $self->{temperatures};
+
+  # Build the numeric temperatures list.
   foreach my $temp (@$temps) {
-    if (!looks_like_number($temp)) {
+    if (looks_like_number($temp)) {
+      push @$temps, $temp;
+    } else {
       if (exists $ALLOYS{$temp}) {
-        $temp = $ALLOYS{$temp};
+        push @$temps, $ALLOYS{$temp};
       } else {
         croak "Unknown calibration temperature in configuration: $temp";
       }
     }
   }
 
-  $self->{'calibration-points'} = [];
-
   # Ensure that the temperatures are in ascending order.
   @$temps = sort { $a <=> $b } @$temps;
+  $self->{'temperatures'} = $temps;
 
   return $self;
 }
@@ -247,13 +255,13 @@ This method is called during object creation.
 =cut
 
 sub preprocess {
-  my ($self) = @_;
+  my ($self, $status) = @_;
 
   # Prompt for the current hotplate and ambient temperature, just to be sure.
   $self->{ambient} = $self->prompt('Ambient temperature', $self->{controller}->getAmbient || 20.0);
   $self->{controller}->setAmbient($self->{ambient});
 
-  if ($self->{reset}) {
+  if (!$self->{keep}) {
     $self->{controller}->resetCalibration;
   }
 
@@ -261,6 +269,33 @@ sub preprocess {
 
   # Ensure that we have some power flowing into the hotplate so that resistance can be measured.
   $self->{interface}->setCurrent($self->{config}->{'initial-current'});
+  # Pause for a bit to allow the power supply to settle.
+  sleep(0.5);
+
+  # Make sure that ambient temperature is part of our calibration set.
+  my $sts = $self->{controller}->poll;
+  my $merge = Hash::Merge->new('RIGHT_PRECEDENT');
+  %$status = $merge->merge($status, $sts);
+  $status->{stage} = 'preprocess';
+  $status->{temperature} = $self->{starting-temperature};
+  $status->{resistance} = $status->{voltage} / $status->{current};
+  $self->{controller}->setCalibrationPoint($status->{temperature}, $status->{resistance});
+  print "Calibration point set: $status->{'temperature'} => $status->{'resistance'}\n";
+
+  # Ensure that the starting temperature is part of our calibration set.
+  my $first = $self->{temperatures}->[0];
+  if (abs($first - $status->{temperature}) < 10) {
+    # We're within 10 degrees of the first temperature, so just replace it with the actual temperature.
+    $self->{temperatures}->[0] = $status->{temperature};
+  } else {
+    # Add in a new point at the beginning of the list.
+    unshift @{$self->{temperatures}}, $status->{temperature};
+  }
+  $status->{'calibration-temperature'} = $status->{temperatures};
+  $status->{'calibration-resistance'} = $status->{resistance};
+  $self->{'calibration-points'} = [ $status ];
+
+  # Now we can start the calibration cycle.
   $self->{stage} = 'warmUp';
 
   return $self;
@@ -304,7 +339,7 @@ sub keyEvent {
 
     push @{$self->{'calibration-points'}}, $status;
     $self->beep;
-    return $self->_advanceStage('slowRamp', $status);
+    return $self;
   }
 }
 
@@ -318,7 +353,7 @@ sub _checkSteadyState {
   # If we don't have resistance readings, then we can't determine steady state.
   return if !exists $last->{resistance};
 
-  my $alpha = $self->{config}->{'steady-state-alpha'};
+  my $smoothing = $self->{config}->{'steady-state-smoothing'};
   my $threshold = $self->{config}->{'steady-state-threshold'};
   my $samples = $self->{config}->{'steady-state-samples'};
   my $reset = $self->{config}->{'steady-state-reset'};
@@ -328,14 +363,14 @@ sub _checkSteadyState {
   
   # Apply to low pass filter
   if (exists $last->{'delta-R-filtered'}) {
-    $status->{'delta-R-filtered'} = $alpha * $last->{'delta-R-filtered'} + (1 - $alpha) * $deltaR;
+    $status->{'delta-R-filtered'} = $smoothing * $last->{'delta-R-filtered'} + (1 - $smoothing) * $deltaR;
   } else {
     $status->{'delta-R-filtered'} = $deltaR;
   }
 
   if ($status->{'delta-R-filtered'} < $threshold) {
     $status->{'steady-state-count'}++;
-  } else {
+  } elsif ($status->{'delta-R-filtered'} > $reset) {
     $status->{'steady-state-count'} = 0;
   }
 
@@ -351,26 +386,17 @@ Handle the warm up stage of the calibration cycle.
 sub _warmUp {
   my ($self, $status) = @_;
 
-  if ($self->{controller}->estimatorLength() == 0) {
-    $self->{controller}->setCalibrationPoint($self->{'starting-temperature'}, $status->{'resistance'});
-    print "Calibration point set: " . $self->{'starting-temperature'} . " => " . $status->{'resistance'} . "\n";
-  }
-  
   if ($self->_checkSteadyState($status)) {
     $self->{'ramp-start-time'} = $status->{now};
     $self->{'ramp-start-temp'} = $status->{temperature};
 
-    my $sum = 0;
-    for(my $i = -$self->{config}->{'steady-state-samples'}; $i < 0; $i++) {
-
-    
     # Ensure that we don't have a maximum temperature set, yet.
     delete $self->{'maximum-temperature'};
 
     return $self->_advanceStage('slowRamp', $status);
   }
 
-  $self->{interface}->setPower($self->{config}->{'power'});
+  $self->{interface}->setPower($self->{config}->{'calibration-power'});
 
   return $self;
 }
@@ -422,7 +448,7 @@ sub _coolDown {
     return;
   }
 
-  $self->{interface}->setPower($self->{config}->{'power'});
+  $self->{interface}->setPower($self->{config}->{'calibration-power'});
 
   return $self;
 }
@@ -430,8 +456,11 @@ sub _coolDown {
 sub postProcess {
   my ($self, $status, $history) = @_;
 
-  $self->_preProcessHistory($history);
+  # Make sure the hotplate is off.
+  $self->{interface}->off;
+
   $self->_calculateResistanceTemperatureMapping;
+  $self->_preProcessHistory($history);
   $self->_calculateThermalResistance;
   $self->_calculateHeatCapacity;
   $self->_writeCalibrationData;
@@ -442,60 +471,149 @@ sub postProcess {
 sub _preProcessHistory {
   my ($self, $history) = @_;
 
-  my $index = 0;
-  my $points = $self->{'calibration-points'};
-  my $pwl = HP::PiecewiseLinear->new;
+  my $rt_mapping = $self->{'resistance-temperature-mapping'};
   my $warmUp = [];
-  my $warmUpEnd;
   my $coolDown = [];
-  my $coolDownEnd;
 
   foreach my $sts (@$history) {
-    if (exists $sts->{now} && exists $sts->{resistance}) {
-      $pwl->addPoint($sts->{now}, $sts->{resistance});
+    if (exists $sts->{resistance}) {
+      # Recalculate temperature based on out more accurate resistance to temperature mapping.
+      $sts->{temperature} = $rt_mapping->estimate($sts->{resistance});
     }
 
+    # Collect the warm up and cool down sections of the history.
     if ($sts->{stage} eq 'warmUp') {
       push @$warmUp, $sts;
-      $warmupEnd = $index;
     } elsif ($sts->{stage} eq 'coolDown') {
       push @$coolDown, $sts;
-      $coolDownEnd = $index;
     }
-
-    $index++;
   }
 
-  $self->{'resistance-temperature-mapping'} = $pwl;
   $self->{'warm-up-history'} = $warmUp;
   $self->{'cool-down-history'} = $coolDown;
-  $self->{'warm-up-end'} = $warmUpEnd;
-  $self->{'cool-down-end'} = $coolDownEnd;
+
+  return;
+}
+
+sub _verifyCalibrationPoints {
+  my ($self) = @_;
+
+  my $points = $self->{'calibration-points'};
+  my $temps = $self->{'temperatures'};
 
   return;
 }
 
 sub _calculateResistanceTemperatureMapping {
-  my ($self, $history) = @_;
+  my ($self) = @_;
 
-  my $pwl = $self->{'resistance-temperature-mapping'};
+  my $pwl = $HP::PiecewiseLinear->new;
   my $points = $self->{'calibration-points'};
+  my $mapping = HP::PiecewiseLinear->new;
 
+  # Get the resistance at the point before and after the keypress and use linear interpolation to estimate the resistance at the keypress.
   foreach my $point (@$points) {
-    $point->{resistance} = $pwl->estimate($point->{now});
-    print "Calibration point now=$point->{now}, time=$point->{time}, resistance=$point->{resistance}, temperature=$point->{temperature}\n";
+    if (!exists $point->{'calibration-resistance'}) {
+      my $last = $point->{last};
+      my $next = $last->{next};
+      $pwl->addPoint($last->{now}, $last->{resistance});
+      $pwl->addPoint($next->{now}, $next->{resistance});
+
+      $point->{'calibration-resistance'} = $pwl->estimate($point->{time});
+    }
+
+    print "Calibration point now=$point->{now}, time=$point->{time}, resistance=$point->{'calibration-resistance'}, temperature=$point->{'calibration-temperature'}\n";
+
+    $mapping->addPoint($point->{'calibration-resistance'}, $point->{'calibration-temperature'});
   }
+
+  $self->{'resistance-temperature-mapping'} = $mapping;
 
   return;
 }
 
-sub _calculateThermalModel {
+sub _calculateThermalResistance {
+  my ($self) = @_;
+
+  my ($warmUpPower, $warmUpResistance) = $self->_averagePowerResistance($self->{'warm-up-history'});
+  my $warmUpTemperature = $self->{'resistance-temperature-mapping'}->estimate($warmUpResistance);
+  my $warmUpThermalResistance = ($warmUpTemperature - $self->{'ambient'}) / $warmUpPower;
+
+  my ($coolDownPower, $coolDownResistance) = $self->_averagePowerResistance($self->{'cool-down-history'});
+  my $coolDownTemperature = $self->{'resistance-temperature-mapping'}->estimate($coolDownResistance);
+  my $coolDownThermalResistance = ($coolDownTemperature - $self->{'ambient'}) / $coolDownPower;
+
+  my $thermalResistance = ($warmUpThermalResistance + $coolDownThermalResistance) / 2;
+
+  my $self->{'thermal-resistance'} = $thermalResistance;
+  my $self->{'thermal-resistance-error'} = ($warmUpPower - $coolDownPower) / ($warmUpResistance - $coolDownResistance) / 2;
+
+  print "Thermal resistance: $thermalResistance, error: +/-$self->{'thermal-resistance-error'}\n";
+  
+  return;
+}
+
+# Calculate the average power and resistance over the steady state samples.
+# This is used for estimating the thermal resistance of the hotplate assembly.
+sub _averagePowerResistance {
   my ($self, $history) = @_;
 
+  my $sumPower = 0;
+  my $sumResistance = 0;
+  my $countPower = 0;
+  my $countResistance = 0;
+
+  for (my $i = -$self->{config}->{'steady-state-samples'}; $i < 0; $i++) {
+    if (exists $history->[$i]->{power}) {
+      $sumPower += $history->[$i]->{power};
+      $countPower++;
+    }
+
+    if (exists $history->[$i]->{resistance}) {
+      $sumResistance += $history->[$i]->{resistance};
+    }
+  }
+
+  return ($sumPower / $countPower, $sumResistance / $countResistance);
+}
+
+sub _calculateHeatCapacity {
+  my ($self) = @_;
+
+  my $est = HP::FirstOrderStepEstimator->new(resistance => $self->{'thermal-resistance'});
+  my $warmUp = $est->fitCurve($self->{'warm-up-history'}, 'temp', 'now');
+  my $coolDown = $est->fitCurve($self->{'cool-down-history'}, 'temp', 'now');
+
+  $self->{'heat-capacity'} = ($warmUp->{capacitance} + $coolDown->{capacitance}) / 2;
+  $self->{'heat-capacity-error'} = ($warmUp->{capacitance} - $coolDown->{capacitance}) / 2;
+
+  print "Heat capacity: $self->{'heat-capacity'}, error: +/-$self->{'heat-capacity-error'}\n";
+
+  return;
 }
 
 sub _writeCalibrationData {
-  my ($self, $history) = @_;
+  my ($self) = @_;
+
+  my $file = $self->{config}->{'calibration-file'};
+  if (-f $file) {
+    rename $file, "$file.". $self->timestamp;
+  }
+
+  my $fh = IO::File->new($file, 'w') || croak "Failed to open $file for writing";
+
+  $fh->print("ambient: $self->{'ambient'}\n");
+  $fh->print("resistance: $self->{'thermal-resistance'}\n");
+  $fh->print("resistance-error: $self->{'thermal-resistance-error'}\n");
+  $fh->print("capacity: $self->{'heat-capacity'}\n");
+  $fh->print("capacity-error: $self->{'heat-capacity-error'}\n");
+  $fh->print("temperatures:\n");
+  my $points = $self->{'resistance-temperature-mapping'}->getPoints;
+  foreach my $point (@$points) {
+    $fh->print("  $point->[0]: $point->[1]\n");
+  }
+
+  $fh->close;
 
   return;
 } 

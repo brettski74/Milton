@@ -51,6 +51,11 @@ sub new {
   return $self;
 }
 
+sub timestamp {
+  my ($sec, $min, $hour, $day, $month, $year) = localtime(time);
+  return sprintf("%04d%02d%02d-%02d%02d%02d", $year + 1900, $month + 1, $day, $hour, $min, $sec);
+}
+
 =head1 STATUS OBJECT
 
 The status object is a hash reference that contains the current state of the system. It is passed to all methods processing

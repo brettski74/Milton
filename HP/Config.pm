@@ -72,8 +72,8 @@ sub _resolve_file_path {
   my ($filename) = @_;
   my $path;
 
-  # Check if filename is unqualified
-  if ($filename !~ /\//) {
+  # Check if filename is relative
+  if ($filename !~ /^\//) {
     $filename ||= 'hp.yaml';
 
     my ($found_path) = grep { path($_, $filename)->is_file } @search_path;

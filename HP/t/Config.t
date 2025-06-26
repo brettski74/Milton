@@ -24,6 +24,11 @@ is($cfg2->{test1}, 'value1');
 is($cfg2->{test2}, 'value2');
 is($cfg2->{test3}, { colour => 'green', size => 'large' });
 
+# Merge another file into the config
+$cfg2->merge('command/test.yaml', 'command', 'test');
+is($cfg2->{command}->{test}->{'command-value-1'}, 100);
+is($cfg2->{command}->{test}->{'command-value-2'}, 'red');
+
 # Test file include functionality
 note("Testing file include functionality");
 
@@ -52,7 +57,6 @@ is($include_cfg->{interface}->{baud_rate}, 19200, 'interface->baud_rate');
 is($include_cfg->{interface}->{power}->{max}, 120, 'interface->power->max');
 is($include_cfg->{interface}->{current}->{min}, 0.1, 'interface->current->min');
 is($include_cfg->{interface}->{current}->{max}, 12, 'interface->current->max');
-
 
 # Test clone method for hashes
 my $cloned_hash = $include_cfg->clone('controller');
@@ -95,6 +99,8 @@ eval {
 };
 ok($@ =~ /include_circular2.yaml/, 'Error message should be correct') || diag($@);
 ok(!defined $circular_cfg);
+
+
 
 done_testing();
 

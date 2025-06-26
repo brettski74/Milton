@@ -3,6 +3,7 @@
 The modules in this repository following the following general guidelines:
 
 - Indents are 2 spaces, except when continuing lines where it may be visually helpful to align elements with those on the preceding line.
+- Indents are always spaces, never tabs.
 - Class and package names use CamelCase with an uppercase first letter.
 - Method names use camelCase with a lowercase first letter.
 - Variable names use underscores to distinguish separate_words.

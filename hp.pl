@@ -11,8 +11,11 @@ GetOptions($args, 'config=s', 'library=s@');
 
 my $command = shift;
 HP::Config->addSearchDir(@{$args->{library}}
-                       , "$ENV{HOME}/hp"
-                       , "/etc/hp"
+                       , split(/:/, $ENV{HP_CONFIG_PATH})
+                       , '.'
+                       , "$ENV{HOME}/.hotplate-config"
+                       , '/usr/local/share/hotplate-config'
+                       , '/usr/share/hotplate-config'
                        );
 
 my $config = HP::Config->new($args->{config});

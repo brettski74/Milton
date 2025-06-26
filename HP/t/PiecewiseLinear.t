@@ -22,7 +22,7 @@ $pwl->addPoint(0, 0, 30, 90, 20, 40);
 is($pwl->length(), 4, 'Should have 4 points total');
 
 # Test that points are sorted by x value
-my @points = @$pwl;
+my @points = $pwl->getPoints;
 is($points[0]->[0], 0, 'First point x should be 0');
 is($points[1]->[0], 10, 'Second point x should be 10');
 is($points[2]->[0], 20, 'Third point x should be 20');

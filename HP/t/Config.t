@@ -24,6 +24,14 @@ is($cfg2->{test1}, 'value1');
 is($cfg2->{test2}, 'value2');
 is($cfg2->{test3}, { colour => 'green', size => 'large' });
 
+# Test configFileExists method
+note("Testing configFileExists method");
+ok(HP::Config->configFileExists('testconfig.yaml'), 'testconfig.yaml does exist in search path');
+ok(HP::Config->configFileExists('t/testconfig.yaml'), 't/testconfig.yaml does exist with explicit path');
+ok(!HP::Config->configFileExists('nonexistent.yaml'), 'nonexistent.yaml does not exist');
+ok(HP::Config->configFileExists('command/test.yaml'), 'command/test.yaml does exist');
+ok(!HP::Config->configFileExists('command/are_you_serious.yaml'), 'command/are_you_serious.yaml does not exist');
+
 # Merge another file into the config
 $cfg2->merge('command/test.yaml', 'command', 'test');
 is($cfg2->{command}->{test}->{'command-value-1'}, 100);

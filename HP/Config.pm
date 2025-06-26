@@ -190,12 +190,14 @@ Check if a configuration file exists in the search path.
 
 sub configFileExists {
   my ($class, $filename) = @_;
+  my $rc = undef;
 
   eval {
     my $path = _resolve_file_path($filename);
-    return $path->is_file;
+    $rc = $path->is_file;
   };
 
+  return $rc if $rc;
   return;
 }
 

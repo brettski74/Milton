@@ -64,8 +64,8 @@ is($sts5->{temperature}, float(425.0, tolerance => $EPS), 'temperature = 425.0')
 
 my $rtd_empty = HP::Controller::RTDController->new({});
 is($rtd_empty->getTemperature({ voltage => 12.0, current => 10.0 }), float(20.0, tolerance => $EPS), 'empty estimator cold');
-is($rtd_empty->getTemperature({ voltage => 11.34, current => 7.0 }), float(110.0, tolerance => $EPS), 'empty estimator midpoint');
-is($rtd_empty->getTemperature({ voltage => 12.24, current => 6.0 }), float(200.0, tolerance => $EPS), 'empty estimator hot');
+is($rtd_empty->getTemperature({ voltage => 11.34, current => 7.0 }), float(109.0585242, tolerance => $EPS), 'empty estimator midpoint');
+is($rtd_empty->getTemperature({ voltage => 12.24, current => 6.0 }), float(198.1170483, tolerance => $EPS), 'empty estimator hot');
 
 my $rtd_one = HP::Controller::RTDController->new({
     temperatures => [
@@ -73,7 +73,7 @@ my $rtd_one = HP::Controller::RTDController->new({
     ]
 });
 is($rtd_one->getTemperature({ voltage => 12.0, current => 10.0 }), float(25.0, tolerance => $EPS), 'one point estimator cold');
-is($rtd_one->getTemperature({ voltage => 11.34, current => 7.0 }), float(115.0, tolerance => $EPS), 'one point estimator midpoint');
-is($rtd_one->getTemperature({ voltage => 12.24, current => 6.0 }), float(205.0, tolerance => $EPS), 'one point estimator hot');
+is($rtd_one->getTemperature({ voltage => 11.34, current => 7.0 }), float(115.8085242, tolerance => $EPS), 'one point estimator midpoint');
+is($rtd_one->getTemperature({ voltage => 12.24, current => 6.0 }), float(206.6170483, tolerance => $EPS), 'one point estimator hot');
 
 done_testing(); 

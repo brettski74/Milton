@@ -56,6 +56,18 @@ sub addPoint {
   return $self;
 }
 
+=head2 getPoints
+
+Return the points in the piecewise linear estimator.
+
+=cut
+
+sub getPoints {
+  my ($self) = @_;
+
+  return @$self;
+}
+
 =head2 estimate($x)
 
 Return the interpolated/extrapolated Y value for the specified X value.

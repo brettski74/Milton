@@ -124,6 +124,22 @@ sub setPower {
   return $self->setVoltage($voltage);
 }
 
+=head2 getMinimumCurrent
+
+Get the minimum current required to measure the resistance of the hotplate. The default implementation returns 0.1 amps.
+
+=over
+
+=item Return Value
+
+The minimum current required to measure the resistance of the hotplate.
+
+=cut
+
+sub getMinimumCurrent {
+  return 0.1;
+}
+
 =head2 shutdown
 
 Shut off the power to the hotplate and close the connection.

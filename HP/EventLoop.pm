@@ -47,7 +47,7 @@ sub new {
   bless $self, $class;
 
   $self->_initializeObject('interface');
-  $self->_initializeObject('controller');
+  $self->_initializeObject('controller', $self->{interface});
 
   $self->_initializeCommand($command, @args);
 
@@ -213,7 +213,7 @@ sub run {
 }
 
 sub _initializeObject {
-  my ($self, $key) = @_;
+  my ($self, $key, @args) = @_;
 
   my $package = $self->{config}->{$key}->{package};
 
@@ -223,7 +223,7 @@ sub _initializeObject {
     croak "Failed to load $key package: $@";
   }
 
-  $self->{$key} = $self->{config}->{$key}->{package}->new($self->{config}->clone($key));
+  $self->{$key} = $self->{config}->{$key}->{package}->new($self->{config}->clone($key), @args);
 
   return;
 }

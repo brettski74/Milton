@@ -484,6 +484,18 @@ sub setMinCurrent {
   return;
 }
 
+=head2 getMinimumCurrent
+
+Get the minimum current required to measure the resistance of the hotplate.
+
+=cut
+
+sub getMinimumCurrent {
+  my ($self) = @_;
+
+  return $self->{'current'}->{'minimum'} || 0.1;
+}
+
 # Utility method to convert integer values retrieved from registers via ModBus protocol into fractional values in correct units such as volts, amps and watts.
 sub deintify {
   my ($self, $addr, $val) = @_;

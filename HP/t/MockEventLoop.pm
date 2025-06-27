@@ -62,7 +62,7 @@ sub _initializeObject {
     if ($key eq 'interface') {
         $self->{interface} = HP::t::MockInterface->new;
     } elsif ($key eq 'controller') {
-        $self->{controller} = HP::t::MockController->new;
+        $self->{controller} = HP::t::MockController->new({}, $self->{interface});
     }
     
     return;

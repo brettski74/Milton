@@ -3,14 +3,12 @@
 use lib '.';
 use Test2::V0;
 use HP::Controller::RTDController;
+use HP::t::MockInterface;
 
 my $EPS = 0.0000001;
 
 # Create a mock interface for testing
-my $mock_interface = {
-    name => 'mock_interface',
-    # Add any interface methods that might be needed
-};
+my $mock_interface = HP::t::MockInterface->new;
 
 # Test basic constructor with 2-point calibration
 note("Testing RTDController constructor with 2-point calibration");
@@ -62,16 +60,12 @@ is($rtd_controller->getTemperature($sts5), float(425.0, tolerance => $EPS), '3 o
 is($sts5->{resistance}, float(3.0, tolerance => $EPS), 'resistance = 3.0');
 is($sts5->{temperature}, float(425.0, tolerance => $EPS), 'temperature = 425.0');
 
-my $rtd_empty = HP::Controller::RTDController->new({});
+my $rtd_empty = HP::Controller::RTDController->new({}, $mock_interface);
 is($rtd_empty->getTemperature({ voltage => 12.0, current => 10.0 }), float(20.0, tolerance => $EPS), 'empty estimator cold');
 is($rtd_empty->getTemperature({ voltage => 11.34, current => 7.0 }), float(109.0585242, tolerance => $EPS), 'empty estimator midpoint');
 is($rtd_empty->getTemperature({ voltage => 12.24, current => 6.0 }), float(198.1170483, tolerance => $EPS), 'empty estimator hot');
 
-my $rtd_one = HP::Controller::RTDController->new({
-    temperatures => [
-        { resistance => 1.2, temperature => 25.0 }
-    ]
-});
+my $rtd_one = HP::Controller::RTDController->new({ temperatures => [ { resistance => 1.2, temperature => 25.0 } ] }, $mock_interface);
 is($rtd_one->getTemperature({ voltage => 12.0, current => 10.0 }), float(25.0, tolerance => $EPS), 'one point estimator cold');
 is($rtd_one->getTemperature({ voltage => 11.34, current => 7.0 }), float(115.8085242, tolerance => $EPS), 'one point estimator midpoint');
 is($rtd_one->getTemperature({ voltage => 12.24, current => 6.0 }), float(206.6170483, tolerance => $EPS), 'one point estimator hot');

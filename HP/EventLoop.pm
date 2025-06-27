@@ -113,6 +113,8 @@ sub _now {
 }
 
 sub _time {
+  my ($self) = @_;
+
   return AnyEvent->time - $self->{'start-time'};
 }
 

@@ -39,6 +39,20 @@ subtest 'construction with custom parameters' => sub {
     is($params->{reset}, 0.002, 'custom reset is set');
 };
 
+subtest 'construction with incomplete parameters' => sub {
+    my $detector = HP::SteadyStateDetector->new(
+        smoothing => 0.85,
+        threshold => 0.01,
+        samples => 7,
+    );
+
+    my $params = $detector->getParameters();
+    is($params->{smoothing}, 0.85, 'custom smoothing is set');
+    is($params->{threshold}, 0.01, 'custom threshold is set');
+    is($params->{samples}, 7, 'custom samples is set');
+    is($params->{reset}, 0.015, 'default reset is 1.5 * threshold');
+};
+
 # Test parameter validation
 subtest 'parameter validation' => sub {
     # Test invalid smoothing
@@ -202,28 +216,28 @@ subtest 'negative deltas' => sub {
     ok(!$detector->check(6.91), "small change, but insufficient history for steady state");
     ok(!$detector->check(6.91), "small change, but insufficient history for steady state");
     
-    my $state = $detector->getState();
+    $state = $detector->getState();
     is($state->{count}, 0, 'count remains 0 with insufficient small change history');
 
     ok(!$detector->check(6.92), 'small change, but insufficient history for steady state');
     ok(!$detector->check(6.92), 'small change, but insufficient history for steady state');
 
-    my $state = $detector->getState();
+    $state = $detector->getState();
     is($state->{count}, 2, 'count incremented as threshold was crossed.');
     ok(!$detector->isSteady(), 'not steady yet');
 
     ok($detector->check(6.91), 'steady state detected');
-    my $state = $detector->getState();
+    $state = $detector->getState();
     is($state->{count}, 3, 'count incremented to reach steady state criteria.');
     ok($detector->isSteady(), 'now steady');
 
     ok($detector->check(6.5), 'larger change, but reset threshold not crossed');
-    my $state = $detector->getState();
+    $state = $detector->getState();
     is($state->{count}, 4, 'count incremented to 4');
     ok($detector->isSteady(), 'still steady');
 
     ok(!$detector->check(6.27), 'moderate change, reset threshold crossed');
-    my $state = $detector->getState();
+    $state = $detector->getState();
     is($state->{count}, 0, 'count reset to 0');
     ok(!$detector->isSteady(), 'not steady any more');
 

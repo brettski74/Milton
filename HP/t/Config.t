@@ -53,6 +53,11 @@ is($cfg2->{command}->{test}->{list}->[2]->{value}, 300, 'list item 3 should be p
 is($cfg2->{command}->{test}->{list}->[3]->{name}, 'item4', 'list item 4 should be preserved');
 is($cfg2->{command}->{test}->{list}->[3]->{value}, 400, 'list item 4 should be preserved');
 
+# Test merging an empty file
+$cfg2->merge('empty.yaml', 'command', 'test');
+is($cfg2->{command}->{test}->{'command-value-1'}, 200, 'command-value-1 should be preserved');
+is($cfg2->{command}->{test}->{'command-value-2'}, 'red', 'command-value-2 should be preserved');
+
 # Test merging a list item
 $cfg2->merge('command/list_item.yaml', 'command', 'test', 'list', 1);
 is($cfg2->{command}->{test}->{list}->[1]->{name}, 'item2', 'list item 2 should be preserved');

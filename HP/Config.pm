@@ -250,6 +250,8 @@ sub merge {
   my ($self, $filename, @path) = @_;
   
   my $data = _load_file($filename);
+  return $self if !defined $data;
+
   my $child = pop @path;
   my $parent = $self->_descend(1, @path);
 

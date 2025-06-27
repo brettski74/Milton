@@ -19,6 +19,9 @@ HP::Config->addSearchDir(@{$args->{library}}
                        );
 
 my $config = HP::Config->new($args->{config});
+if (HP::Config->configFileExists('command/defaults.yaml')) {
+  $config->merge('command/defaults.yaml', 'command', $command);
+}
 if (HP::Config->configFileExists("command/$command.yaml")) {
   $config->merge("command/$command.yaml", 'command', $command);
 }

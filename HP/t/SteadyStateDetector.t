@@ -51,6 +51,19 @@ subtest 'construction with incomplete parameters' => sub {
     is($params->{threshold}, 0.01, 'custom threshold is set');
     is($params->{samples}, 7, 'custom samples is set');
     is($params->{reset}, 0.015, 'default reset is 1.5 * threshold');
+
+    $detector = HP::SteadyStateDetector->new(
+        smoothing => 0.86,
+        threshold => 0.02,
+        samples => 8,
+        reset => undef
+    );
+
+    $params = $detector->getParameters();
+    is($params->{smoothing}, 0.86, 'custom smoothing is set');
+    is($params->{threshold}, 0.02, 'custom threshold is set');
+    is($params->{samples}, 8, 'custom samples is set');
+    is($params->{reset}, 0.03, 'default reset is 1.5 * threshold');
 };
 
 # Test parameter validation

@@ -44,7 +44,14 @@ sub new {
   my $merge = Hash::Merge->new('LEFT_PRECEDENT');
   $self->{config} = $merge->merge($config, $self->defaults);
 
-  GetOptionsFromArray(\@args, $self, $self->options);
+  my @options = $self->options;
+  push @options, 'ambient=f';
+
+  GetOptionsFromArray(\@args, $self, @options);
+
+  if (defined $self->{ambient}) {
+    $self->{controller}->setAmbient($self->{ambient});
+  }
 
   $self->initialize() if $self->can('initialize');
 
@@ -104,14 +111,14 @@ sub defaults {
 
 =head2 options
 
-Return a hash of options for Getopt::Long parsing of the command line arguments.
+Return a list of options for Getopt::Long parsing of the command line arguments.
 
-The default implementation returns an empty hash. Classes that require options should override this method.
+The default implementation returns an empty list. Classes that require options should override this method.
 
 =cut
 
 sub options {
-  return {};
+  return;
 } 
 
 =head2 initialize

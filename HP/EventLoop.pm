@@ -54,7 +54,7 @@ sub new {
 
   $self->{logger} = HP::DataLogger->new($self->{config}->clone('logging'), command => $command);
 
-  $self->{command}->{logger} = $self->{logger};
+  $self->{command}->setLogger($self->{logger});
 
   return $self;
 }
@@ -100,6 +100,9 @@ sub poll {
   } elsif ($event eq 'timerEvent') {
     $self->{'last-timer-status'} = $status;
   }
+
+  # Make sure that we always pass the event loop object to the command
+  $status->{'event-loop'} = $self;
 
   push(@{$self->{history}}, $status);
 
@@ -195,6 +198,8 @@ sub _keyWatcher {
                , key => ReadKey(-1)
                };
 
+  push(@{$self->{history}}, $status);
+
   if ($self->isLineBuffering) {
     $status->{line} = $self->lineBufferInput($status);
     if (defined $status->{line}) {
@@ -224,7 +229,6 @@ sub _timerWatcher {
 
   my $status = $self->poll('timerEvent'
                          , now => $self->_now
-                         , 'event-loop' => $self
                          );
   if (! $cmd->timerEvent($status)) {
     $self->{logger}->log($status);

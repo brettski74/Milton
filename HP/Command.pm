@@ -192,6 +192,25 @@ The key that was pressed.
 #  return;
 #}
 
+=head2 lineEvent($status)
+
+Implement this method in subclasses for commands that require any specific line event logic. Will not work
+without also defining the keyEvent method. The $status object will contain the following additional keys:
+
+=over
+
+=item line
+
+The line of input from the user.
+
+=back
+
+=cut
+
+sub lineEvent {  
+  return;
+}
+
 =head2 postprocess($status, $history)
 
 Implement this method in subclasses for commands that require any specific post-processing logic after the main event loop operation.
@@ -253,6 +272,50 @@ sub prompt {
   }
 
   return $value;
+}
+
+=head2 eventPrompt($prompt, $validChars)
+
+Prompt the user for a value during event processing using line buffering.
+
+=over
+
+=item $prompt
+
+The prompt to display to the user.
+
+=item $validChars
+
+A reference to a regular expression that only matches valid characters. If not provided, all characters are considered valid.
+This does not need to include the backspace or newline characters. Those will always be handled as expected.
+
+=back
+
+=cut
+
+sub eventPrompt {
+  my ($self, $status, $prompt, $validChars) = @_;
+
+  $status->{'event-loop'}->startLineBuffering($prompt, $validChars);
+}
+
+=head2 isLineBuffering($status)
+
+Return true if the command is currently in a line buffer input session, otherwise false.
+
+=over
+
+=item $status
+
+The status object.
+
+=back
+
+=cut
+
+sub isLineBuffering {
+  my ($self, $status) = @_;
+  return $status->{'event-loop'}->isLineBuffering;
 }
 
 =head2 beep

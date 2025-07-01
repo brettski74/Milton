@@ -6,6 +6,7 @@ use EV;
 use Carp;
 use Term::ReadKey;
 use HP::DataLogger;
+use Readonly;
 
 =head1 NAME
 
@@ -52,6 +53,8 @@ sub new {
   $self->_initializeCommand($command, @args);
 
   $self->{logger} = HP::DataLogger->new($self->{config}->clone('logging'), command => $command);
+
+  $self->{command}->{logger} = $self->{logger};
 
   return $self;
 }
@@ -103,6 +106,48 @@ sub poll {
   return $status;
 }
 
+sub isLineBuffering {
+  my ($self) = @_;
+  return exists $self->{'line-buffer'};
+}
+
+sub startLineBuffering {
+  my ($self, $prompt, $validChars) = @_;
+
+  $self->{'line-buffer'} = '';
+  $self->{'line-buffer-valid-chars'} = $validChars;
+  $| = 1;
+  $self->{logger}->hold;
+  print $prompt;
+
+  return;
+}
+Readonly my $BACKSPACE => "\b";
+Readonly my $DELETE => "\x7f";
+
+sub lineBufferInput {
+  my ($self, $status) = @_;
+  my $char = $status->{key};
+
+  if ($char eq $BACKSPACE || $char eq $DELETE) {
+    if ($self->{'line-buffer'} ne '') {
+      print "\b \b";
+    }
+    $self->{'line-buffer'} = substr $self->{'line-buffer'}, 0, -1;
+  } elsif ($char eq "\n") {
+    print "\n";
+    $| = 0;
+    my $result = delete $self->{'line-buffer'};
+    delete $self->{'line-buffer-valid-chars'};
+    $self->{logger}->release;
+    return $result;
+  } elsif (!$self->{'line-buffer-valid-chars'} || $char =~ /$self->{'line-buffer-valid-chars'}/) {
+    print $char;
+    $self->{'line-buffer'} .= $char;
+  }
+  return;
+}
+
 sub _now {
   my ($self) = @_;
   my $now = AnyEvent->now;
@@ -134,23 +179,42 @@ sub _cleanShutdown {
   exit(0);
 }
 
+END {
+  ReadMode('normal');
+}
+
 sub _keyWatcher {
   my ($self, $evl) = @_;
 
   my $cmd = $self->{command};
 
   my $status = { event => 'keyEvent'
+               , 'event-loop' => $self
                , now => $self->_now
                , time => $self->_time
+               , key => ReadKey(-1)
                };
-                                        
-  $status->{key} = ReadKey(-1);
-                                          
-  if (! $cmd->keyEvent($status)) {
+
+  if ($self->isLineBuffering) {
+    $status->{line} = $self->lineBufferInput($status);
+    if (defined $status->{line}) {
+      $status->{event} = 'lineEvent';
+      delete $status->{key};
+      if (! $cmd->lineEvent($status)) {
+        $self->{logger}->log($status);
+        $evl->send;
+        return;
+      }
+    }
+  } else {
+    if (! $cmd->keyEvent($status)) {
+      $self->{logger}->log($status);
+      $evl->send;
+      return;
+    }
     $self->{logger}->log($status);
-    $evl->send;
   }
-  $self->{logger}->log($status);
+                                          
 }
 
 sub _timerWatcher {
@@ -160,6 +224,7 @@ sub _timerWatcher {
 
   my $status = $self->poll('timerEvent'
                          , now => $self->_now
+                         , 'event-loop' => $self
                          );
   if (! $cmd->timerEvent($status)) {
     $self->{logger}->log($status);

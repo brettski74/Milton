@@ -204,6 +204,21 @@ subtest 'reset method' => sub {
     is($state->{last_delta}, undef, 'last_delta is reset to undef');
 };
 
+subtest 'anomalous lab data' => sub {
+    my $detector = HP::SteadyStateDetector->new(
+        smoothing => 0.9,
+        threshold => 0.001,
+        samples => 10,
+    );
+
+    # Set internal state to match lab data
+    $detector->{previous_measurement} = 2.090;
+    $detector->{filtered_delta} = 0.710660;
+    $detector->{count} = 0;
+    ok(!$detector->check(2.103), 'not steady yet');
+    is($detector->{filtered_delta}, float(0.640894, tolerance => 0.001), 'filtered_delta is correctly updated');
+};
+
 # Test edge cases
 subtest 'negative deltas' => sub {
     my $detector = HP::SteadyStateDetector->new(

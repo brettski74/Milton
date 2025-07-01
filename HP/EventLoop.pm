@@ -223,7 +223,7 @@ sub _initializeObject {
     croak "Failed to load $key package: $@";
   }
 
-  $self->{$key} = $self->{config}->{$key}->{package}->new($self->{config}->clone($key), @args);
+  $self->{$key} = $package->new($self->{config}->clone($key), @args);
 
   return;
 }

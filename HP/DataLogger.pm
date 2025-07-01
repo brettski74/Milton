@@ -52,6 +52,7 @@ sub new {
     $self->{formatString} = $self->_buildFormatString;
     $self->{header} = $self->_buildHeader;
     $self->{'column-names'} = [map { $_->{key} } @{$self->{columns}}];
+    $self->{buffer} = [];
 
     if ($self->{tee} && $self->{tee} ne 'false') {
       $self->{tee} = 1;
@@ -119,6 +120,7 @@ A hash reference containing the status data to log.
 
 sub log {
   my ($self, $status) = @_;
+
   my @values = ();
 
   foreach my $column (@{$self->{columns}}) {
@@ -132,8 +134,17 @@ sub log {
     push(@values, $tmp->{$name});
   }
 
-  $self->{fh}->printf($self->{formatString}, @values);
-  printf($self->{formatString}, @values) if $self->{tee};
+  my $logOutput = sprintf($self->{formatString}, @values);
+  $self->{fh}->print($logOutput);
+
+  if ($self->{tee}) {
+    if ($self->{hold}) {
+      push @{$self->{buffer}}, $logOutput;
+    }
+    else {
+      print $logOutput;
+    }
+  }
 }
 
 =head2 logFilename
@@ -158,6 +169,48 @@ sub logColumns {
   my ($self) = @_;
 
   return @{$self->{'column-names'}};
+}
+
+=head2 hold
+
+Holds logging until released. This can be used when obtaining input from the user to prevent the continual log output from creating confusion on screen.
+The logged data will be buffered internally and output after release is called.
+
+=cut
+
+sub hold {
+  my ($self) = @_;
+
+  $self->{hold} = 1;
+}
+
+=head2 flush
+
+Outputs any buffered data due to a hold but does not release the hold.
+
+=cut
+
+sub flush {
+  my ($self) = @_;
+
+  my $buffer = $self->{buffer};
+  while (my $logOutput = shift @$buffer) {
+    print $logOutput if $self->{tee};
+  }
+}
+
+=head2 release
+
+Releases the hold and outputs any buffered data.
+
+=cut
+
+sub release {
+  my ($self) = @_;
+
+  $self->flush;
+  $self->{hold} = 0;
+  $self->flush;
 }
 
 =head2 close

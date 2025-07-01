@@ -7,6 +7,7 @@ use Test2::V0;
 use HP::DataLogger;
 use File::Temp qw(tempfile tempdir);
 use File::Spec;
+use IO::Capture::Stdout;
 
 # Create a temporary directory for log files
 my $tmpdir = tempdir(CLEANUP => 1);
@@ -55,5 +56,147 @@ isa_ok($null_logger, 'HP::DataLogger::Null');
 $null_logger->log({ foo => 1 }); # should do nothing
 is($null_logger->logFilename, undef, 'Null logger returns undef for filename');
 is([$null_logger->logColumns], [], 'Null logger returns empty list for columns');
+
+# Test hold, flush, and release methods
+note('Testing hold, flush, and release methods');
+
+# Create a logger with tee enabled
+my $tee_config = { enabled  => 1
+                 , command  => 'testcmd'
+                 , filename => File::Spec->catfile($tmpdir, 'tee-log-%c-%d.csv')
+                 , tee      => 1
+                 , columns  => [ { key => 'now', format => 'd' }
+                               , { key => 'stage' }
+                               , { key => 'temp', format => '.2f' }
+                               ]
+                 };
+
+my $tee_logger = HP::DataLogger->new($tee_config);
+
+# Test normal logging without hold (should output to STDOUT)
+my $capture = IO::Capture::Stdout->new();
+$capture->start();
+$tee_logger->log({ now => 1, stage => 'A', temp => 25.12 });
+$capture->stop();
+my $output = $capture->read();
+like($output, qr/1,A,25\.12/, 'Normal logging outputs to STDOUT when tee enabled');
+
+# Test hold functionality
+$capture = IO::Capture::Stdout->new();
+$capture->start();
+$tee_logger->hold();
+$tee_logger->log({ now => 2, stage => 'B', temp => 30.34 });
+$tee_logger->log({ now => 3, stage => 'C', temp => 35.56 });
+$capture->stop();
+$output = $capture->read();
+is($output, undef, 'Hold prevents output to STDOUT');
+
+# Test flush functionality
+$capture = IO::Capture::Stdout->new();
+$capture->start();
+$tee_logger->flush();
+$capture->stop();
+$output = $capture->read();
+chomp $output;
+is($output, '2,B,30.34', 'Flush outputs buffered data - first line');
+$output = $capture->read();
+chomp $output;
+is($output, '3,C,35.56', 'Flush outputs buffered data - second line');
+
+# Test that hold is still active after flush
+$capture = IO::Capture::Stdout->new();
+$capture->start();
+$tee_logger->log({ now => 4, stage => 'D', temp => 40.78 });
+$capture->stop();
+$output = $capture->read();
+is($output, undef, 'Hold still active after flush');
+
+# Test release functionality
+$capture = IO::Capture::Stdout->new();
+$capture->start();
+$tee_logger->release();
+$capture->stop();
+$output = $capture->read();
+chomp $output;
+is($output, '4,D,40.78', 'Release outputs remaining buffered data');
+
+# Test that logging works normally after release
+$capture = IO::Capture::Stdout->new();
+$capture->start();
+$tee_logger->log({ now => 5, stage => 'E', temp => 45.90 });
+$capture->stop();
+$output = $capture->read();
+chomp $output;
+is($output, '5,E,45.90', 'Normal logging resumes after release');
+
+# Test multiple hold/release cycles
+$capture = IO::Capture::Stdout->new();
+$capture->start();
+$tee_logger->hold();
+$tee_logger->log({ now => 6, stage => 'F', temp => 50.12 });
+$tee_logger->log({ now => 7, stage => 'G', temp => 55.34 });
+$tee_logger->release();
+$capture->stop();
+$output = $capture->read();
+chomp $output;
+is($output, '6,F,50.12', 'Multiple hold/release cycles work correctly - first line');
+$output = $capture->read();
+chomp $output;
+is($output, '7,G,55.34', 'Multiple hold/release cycles work correctly - second line');
+
+# Test flush without hold (should do nothing)
+$capture = IO::Capture::Stdout->new();
+$capture->start();
+$tee_logger->flush();
+$capture->stop();
+$output = $capture->read();
+is($output, undef, 'Flush does nothing when not holding');
+
+# Test hold without tee (should not affect file logging)
+my $no_tee_config = { enabled  => 1
+                    , command  => 'testcmd'
+                    , filename => File::Spec->catfile($tmpdir, 'no-tee-log-%c-%d.csv')
+                    , tee      => 0
+                    , columns  => [ { key => 'now', format => 'd' }
+                                  , { key => 'stage' }
+                                  , { key => 'temp', format => '.2f' }
+                                  ]
+                    };
+
+my $no_tee_logger = HP::DataLogger->new($no_tee_config);
+$no_tee_logger->hold();
+$no_tee_logger->log({ now => 8, stage => 'H', temp => 60.56 });
+$no_tee_logger->release();
+$no_tee_logger->close();
+
+# Verify file was still written correctly
+open $fh, '<', $no_tee_logger->logFilename or die $!;
+<$fh>; # Skip header
+my $row = <$fh>; chomp $row;
+is($row, '8,H,60.56', 'File logging works correctly even with hold when tee disabled');
+close $fh;
+
+# Test that Null logger methods don't crash
+$null_logger->hold();
+$null_logger->flush();
+$null_logger->release();
+pass('Null logger hold/flush/release methods do not crash');
+
+# Test edge cases
+note('Testing edge cases');
+
+# Test multiple flushes
+$tee_logger->hold();
+$tee_logger->log({ now => 10, stage => 'J', temp => 70.90 });
+$capture = IO::Capture::Stdout->new();
+$capture->start();
+$tee_logger->flush();
+$tee_logger->flush(); # Second flush should do nothing
+$capture->stop();
+$output = $capture->read();
+chomp $output;
+is($output, '10,J,70.90', 'Multiple flushes work correctly (second flush does nothing)');
+
+$tee_logger->close();
 
 done_testing(); 

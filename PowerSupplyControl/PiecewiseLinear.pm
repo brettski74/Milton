@@ -20,6 +20,46 @@ sub new {
   return $self;
 }
 
+=head2 addNamedPoint($x, $y, $name {, $x, $y, $name})
+
+Add a data point to this piecewise linear estimator with a name.
+
+=over
+
+=item $x
+
+The x value for a data point.
+
+=item $y
+
+The y value for a data point.
+
+=item $name
+
+The name for a data point.
+
+=item Return Value
+
+Returns the PiecewiseLinear estimator, so that method calls may be chained.
+
+=back
+
+=cut
+
+sub addNamedPoint {
+  my $self = shift;
+
+  while (@_) {
+    my $x = shift;
+    my $y = shift;
+    my $name = shift;
+
+    push @$self, [ $x, $y, $name ];
+  }
+
+  return $self;
+}
+
 =head2 addPoint($x, $y {, $x, $y})
 
 Add one or more data points to this piecewise linear estimator.
@@ -48,7 +88,9 @@ sub addPoint {
     my $x = shift;
     my $y = shift;
 
-    push @new, [ $x, $y ];
+    my $entry = [ $x, $y ];
+
+    push @new, $entry;
   }
 
   @$self = sort { $a->[0] <=> $b->[0] } (@$self, @new);
@@ -80,7 +122,8 @@ The X value for which a corresponding Y value is required.
 
 =item Return Value
 
-The estimated Y value for the specified X value.
+In a scalar context, returns the estimated Y value for the specified X value.
+In a list context, returns an array of 1 or 2 elements. The first element is the estimated Y value. The second element is the name associated with that segment of the estimator, if one is available.
 
 =back
 
@@ -90,26 +133,38 @@ sub estimate {
   my ($self, $x) = @_;
 
   # Handle empty estimator
-  return undef if @$self == 0;
+  return if @$self == 0;
 
   # Handle single point
   if (@$self == 1) {
+    if (wantarray) {
+      if (defined $self->[0]->[2]) {
+        return ($self->[0]->[1], $self->[0]->[2]);
+      }
+      return ($self->[0]->[1]);
+    }
     return $self->[0]->[1];
   }
 
   # Handle extrapolation below range
   if ($x < $self->[0]->[0]) {
-    return $self->_estimateFromPoints($x, @{$self->[0]}, @{$self->[1]});
+    return $self->_estimateFromPoints($x, $self->[0], $self->[1], $self->[0]);
   }
 
   # Handle extrapolation above range
   if ($x > $self->[-1]->[0]) {
-    return $self->_estimateFromPoints($x, @{$self->[-2]}, @{$self->[-1]});
+    return $self->_estimateFromPoints($x, $self->[-2], $self->[-1], $self->[-1]);
   }
 
   # Handle exact matches
   for my $point (@$self) {
     if ($x == $point->[0]) {
+      if (wantarray) {
+        if (defined $point->[2]) {
+          return ($point->[1], $point->[2]);
+        }
+        return ($point->[1]);
+      }
       return $point->[1];
     }
   }
@@ -120,13 +175,22 @@ sub estimate {
     last if ($x < $self->[$idx]->[0]);
   }
 
-  return $self->_estimateFromPoints($x, @{$self->[$idx-1]}, @{$self->[$idx]});
+  return $self->_estimateFromPoints($x, $self->[$idx-1], $self->[$idx], $self->[$idx-1]);
 }
 
 sub _estimateFromPoints {
-  my ($self, $x, $xlo, $ylo, $xhi, $yhi) = @_;
+  my ($self, $x, $lo, $hi, $name) = @_;
 
-  return ($ylo * ($xhi - $x) + $yhi * ($x - $xlo)) / ($xhi - $xlo);
+  my $y = ($lo->[1] * ($hi->[0] - $x) + $hi->[1] * ($x - $lo->[0])) / ($hi->[0] - $lo->[0]);
+
+  if (wantarray) {
+    if (defined $name->[2]) {
+      return ($y, $name->[2]);
+    }
+    return ($y);
+  }
+
+  return $y;
 }
 
 =head2 length

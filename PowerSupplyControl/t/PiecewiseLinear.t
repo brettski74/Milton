@@ -79,4 +79,56 @@ is($pwl5->estimate(5), 10, 'Interpolate between two points');
 is($pwl5->estimate(-5), -10, 'Extrapolate below two points');
 is($pwl5->estimate(15), 30, 'Extrapolate above two points');
 
+# Test named points and segment naming
+note("Testing addNamedPoint and segment naming");
+my $pwl_named = PowerSupplyControl::PiecewiseLinear->new();
+$pwl_named->addNamedPoint(0, 0, 'A', 10, 20, 'B', 20, 40, 'C');
+
+is($pwl_named->length(), 3, 'Should have 3 named points');
+my @named_points = $pwl_named->getPoints;
+is($named_points[0]->[2], 'A', 'First point name should be A');
+is($named_points[1]->[2], 'B', 'Second point name should be B');
+is($named_points[2]->[2], 'C', 'Third point name should be C');
+
+# Test estimate in list context returns name of segment
+my ($y1, $seg1) = $pwl_named->estimate(5);
+is($y1, 10, 'Interpolate at x=5 should be y=10');
+is($seg1, 'A', 'Segment name for x=5 should be A');
+
+my ($y2, $seg2) = $pwl_named->estimate(15);
+is($y2, 30, 'Interpolate at x=15 should be y=30');
+is($seg2, 'B', 'Segment name for x=15 should be B');
+
+# Test estimate at exact point returns value and name
+my ($y3, $seg3) = $pwl_named->estimate(10);
+is($y3, 20, 'Exact point at x=10 should be y=20');
+is($seg3, 'B' , 'Exact match matches start of segment.');
+
+# Test extrapolation below range returns first segment name
+my ($y4, $seg4) = $pwl_named->estimate(-5);
+is($seg4, 'A', 'Extrapolation below range should return first segment name');
+
+# Test extrapolation above range returns last segment name
+my ($y5, $seg5) = $pwl_named->estimate(25);
+is($seg5, 'C', 'Extrapolation above range should return last segment name');
+
+# Test mixing named and unnamed points
+note("Testing mixed named and unnamed points");
+my $pwl_mixed = PowerSupplyControl::PiecewiseLinear->new();
+$pwl_mixed->addPoint(0, 0, 10, 10);
+$pwl_mixed->addNamedPoint(20, 20, 'Z');
+my ($ym, $segm) = $pwl_mixed->estimate(15);
+is($ym, 15, 'Interpolate at x=15 should be y=15');
+is($segm, undef, 'No segment name for unnamed segment');
+my ($ym2, $segm2) = $pwl_mixed->estimate(21);
+is($segm2, 'Z', 'Segment name for x=19 should be Z');
+
+# Test single named point
+note("Testing single named point");
+my $pwl_single_named = PowerSupplyControl::PiecewiseLinear->new();
+$pwl_single_named->addNamedPoint(42, 99, 'Only');
+my ($ys, $segs) = $pwl_single_named->estimate(42);
+is($ys, 99, 'Single named point returns correct value');
+is($segs, 'Only', 'Single named point always returns name');
+
 done_testing(); 

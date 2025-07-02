@@ -47,9 +47,9 @@ sub getTemperature {
   return;
 }
 
-=head2 setTemperature($status, $target_temp
+=head2 getRequiredPower($status, $target_temp
 
-Attempt to achieve a certain hotplate temperature by the next sample period.
+Calculate the power required to achieve a certain hotplate temperature by the next sample period.
 
 =over
 
@@ -69,7 +69,7 @@ The power to be applied to the hotplate to achieve the target temperature.
 
 =cut
 
-sub setTemperature {
+sub getRequiredPower {
   return;
 }
 

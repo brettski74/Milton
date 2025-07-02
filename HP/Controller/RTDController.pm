@@ -44,10 +44,10 @@ calibration data and start fresh from some (hopefully) sane defaults.
 =cut
 
 sub resetCalibration {
-  my ($self) = @_;
+  my ($self, $flag) = @_;
 
   $self->{rt_estimator} = HP::PiecewiseLinear->new;
-  $self->{reset} = 1;
+  $self->{reset} = $flag // 1;
 }
 
 =head2 getTemperature($status)
@@ -62,7 +62,7 @@ The current status of the hotplate as provided by the framework. It needs to con
 From this, the resistance of the heating element will be calculated. This is then used to estimate the current temperature of the
 hotplate.
 
-On return, the calculatd resistance and temperature values will be placed in the status hash and may be used elsewhere.
+On return, the calculated resistance and temperature values will be placed in the status hash and may be used elsewhere.
 
 =item Return Value
 
@@ -79,12 +79,11 @@ sub getTemperature {
   # If there is insufficient current flowing, temperature cannot be estimated.
   return if ($status->{current} < $self->{interface}->getMinimumCurrent);
 
-  my $resistance = $status->{voltage} / $status->{current};
+  my $resistance = $status->{resistance} // ($status->{voltage} / $status->{current});
 
   # If the estimator is empty, give it some sane defaults assuming a copper heating element
   if ($est->length() == 0 && !$self->{reset}) {
     my $ambient = $self->{ambient} || 20.0;
-    # A 1 ohm copper resistor at 20C will measure about 1.7 ohms at 200C.
     $est->addPoint($resistance, $ambient);
   }
   

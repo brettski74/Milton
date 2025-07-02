@@ -52,24 +52,18 @@ sub new {
   return $self;
 }
 
-=head2 setTemperature($status, $target_temp)
+=head2 getRequiredPower($status, $target_temp)
 
-Set the temperature of the hotplate to the target temperature.
+Calculate the power required to achieve a certain hotplate temperature by the next sample period.
 
 =cut
 
-sub setTemperature {
+sub getRequiredPower {
   my ($self, $status, $target_temp) = @_;
 
   # Set the power to achieve the target temperature
   my $power = $self->{model}->estimatePower($status, $target_temp);
   $power = $self->_filterOutputPower($power);
-  $status->{power} = $power;
-  $self->{interface}->setPower($power);
-
-  $status->{'target-temp'} = $target_temp;
-
-  $self->_logStatus($status);
 
   return $power;
 }

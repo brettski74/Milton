@@ -173,13 +173,23 @@ Run the event loop.
 =cut
 
 sub _cleanShutdown {
-  my $self = shift;
+  my ($self, $notDone) = @_;
 
-  ReadMode('normal');
+  $self->_eventsDone;
 
   $self->{interface}->shutdown;
 
-  exit(0);
+  exit(0) unless $notDone;
+}
+
+sub _eventsDone {
+  my ($self) = @_;
+
+  ReadMode('normal');
+
+  $self->{interface}->on(0);
+
+  return;
 }
 
 END {
@@ -273,7 +283,7 @@ sub run {
 
     $evl->recv;
 
-    $self->_cleanShutdown;
+    $self->_eventsDone;
   }
 
   if ($cmd->can('postprocess')) {

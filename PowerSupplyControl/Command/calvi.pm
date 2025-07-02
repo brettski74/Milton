@@ -53,8 +53,8 @@ Set up for voltage calibration.  You should have your multimeter in parallel wit
 connected to the power supply.  The power supply should be on and connected to your PC, but the outputs should
 be off.
 
-****           YOUR HOTPLATE MAY GET QUITE HOT DURING THIS PROCESS.           ****
-****    YOU MAY WANT TO USE A FAN TO COOL IT DOWN IF YOU HAVE ONE AVAILABLE   ****
+****                        YOUR HOTPLATE MAY GET QUITE HOT DURING THIS PROCESS.                        ****
+****    Monitor the temperature, but avoid fans. Higher temperatures will help with higher voltages.    ****
 
 Press Enter when ready to continue...
 EOS
@@ -82,8 +82,8 @@ sub _writeCalibration {
   $fh->print("$name:\n");
   foreach my $point (@{$points}) {
     $fh->printf("  - requested: %.5f\n", $point->{'requested'});
-    $fh->printf("  - sampled: %.5f\n", $point->{'sampled'});
-    $fh->printf("  - actual: %.5f\n", $point->{'actual'});
+    $fh->printf("    sampled: %.5f\n", $point->{'sampled'});
+    $fh->printf("    actual: %.5f\n", $point->{'actual'});
   }
 }
 

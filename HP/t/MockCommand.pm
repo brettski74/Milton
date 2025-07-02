@@ -23,6 +23,11 @@ sub new {
     }, $class;
 }
 
+sub setLogger {
+  my ($self, $logger) = @_;
+  $self->{logger} = $logger;
+}
+
 sub timerEvent {
     my ($self, $status) = @_;
     # Return true to continue running

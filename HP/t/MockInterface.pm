@@ -87,4 +87,14 @@ sub setCurrent { return; }
 sub setPower { return; }
 sub shutdown { return; }
 
+sub getPowerLimits {
+    my ($self) = @_;
+    return ($self->{min_power} // 0.0, $self->{max_power} // 100.0);
+}
+
+sub getMinimumCurrent {
+    my ($self) = @_;
+    return $self->{min_current} // 0.1;
+}
+
 1; 

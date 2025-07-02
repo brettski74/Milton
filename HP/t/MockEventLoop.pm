@@ -33,6 +33,9 @@ sub new {
     bless $config, 'HP::Config';
     
     my $self = $class->SUPER::new($config, $command, @args);
+
+    $self->{now} = 0;
+    $self->{time} = 0;
     
     return $self;
 }
@@ -40,19 +43,13 @@ sub new {
 sub _now {
   my ($self) = @_;
 
-  if (exists $self->{'last-timer-status'}) {
-    return $self->{'last-timer-status'}->{'now'};
-  }
-  return 0;
+  return $self->{now}++;
 }
 
 sub _time {
   my ($self) = @_;
 
-  if (exists $self->{'last-timer-status'}) {
-    return $self->{'last-timer-status'}->{'time'} || $self->_now;
-  }
-  return $self->_now;
+  return $self->{time}++;
 }
 
 sub _initializeObject {

@@ -145,7 +145,7 @@ sub timerEvent {
 
     if ($self->{detector}) {
       $status->{'steady-state-count'} = $self->{detector}->{count};
-      $status->{'filtered-delta'} = $self->{detector}->{filtered_delta};
+      $status->{'filtered-delta'} = $self->{detector}->{'filtered-delta'};
 
       if ($self->{detector}->check($status->{resistance})) {
         $self->{interface}->off;

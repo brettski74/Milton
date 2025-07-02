@@ -49,20 +49,59 @@ sub new {
     bless $self, $class;
     $self->{filename} = $self->_expandFilename($self->{filename});
     $self->{fh} = IO::File->new($self->{filename}, 'w') || croak "Failed to open log file $self->{filename}: $!";
-    $self->{formatString} = $self->_buildFormatString;
-    $self->{header} = $self->_buildHeader;
-    $self->{'column-names'} = [map { $_->{key} } @{$self->{columns}}];
+    $self->rebuild;
     $self->{buffer} = [];
 
     if ($self->{tee} && $self->{tee} ne 'false') {
       $self->{tee} = 1;
     }
-
-    $self->{fh}->print($self->{header});
-    print $self->{header} if $self->{tee};
   }
 
   return $self;
+}
+
+sub rebuild {
+  my ($self) = @_;
+
+  $self->{formatString} = $self->_buildFormatString;
+  $self->{header} = $self->_buildHeader;
+  $self->{'column-names'} = [map { $_->{key} } @{$self->{columns}}];
+}
+
+sub writeHeader {
+  my ($self) = @_;
+
+  $self->{fh}->print($self->{header});
+  print $self->{header} if $self->{tee};
+}
+
+sub includesColumn {
+  my ($self, $column) = @_;
+
+  return grep { $_->{key} eq $column } @{$self->{columns}};
+}
+
+sub addColumn {
+  my ($self, %col) = @_;
+
+  if (defined $col{key} && $col{key} ne '' && !$self->includesColumn($col{key})) {
+    push @{$self->{columns}}, { %col };
+    $self->rebuild;
+  }
+}
+
+sub addColumns {
+  my ($self, @cols) = @_;
+  my $count = 0;
+
+  foreach my $col (@cols) {
+    if (defined $col->{key} && $col->{key} ne '' && !$self->includesColumn($col->{key})) {  
+      push @{$self->{columns}}, $col;
+      $count++;
+    }
+  }
+
+  $self->rebuild if $count;
 }
 
 sub _expandFilename {

@@ -35,6 +35,7 @@ is(\@cols, [qw(now stage temp power last.power)], 'Columns match config');
 # Check that the file exists and header is correct
 note('Test log file name is '. $logger->logFilename);
 ok(-e $logger->logFilename, 'Log file created');
+$logger->writeHeader;
 
 note('Testing logging rows');
 $logger->log({ now => 1, stage => 'A', temp => 25.12345, power => 100, last => { power => 90 } });
@@ -72,6 +73,7 @@ my $tee_config = { enabled  => 1
                  };
 
 my $tee_logger = HP::DataLogger->new($tee_config);
+$tee_logger->writeHeader;
 
 # Test normal logging without hold (should output to STDOUT)
 my $capture = IO::Capture::Stdout->new();
@@ -164,6 +166,7 @@ my $no_tee_config = { enabled  => 1
                     };
 
 my $no_tee_logger = HP::DataLogger->new($no_tee_config);
+$no_tee_logger->writeHeader;
 $no_tee_logger->hold();
 $no_tee_logger->log({ now => 8, stage => 'H', temp => 60.56 });
 $no_tee_logger->release();

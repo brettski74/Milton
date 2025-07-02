@@ -240,11 +240,13 @@ sub _timerWatcher {
 sub run {
   my $self = shift;
   my $cmd = $self->{command};
+  my $logger = $self->{logger};
+  $logger->writeHeader;
 
   if ($cmd->can('preprocess')) {
     my $status = $self->poll('preprocess');
     $cmd->preprocess($status);
-    $self->{logger}->log($status);
+    $logger->log($status);
   }
 
   if ($cmd->can('timerEvent')) {
@@ -277,7 +279,7 @@ sub run {
   if ($cmd->can('postprocess')) {
     my $status = $self->poll('postprocess');
     $cmd->postprocess($status, $self->{history});
-    $self->{logger}->log($status);
+    $logger->log($status);
   }
 }
 

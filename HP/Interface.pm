@@ -137,7 +137,65 @@ The minimum current required to measure the resistance of the hotplate.
 =cut
 
 sub getMinimumCurrent {
-  return 0.1;
+  return $self->{current}->{minimum} || 0.1;
+}
+
+=head2 getCurrentLimits
+
+Get the minimum and maximum current limits of the power supply.
+
+=over
+
+=item Return Value
+
+A two element list containing the mimimum and maximum current limits configured for this interface.
+
+=back
+
+=cut
+
+sub getCurrentLimits {
+  my ($self) = @_;
+  return ( $self->{current}->{minimum} || 0.1, $self->{current}->{maximum} || 10 );
+}
+
+=head2 getVoltageLimits
+
+Get the minimum and maximum voltage limits of the power supply.
+
+=over
+
+=item Return Value
+
+
+A two element list containing the mimimum and maximum voltage limits configured for this interface.
+
+=back
+
+=cut
+
+sub getVoltageLimits {
+  my ($self) = @_;
+  return ( $self->{voltage}->{minimum} || 1, $self->{voltage}->{maximum} || 30 );
+}
+
+=head2 getPowerLimits
+
+Get the minimum and maximum power limits of the power supply.
+
+=over
+
+=item Return Value
+
+A two element list containing the mimimum and maximum power limits configured for this interface.
+
+=back
+
+=cut
+
+sub getPowerLimits {
+  my ($self) = @_;
+  return ( $self->{power}->{minimum} || 0, $self->{power}->{maximum} || 120 );
 }
 
 =head2 shutdown
@@ -147,6 +205,16 @@ Shut off the power to the hotplate and close the connection.
 =cut
 
 sub shutdown {
+  return;
+}
+
+=head2 resetCalibration
+
+Reset the calibration of the power supply.
+
+=cut
+
+sub resetCalibration {
   return;
 }
 

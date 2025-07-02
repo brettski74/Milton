@@ -2,6 +2,9 @@ package HP::Command;
 
 use Getopt::Long qw(GetOptionsFromArray :config no_ignore_case bundling require_order);
 use Hash::Merge;
+use IO::File;
+use Carp qw(croak);
+use Scalar::Util qw(reftype);
 
 =head1 NAME
 
@@ -61,6 +64,15 @@ sub new {
 sub timestamp {
   my ($sec, $min, $hour, $day, $month, $year) = localtime(time);
   return sprintf("%04d%02d%02d-%02d%02d%02d", $year + 1900, $month + 1, $day, $hour, $min, $sec);
+}
+
+sub replaceFile {
+  my ($self, $filename) = @_;
+
+  if (-f $filename) {
+    rename $filename, "$filename." . $self->timestamp;
+  }
+  return IO::File->new($filename, 'w') || croak "Failed to open $filename: $!";
 }
 
 =head1 STATUS OBJECT
@@ -261,7 +273,9 @@ the default value will be returned.
 sub prompt {
   my ($self, $prompt, $default) = @_;
 
-  print "$prompt [$default] ";
+  print "$prompt ";
+  print "[$default] " if defined $default;
+
   my $value = <STDIN>;
   chomp $value;
   $value =~ s/^\s+//;
@@ -296,6 +310,9 @@ This does not need to include the backspace or newline characters. Those will al
 sub eventPrompt {
   my ($self, $status, $prompt, $validChars) = @_;
 
+  croak "\$status parameter is not a hash reference: $status" unless reftype($status) eq 'HASH';
+  croak "\$status->{'event-loop'} not defined or is not an EventLoop object: $status->{'event-loop'}" unless ref($status->{'event-loop'}) && $status->{'event-loop'}->isa('HP::EventLoop');
+
   $status->{'event-loop'}->startLineBuffering($prompt, $validChars);
 }
 
@@ -316,6 +333,18 @@ The status object.
 sub isLineBuffering {
   my ($self, $status) = @_;
   return $status->{'event-loop'}->isLineBuffering;
+}
+
+=head2 setLogger($logger)
+
+Set the logger for the command.
+
+=cut
+
+sub setLogger {
+  my ($self, $logger) = @_;
+  $self->{logger} = $logger;
+  $self->{logger}->addColumns(@{$self->{config}->{logging}->{columns}});
 }
 
 =head2 beep

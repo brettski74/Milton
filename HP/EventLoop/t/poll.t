@@ -51,7 +51,14 @@ subtest 'mixed event sequence' => sub {
     my $t2 = $ev->poll('timerEvent');
     my $k2 = $ev->poll('keyEvent');
     my $t3 = $ev->poll('timerEvent');
-    
+
+    # Verify that the event loop object is available in the status object
+    ref_is($t1->{'event-loop'}, $ev, 't1->event-loop === ev');
+    ref_is($t2->{'event-loop'}, $ev, 't2->event-loop === ev');
+    ref_is($t3->{'event-loop'}, $ev, 't3->event-loop === ev');
+    ref_is($k1->{'event-loop'}, $ev, 'k1->event-loop === ev');
+    ref_is($k2->{'event-loop'}, $ev, 'k2->event-loop === ev');
+
     # Verify timer chain
     ref_is($t1->{next}, $t2, 't1->next = t2');
     ref_is($t2->{next}, $t3, 't2->next = t3');

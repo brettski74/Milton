@@ -17,7 +17,7 @@ subtest 'construction with defaults' => sub {
     is($params->{reset}, 0.00015, 'default reset is 1.5 * threshold');
     
     my $state = $detector->getState();
-    is($state->{filtered_delta}, undef, 'initial filtered_delta is undef');
+    is($state->{'filtered-delta'}, undef, 'initial filtered-delta is undef');
     is($state->{count}, 0, 'initial count is 0');
     is($state->{previous_measurement}, undef, 'initial previous_measurement is undef');
     is($state->{last_delta}, undef, 'initial last_delta is undef');
@@ -96,7 +96,7 @@ subtest 'first measurement handling' => sub {
     
     my $state = $detector->getState();
     is($state->{previous_measurement}, 10.0, 'first measurement is stored');
-    is($state->{filtered_delta}, undef, 'filtered_delta still undef after first measurement');
+    is($state->{'filtered-delta'}, undef, 'filtered-delta still undef after first measurement');
     is($state->{count}, 0, 'count still 0 after first measurement');
 };
 
@@ -107,23 +107,23 @@ subtest 'IIR filtering' => sub {
     # First call should just store the measurement
     $detector->check(10.0);
     
-    # Second call should initialize filtered_delta
+    # Second call should initialize filtered-delta
     my $result = $detector->check(11.0);
     my $state = $detector->getState();
-    is($state->{filtered_delta}, 1.0, 'second call initializes filtered_delta to delta');
+    is($state->{'filtered-delta'}, 1.0, 'second call initializes filtered-delta to delta');
     is($state->{last_delta}, 1.0, 'last_delta is set correctly');
     is($state->{previous_measurement}, 11.0, 'previous_measurement is updated');
     
     # Third call should apply IIR filter
     $result = $detector->check(12.0);
     $state = $detector->getState();
-    is($state->{filtered_delta}, 1.0, 'IIR filter maintains value with constant delta');
+    is($state->{'filtered-delta'}, 1.0, 'IIR filter maintains value with constant delta');
     is($state->{last_delta}, 1.0, 'last_delta is updated');
     
     # Test with changing delta
     $result = $detector->check(13.5);
     $state = $detector->getState();
-    is($state->{filtered_delta}, 1.25, 'IIR filter averages with new delta');
+    is($state->{'filtered-delta'}, 1.25, 'IIR filter averages with new delta');
 };
 
 # Test steady state detection
@@ -191,14 +191,14 @@ subtest 'reset method' => sub {
     $detector->check(10.05);
     
     my $state = $detector->getState();
-    isnt($state->{filtered_delta}, undef, 'filtered_delta is set');
+    isnt($state->{'filtered-delta'}, undef, 'filtered-delta is set');
     is($state->{count}, number_gt(0), 'count is >0');
     isnt($state->{previous_measurement}, undef, 'previous_measurement is set');
     
     # Reset
     $detector->reset();
     $state = $detector->getState();
-    is($state->{filtered_delta}, undef, 'filtered_delta is reset to undef');
+    is($state->{'filtered-delta'}, undef, 'filtered-delta is reset to undef');
     is($state->{count}, 0, 'count is reset to 0');
     is($state->{previous_measurement}, undef, 'previous_measurement is reset to undef');
     is($state->{last_delta}, undef, 'last_delta is reset to undef');
@@ -213,10 +213,10 @@ subtest 'anomalous lab data' => sub {
 
     # Set internal state to match lab data
     $detector->{previous_measurement} = 2.090;
-    $detector->{filtered_delta} = 0.710660;
+    $detector->{'filtered-delta'} = 0.710660;
     $detector->{count} = 0;
     ok(!$detector->check(2.103), 'not steady yet');
-    is($detector->{filtered_delta}, float(0.640894, tolerance => 0.001), 'filtered_delta is correctly updated');
+    is($detector->{'filtered-delta'}, float(0.640894, tolerance => 0.001), 'filtered-delta is correctly updated');
 };
 
 # Test edge cases

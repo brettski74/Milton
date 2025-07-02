@@ -86,7 +86,7 @@ sub new {
     threshold => $threshold,
     samples => $samples,
     reset => $reset,
-    filtered_delta => undef,
+    'filtered-delta' => undef,
     count => 0,
     previous_measurement => undef
   };
@@ -127,17 +127,17 @@ sub check {
   $self->{last_delta} = $delta;
 
   # Apply IIR low-pass filter
-  if (defined $self->{filtered_delta}) {
-    $self->{filtered_delta} = $self->{smoothing} * $self->{filtered_delta} + 
+  if (defined $self->{'filtered-delta'}) {
+    $self->{'filtered-delta'} = $self->{smoothing} * $self->{'filtered-delta'} + 
                              (1 - $self->{smoothing}) * $delta;
   } else {
-    $self->{filtered_delta} = $delta;
+    $self->{'filtered-delta'} = $delta;
   }
 
   # Check steady state criteria
-  if (abs($self->{filtered_delta}) < $self->{threshold}) {
+  if (abs($self->{'filtered-delta'}) < $self->{threshold}) {
     $self->{count}++;
-  } elsif (abs($self->{filtered_delta}) < $self->{reset}) {
+  } elsif (abs($self->{'filtered-delta'}) < $self->{reset}) {
     if ($self->{count} > 0) {
       $self->{count}++;
     }
@@ -177,7 +177,7 @@ and previous measurement, effectively starting fresh detection.
 sub reset {
   my ($self) = @_;
 
-  $self->{filtered_delta} = undef;
+  $self->{'filtered-delta'} = undef;
   $self->{count} = 0;
   $self->{previous_measurement} = undef;
   $self->{last_delta} = undef;
@@ -190,7 +190,7 @@ sub reset {
 Get the current state of the detector.
 
 Returns a hash reference containing:
-- filtered_delta: The current filtered delta value
+- 'filtered-delta': The current filtered delta value
 - count: The current count of steady state samples
 - previous_measurement: The previous measurement value
 - last_delta: The last raw delta value
@@ -201,7 +201,7 @@ sub getState {
   my ($self) = @_;
 
   return {
-    filtered_delta => $self->{filtered_delta},
+    'filtered-delta' => $self->{'filtered-delta'},
     count => $self->{count},
     previous_measurement => $self->{previous_measurement},
     last_delta => $self->{last_delta}

@@ -1,0 +1,11 @@
+# Default configuration for all commands. Can be overridden by command-specific configuration.
+
+# Current levels - minimum, default and maximum in amps.
+current:
+  startup: 2
+
+# Steady-state detection criteria
+steady-state:
+  samples: 20
+  threshold: 0.0001
+  smoothing: 0.9

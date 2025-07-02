@@ -6,10 +6,10 @@ use lib '..';
 use strict;
 use warnings qw(all -uninitialized);
 
-use HP::EventLoop;
-use HP::t::MockEventLoop;
-use HP::Command::linebuffertest;
-use HP::Config;
+use PowerSupplyControl::EventLoop;
+use PowerSupplyControl::t::MockEventLoop;
+use PowerSupplyControl::Command::linebuffertest;
+use PowerSupplyControl::Config;
 
 system 'rm -f line_input_test.*.csv';
 
@@ -28,9 +28,8 @@ my $config = { logging => { enabled => 'true'
              , command => { linebuffertest => {} }
              };
 
-bless $config, 'HP::Config';
-#my $evl = HP::t::MockEventLoop->new($config, 'linebuffertest');
-my $evl = HP::EventLoop->new($config, 'linebuffertest');
+bless $config, 'PowerSupplyControl::Config';
+my $evl = PowerSupplyControl::EventLoop->new($config, 'linebuffertest');
 
 $evl->run;
 

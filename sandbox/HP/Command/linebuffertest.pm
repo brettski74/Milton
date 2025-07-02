@@ -1,9 +1,9 @@
-package HP::Command::linebuffertest;
+package PowerSupplyControl::Command::linebuffertest;
 
 use strict;
 use warnings qw(all -uninitialized);
 
-use base qw(HP::Command);
+use base qw(PowerSupplyControl::Command);
 
 sub keyEvent {
   my ($self, $status)= @_;

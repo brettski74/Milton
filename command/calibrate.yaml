@@ -1,0 +1,67 @@
+# calibrate:
+# The set of calibration temperatures to be captured during the calibration.
+# If specified as numbers, you should use celsius.
+# You can also use many solder alloy abbreviations like Sn63Pb37 for the
+# the standard eutectic tin-lead solder alloy. This is handy if you are using
+# solder alloys for your calibration temperature "sensors" and will use the
+# melting point of those alloys as the calibration temperature.
+# The list will be sorted internally, so the order does not matter here.
+# 
+temperatures:
+  - 100
+  - 140
+  - 180
+  - 200
+
+# The initial current to send to the hotplate when calibration starts. This
+# is to allow measurement of the resistance of the heating element when the
+# calibration cycle starts. We need an initial estimate of the resistance to
+# be able to apply a known power level to the hotplate.
+initial-current: 2
+
+# The rate of temperature increase to use during the slow-ramp portion of the
+# hotplate calibration. This is only approximate, since we won't have
+# accurate mapping from resistance to temperature, yet. It needs to be
+# reasonably slow to avoid inaccuracies due to thermal inertia and offset
+# effects. Keeping the rate of temperature rise to be reasonably slow should
+# help minimize some of these effects.
+ramp-rate: 0.3
+
+# The smoothing factor to be applied to hotplate readings when looking for a
+# steady state condition. This must be a value be greater than 0 and less
+# than 1. Values closer to 1 mean more smoothing, slower response, lower
+# sensitivity to noise and a longer time for the calibration cycle to settle.
+# Values closer to 0 mean the opposite of all of that. Given that this is a
+# calibration of a heating device, lower noise sensitivity is a good thing.
+# Spend 20-30 minutes calibrating your hotplates. You'll be happy you did!
+steady-state-smoothing: 0.9
+
+# The number of samples required to consider the hotplate at a steady state
+# condition. More samples generally means longer time for the calibration
+# cycle to settle and a higher probability of getting closer to the true
+# steady state during the calibration.
+steady-state-samples: 10
+
+# The maximum difference between successive resistance readings to start
+# counting samples toward the steady state condition.
+steady-state-threshold: 0.0001
+
+# The minimum difference between successive resistance readings to stop
+# counting samples toward the steady state condition and reset the steady
+# state sample count to zero.
+steady-state-reset: 0.00015
+
+# The number of seconds to hold at a constant temperature after the completion
+# of the slow-ramp stage of calibration and before starting the constant power
+# cool down. This is to help ensure that the cool down curve that is measured
+# starts from a reasonably steady state of the hotplate and avoid any
+# inaccuracies due to thermal inertia and offset effects.
+hold-time: 15
+
+# The power in watts to be applied to the hotplate during the warm up and cool
+# down stages of the calibration. Ideally, this should be set to a reasonable
+# power level that should get the hotplate somewhere close to the mid point of
+# its operating range - perhaps somewhere around 90-100 celsius. The default
+# value of 29W should do fine for hotplates that are roughly 100mm x 100mm.
+calibration-power: 29
+

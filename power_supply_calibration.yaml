@@ -1,0 +1,101 @@
+current:
+  - requested: 8.00000
+    sampled: 8.01200
+    actual: 8.01100
+  - requested: 7.00000
+    sampled: 7.01600
+    actual: 7.01000
+  - requested: 6.00000
+    sampled: 6.01000
+    actual: 6.00080
+  - requested: 5.00000
+    sampled: 5.01000
+    actual: 5.00070
+  - requested: 4.00000
+    sampled: 4.01200
+    actual: 4.00650
+  - requested: 3.00000
+    sampled: 3.01000
+    actual: 3.00470
+  - requested: 2.00000
+    sampled: 2.01000
+    actual: 2.00460
+  - requested: 1.80000
+    sampled: 1.81000
+    actual: 1.80450
+  - requested: 1.60000
+    sampled: 1.61000
+    actual: 1.60380
+  - requested: 1.40000
+    sampled: 1.41000
+    actual: 1.40350
+  - requested: 1.20000
+    sampled: 1.21000
+    actual: 1.20290
+  - requested: 1.00000
+    sampled: 1.00900
+    actual: 1.00230
+  - requested: 0.80000
+    sampled: 0.80000
+    actual: 0.80000
+  - requested: 0.60000
+    sampled: 0.60000
+    actual: 0.59990
+voltage:
+  - requested: 15.00000
+    sampled: 14.99600
+    actual: 14.93800
+  - requested: 14.00000
+    sampled: 13.99000
+    actual: 13.93600
+  - requested: 13.00000
+    sampled: 13.00000
+    actual: 12.95500
+  - requested: 12.00000
+    sampled: 11.99300
+    actual: 11.95300
+  - requested: 11.00000
+    sampled: 11.00000
+    actual: 10.96200
+  - requested: 10.00000
+    sampled: 9.99000
+    actual: 9.95900
+  - requested: 9.00000
+    sampled: 8.99200
+    actual: 8.97100
+  - requested: 8.00000
+    sampled: 7.98100
+    actual: 7.96500
+  - requested: 7.00000
+    sampled: 6.99000
+    actual: 6.97500
+  - requested: 6.00000
+    sampled: 5.99000
+    actual: 5.97450
+  - requested: 5.00000
+    sampled: 4.99600
+    actual: 4.98450
+  - requested: 4.00000
+    sampled: 3.98300
+    actual: 3.97930
+  - requested: 3.00000
+    sampled: 2.99000
+    actual: 2.98700
+  - requested: 2.00000
+    sampled: 1.98000
+    actual: 1.98420
+  - requested: 1.80000
+    sampled: 1.78600
+    actual: 1.78850
+  - requested: 1.60000
+    sampled: 1.59000
+    actual: 1.59300
+  - requested: 1.40000
+    sampled: 1.39000
+    actual: 1.39580
+  - requested: 1.20000
+    sampled: 1.18000
+    actual: 1.18730
+  - requested: 1.00000
+    sampled: 0.99000
+    actual: 0.99220

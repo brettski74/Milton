@@ -1,0 +1,31 @@
+# The set of temperatures for which to calibrate the holding power and resistance.
+# Note that since this command assumes that we have no calibration as of yet, it
+# will likely calculate values on slightly different temperatures than those
+# specified, but it will attempt to obtain values as close as reasonably possible
+# to these temperatures.
+# Calibrating temperatures below 75 celsius may be very slow and is not recommended.
+temperatures:
+  - 75
+  - 100
+  - 140
+  - 180
+  - 200
+
+# The number of on-off cycles to complete during the bang-bang stages of the
+# calibration. The first few captures will be skipped to allow the hotplate to
+# stabilize. After that the specified number of high-low cycles will be completed
+# and captured for calibration calculations.
+cycles:
+  capture: 20
+  skip: 8
+
+logging:
+  columns:
+    - key: steady-state-count
+      format: d
+    - key: filtered-delta
+      format: .6f
+    - key: sample-count
+      format: d
+    - key: transition-count
+      format: d

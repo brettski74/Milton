@@ -1,0 +1,6 @@
+now,event,power,voltage,current,resistance,temperature,steady-state-count
+0.000,preprocess,0.00,0.00,0.00,0.000,0.0,0
+0.000,timerEvent,0.02,0.16,0.10,1.600,55.6,0
+1.349,timerEvent,49.80,8.19,6.08,1.347,12.7,0
+2.702,timerEvent,37.80,7.34,5.15,1.425,26.0,0
+5.002,timerEvent,39.59,7.54,5.25,1.436,27.9,0

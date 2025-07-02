@@ -1,0 +1,3 @@
+now,event,power,voltage,current,resistance,temperature,stage
+0.000,preprocess,0.52,0.99,0.53,1.86792,0.0,
+0.000,postprocess,0.00,0.00,0.00,0.00000,0.0,

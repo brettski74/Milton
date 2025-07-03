@@ -36,14 +36,14 @@ sub new {
   return $self;
 }
 
-=head2 resetCalibration($status)
+=head2 resetTemperatureCalibration($status)
 
 Reset the calibration of this controller. This may be called during hotplate calibration if it is desired to ignore the old
 calibration data and start fresh from some (hopefully) sane defaults.
 
 =cut
 
-sub resetCalibration {
+sub resetTemperatureCalibration {
   my ($self, $flag) = @_;
 
   $self->{rt_estimator} = PowerSupplyControl::PiecewiseLinear->new;

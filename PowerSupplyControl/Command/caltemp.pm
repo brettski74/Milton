@@ -11,9 +11,9 @@ use Carp qw(confess);
 use Math::Round qw(round);
 
 sub new {
-    my ($class, $config, $controller, $interface, @args) = @_;
+    my ($class, $config, $interface, $controller, @args) = @_;
 
-    my $self = $class->SUPER::new($config, $controller, $interface, @args);
+    my $self = $class->SUPER::new($config, $interface, $controller, @args);
 
     $self->{temperatures} = [ sort { $a <=> $b } @{$config->{temperatures}} ];
 
@@ -42,7 +42,7 @@ sub preprocess {
 
     $interface->poll($status);
     $self->{controller}->setAmbient($self->{ambient});
-    $self->{controller}->resetCalibration(0);
+    $self->{controller}->resetTemperatureCalibration(0);
     $self->{controller}->getTemperature($status);
     $self->{'calibration-points'} = [ { temperature => $self->{ambient}, resistance => $status->{resistance}, power => 0 } ];
 
@@ -81,14 +81,14 @@ sub lineEvent {
   push @{$self->{'calibration-points'}}, { temperature => $temperature
                                          , resistance => $mean_resistance
                                          , power => $mean_power
-                                         , thermal_resistance => $thermal_resistance
+                                         , 'thermal-resistance' => $thermal_resistance
                                          };
 
   print "calibration-points: " . scalar @{$self->{'calibration-points'}} . "\n";
 
-  $self->{controller}->resetCalibration(1);
+  $self->{controller}->resetTemperatureCalibration(1);
   foreach my $point (@{$self->{'calibration-points'}}) {
-    $self->{controller}->setCalibrationPoint($point->{temperature}, $point->{resistance});
+    $self->{controller}->setTemperaturePoint($point->{temperature}, $point->{resistance});
   }
 
   print "calibration reset complete\n";

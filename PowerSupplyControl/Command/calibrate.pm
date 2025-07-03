@@ -262,7 +262,7 @@ sub preprocess {
   $self->{controller}->setAmbient($self->{ambient});
 
   if (!$self->{keep}) {
-    $self->{controller}->resetCalibration;
+    $self->{controller}->resetTemperatureCalibration;
   }
 
   $self->{'starting-temperature'} = $self->prompt('Current hotplate temperature', $self->{ambient});
@@ -279,7 +279,7 @@ sub preprocess {
   $status->{stage} = 'preprocess';
   $status->{temperature} = $self->{'starting-temperature'};
   $status->{resistance} = $status->{voltage} / $status->{current};
-  $self->{controller}->setCalibrationPoint($status->{temperature}, $status->{resistance});
+  $self->{controller}->setTemperaturePoint($status->{temperature}, $status->{resistance});
   print "Calibration point set: $status->{'temperature'} => $status->{'resistance'}\n";
 
   # Ensure that the starting temperature is part of our calibration set.

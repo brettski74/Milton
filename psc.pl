@@ -7,15 +7,15 @@ use PowerSupplyControl::Config;
 use PowerSupplyControl::EventLoop;
 
 my $args = { config => 'psc.yaml' };
-GetOptions($args, 'config=s', 'library=s@');
+GetOptions($args, 'config=s', 'override=s@', 'library=s@');
 
 my $command = shift;
 PowerSupplyControl::Config->addSearchDir(@{$args->{library}}
                        , split(/:/, $ENV{PSC_CONFIG_PATH})
                        , '.'
-                       , "$ENV{HOME}/.psc-config"
-                       , '/usr/local/share/psc-config'
-                       , '/usr/share/psc-config'
+                       , "$ENV{HOME}/.config/psc"
+                       , '/usr/local/share/psc'
+                       , '/usr/share/psc'
                        );
 
 my $config = PowerSupplyControl::Config->new($args->{config});

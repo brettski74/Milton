@@ -23,6 +23,7 @@ my $cfg2 = PowerSupplyControl::Config->new('testconfig.yaml');
 is($cfg2->{test1}, 'value1');
 is($cfg2->{test2}, 'value2');
 is($cfg2->{test3}, { colour => 'green', size => 'large' });
+is($cfg2->getPath, 't/testconfig.yaml');
 
 # Test configFileExists method
 note("Testing configFileExists method");
@@ -36,6 +37,7 @@ ok(!PowerSupplyControl::Config->configFileExists('command/are_you_serious.yaml')
 $cfg2->merge('command/test.yaml', 'command', 'test');
 is($cfg2->{command}->{test}->{'command-value-1'}, 100);
 is($cfg2->{command}->{test}->{'command-value-2'}, 'red');
+is($cfg2->getPath, 't/testconfig.yaml');
 
 # Test merging with pre-existing keys (deep merge)
 note("Testing merge with pre-existing keys");
@@ -52,11 +54,13 @@ is($cfg2->{command}->{test}->{list}->[2]->{name}, 'item3', 'list item 3 should b
 is($cfg2->{command}->{test}->{list}->[2]->{value}, 300, 'list item 3 should be preserved');
 is($cfg2->{command}->{test}->{list}->[3]->{name}, 'item4', 'list item 4 should be preserved');
 is($cfg2->{command}->{test}->{list}->[3]->{value}, 400, 'list item 4 should be preserved');
+is($cfg2->getPath, 't/testconfig.yaml');
 
 # Test merging an empty file
 $cfg2->merge('empty.yaml', 'command', 'test');
 is($cfg2->{command}->{test}->{'command-value-1'}, 200, 'command-value-1 should be preserved');
 is($cfg2->{command}->{test}->{'command-value-2'}, 'red', 'command-value-2 should be preserved');
+is($cfg2->getPath, 't/testconfig.yaml');
 
 # Test merging a list item
 $cfg2->merge('command/list_item.yaml', 'command', 'test', 'list', 1);
@@ -73,6 +77,7 @@ is($include_cfg->{app_name}, 'HP Controller', 'app_name');
 is($include_cfg->{version}, '1.0.0', 'version');
 is($include_cfg->{debug}, 1, 'debug');
 is($include_cfg->{environment}, 'development', 'environment');
+is($include_cfg->getPath, 't/include_base.yaml');
 
 # Test that included controller configuration is loaded
 ok(exists $include_cfg->{controller}, 'Controller configuration should be included');

@@ -66,7 +66,14 @@ sub _load_file {
   my $include = YAML::PP::Schema::Include->new;
   my $ypp = YAML::PP->new(schema => ['+', $include]);
   $include->yp($ypp);
-  return $ypp->load_file($path->stringify);
+
+  my $pathstring = $path->stringify;
+
+  my $result = $ypp->load_file($pathstring);
+
+  $result->{' path'} = $pathstring;
+  
+  return $result;
 }
 
 =head2 _resolve_file_path($filename)
@@ -274,6 +281,17 @@ sub merge {
   }
 
   return $self;
+}
+
+=head2 path
+
+Return the path from which this configuration was loaded.
+
+=cut
+
+sub getPath {
+  my ($self) = @_;
+  return $self->{' path'};
 }
 
 1;

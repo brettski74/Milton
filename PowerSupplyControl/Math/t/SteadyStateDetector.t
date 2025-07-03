@@ -6,11 +6,11 @@ use warnings;
 use Test2::V0;
 use lib '.';
 
-use PowerSupplyControl::SteadyStateDetector;
+use PowerSupplyControl::Math::SteadyStateDetector;
 
 # Test construction with default parameters
 subtest 'construction with defaults' => sub {
-    my $detector = PowerSupplyControl::SteadyStateDetector->new();
+    my $detector = PowerSupplyControl::Math::SteadyStateDetector->new();
     
     my $params = $detector->getParameters();
     is($params->{smoothing}, 0.9, 'default smoothing is 0.9');
@@ -27,7 +27,7 @@ subtest 'construction with defaults' => sub {
 
 # Test construction with custom parameters
 subtest 'construction with custom parameters' => sub {
-    my $detector = PowerSupplyControl::SteadyStateDetector->new(
+    my $detector = PowerSupplyControl::Math::SteadyStateDetector->new(
         smoothing => 0.8,
         threshold => 0.001,
         samples => 5,
@@ -42,7 +42,7 @@ subtest 'construction with custom parameters' => sub {
 };
 
 subtest 'construction with incomplete parameters' => sub {
-    my $detector = PowerSupplyControl::SteadyStateDetector->new(
+    my $detector = PowerSupplyControl::Math::SteadyStateDetector->new(
         smoothing => 0.85,
         threshold => 0.01,
         samples => 7,
@@ -54,7 +54,7 @@ subtest 'construction with incomplete parameters' => sub {
     is($params->{samples}, 7, 'custom samples is set');
     is($params->{reset}, 0.015, 'default reset is 1.5 * threshold');
 
-    $detector = PowerSupplyControl::SteadyStateDetector->new(
+    $detector = PowerSupplyControl::Math::SteadyStateDetector->new(
         smoothing => 0.86,
         threshold => 0.02,
         samples => 8,
@@ -71,26 +71,26 @@ subtest 'construction with incomplete parameters' => sub {
 # Test parameter validation
 subtest 'parameter validation' => sub {
     # Test invalid smoothing
-    ok(dies { PowerSupplyControl::SteadyStateDetector->new(smoothing => 0) }, 'dies with zero smoothing');
-    ok(dies { PowerSupplyControl::SteadyStateDetector->new(smoothing => 1) }, 'dies with smoothing = 1');
-    ok(dies { PowerSupplyControl::SteadyStateDetector->new(smoothing => -0.1) }, 'dies with negative smoothing');
-    ok(dies { PowerSupplyControl::SteadyStateDetector->new(smoothing => 1.1) }, 'dies with smoothing > 1');
+    ok(dies { PowerSupplyControl::Math::SteadyStateDetector->new(smoothing => 0) }, 'dies with zero smoothing');
+    ok(dies { PowerSupplyControl::Math::SteadyStateDetector->new(smoothing => 1) }, 'dies with smoothing = 1');
+    ok(dies { PowerSupplyControl::Math::SteadyStateDetector->new(smoothing => -0.1) }, 'dies with negative smoothing');
+    ok(dies { PowerSupplyControl::Math::SteadyStateDetector->new(smoothing => 1.1) }, 'dies with smoothing > 1');
     
     # Test invalid threshold
-    ok(dies { PowerSupplyControl::SteadyStateDetector->new(threshold => 0) }, 'dies with zero threshold');
-    ok(dies { PowerSupplyControl::SteadyStateDetector->new(threshold => -0.1) }, 'dies with negative threshold');
+    ok(dies { PowerSupplyControl::Math::SteadyStateDetector->new(threshold => 0) }, 'dies with zero threshold');
+    ok(dies { PowerSupplyControl::Math::SteadyStateDetector->new(threshold => -0.1) }, 'dies with negative threshold');
     
     # Test invalid samples
-    ok(dies { PowerSupplyControl::SteadyStateDetector->new(samples => 0) }, 'dies with zero samples');
-    ok(dies { PowerSupplyControl::SteadyStateDetector->new(samples => -1) }, 'dies with negative samples');
+    ok(dies { PowerSupplyControl::Math::SteadyStateDetector->new(samples => 0) }, 'dies with zero samples');
+    ok(dies { PowerSupplyControl::Math::SteadyStateDetector->new(samples => -1) }, 'dies with negative samples');
     
     # Test invalid reset
-    ok(dies { PowerSupplyControl::SteadyStateDetector->new(threshold => 0.001, reset => 0.0005) }, 'dies with reset <= threshold');
+    ok(dies { PowerSupplyControl::Math::SteadyStateDetector->new(threshold => 0.001, reset => 0.0005) }, 'dies with reset <= threshold');
 };
 
 # Test first measurement handling
 subtest 'first measurement handling' => sub {
-    my $detector = PowerSupplyControl::SteadyStateDetector->new(smoothing => 0.5, threshold => 1.0, samples => 1);
+    my $detector = PowerSupplyControl::Math::SteadyStateDetector->new(smoothing => 0.5, threshold => 1.0, samples => 1);
     
     # First call should just store the measurement and return false
     my $result = $detector->check(10.0);
@@ -104,7 +104,7 @@ subtest 'first measurement handling' => sub {
 
 # Test IIR filtering
 subtest 'IIR filtering' => sub {
-    my $detector = PowerSupplyControl::SteadyStateDetector->new(smoothing => 0.5, threshold => 1.0, samples => 1);
+    my $detector = PowerSupplyControl::Math::SteadyStateDetector->new(smoothing => 0.5, threshold => 1.0, samples => 1);
     
     # First call should just store the measurement
     $detector->check(10.0);
@@ -130,7 +130,7 @@ subtest 'IIR filtering' => sub {
 
 # Test steady state detection
 subtest 'steady state detection' => sub {
-    my $detector = PowerSupplyControl::SteadyStateDetector->new(
+    my $detector = PowerSupplyControl::Math::SteadyStateDetector->new(
         smoothing => 0.6,
         threshold => 0.1,
         samples => 3,
@@ -182,7 +182,7 @@ subtest 'steady state detection' => sub {
 
 # Test reset method
 subtest 'reset method' => sub {
-    my $detector = PowerSupplyControl::SteadyStateDetector->new(smoothing => 0.6, threshold => 0.1, samples => 3, reset => 0.2);
+    my $detector = PowerSupplyControl::Math::SteadyStateDetector->new(smoothing => 0.6, threshold => 0.1, samples => 3, reset => 0.2);
     
     # Build up some state
     $detector->check(10.0);
@@ -207,7 +207,7 @@ subtest 'reset method' => sub {
 };
 
 subtest 'anomalous lab data' => sub {
-    my $detector = PowerSupplyControl::SteadyStateDetector->new(
+    my $detector = PowerSupplyControl::Math::SteadyStateDetector->new(
         smoothing => 0.9,
         threshold => 0.001,
         samples => 10,
@@ -223,7 +223,7 @@ subtest 'anomalous lab data' => sub {
 
 # Test edge cases
 subtest 'negative deltas' => sub {
-    my $detector = PowerSupplyControl::SteadyStateDetector->new(
+    my $detector = PowerSupplyControl::Math::SteadyStateDetector->new(
         smoothing => 0.6,
         threshold => 0.1,
         samples => 3,
@@ -281,7 +281,7 @@ sub stepResponse {
 
 # Test realistic scenario
 subtest 'real-ish scenario' => sub {
-    my $detector = PowerSupplyControl::SteadyStateDetector->new(
+    my $detector = PowerSupplyControl::Math::SteadyStateDetector->new(
         smoothing => 0.9,
         threshold => 0.001,
         samples => 5,

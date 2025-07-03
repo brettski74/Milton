@@ -1,4 +1,4 @@
-package PowerSupplyControl::ThermalModel;
+package PowerSupplyControl::Math::ThermalModel;
 
 use strict;
 use warnings qw(all -uninitialized);
@@ -368,4 +368,4 @@ sub predictPower {
   return $power;
 }
 
-1;
+1; 

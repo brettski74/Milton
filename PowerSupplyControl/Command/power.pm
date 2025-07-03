@@ -6,7 +6,7 @@ use warnings qw(all -uninitialized);
 use Time::HiRes qw(sleep);
 
 use base qw(PowerSupplyControl::Command);
-use PowerSupplyControl::SteadyStateDetector;
+use PowerSupplyControl::Math::SteadyStateDetector;
 use Carp;
 
 =head1 NAME
@@ -30,9 +30,9 @@ turned off.
 =cut
 
 sub new {
-    my ($class, $config, $controller, $interface, @args) = @_;
+    my ($class, $config, $interface, $controller, @args) = @_;
 
-    my $self = $class->SUPER::new($config, $controller, $interface, @args);
+    my $self = $class->SUPER::new($config, $interface, $controller, @args);
 
     $self->{power} = $args[0] || $config->{power}->{default};
 
@@ -42,7 +42,7 @@ sub new {
     $self->{reset} //= $config->{'steady-state'}->{reset};
 
     if ($self->{samples} > 0 && !$self->{run}) {
-      $self->{detector} = PowerSupplyControl::SteadyStateDetector->new(smoothing => $self->{smoothing}
+      $self->{detector} = PowerSupplyControl::Math::SteadyStateDetector->new(smoothing => $self->{smoothing}
                                                                       , threshold => $self->{threshold}
                                                                       , samples => $self->{samples}
                                                                       , reset => $self->{reset}

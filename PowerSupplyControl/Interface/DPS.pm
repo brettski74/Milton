@@ -5,7 +5,7 @@ use base qw(PowerSupplyControl::Interface Exporter);
 use IO::Dir;
 use Readonly;
 use List::Util qw(min max);
-use PowerSupplyControl::PiecewiseLinear;
+use PowerSupplyControl::Math::PiecewiseLinear;
 
 use Device::Modbus::RTU::Client;
 use Math::Round;
@@ -213,8 +213,8 @@ sub _setupCalibration {
 
   return unless $points && @$points;
 
-  my $outputCal = PowerSupplyControl::PiecewiseLinear->new;
-  my $requestedCal = PowerSupplyControl::PiecewiseLinear->new;
+  my $outputCal = PowerSupplyControl::Math::PiecewiseLinear->new;
+my $requestedCal = PowerSupplyControl::Math::PiecewiseLinear->new;
   foreach my $point (@$points) {
     if (exists $point->{actual}) {
       if (exists $point->{sampled}) { 

@@ -25,7 +25,7 @@ isa_ok($rtd_controller, 'PowerSupplyControl::Controller');
 
 # Test that the RT estimator was created
 ok(exists $rtd_controller->{rt_estimator}, 'RT estimator should be created');
-isa_ok($rtd_controller->{rt_estimator}, 'PowerSupplyControl::PiecewiseLinear');
+isa_ok($rtd_controller->{rt_estimator}, 'PowerSupplyControl::Math::PiecewiseLinear');
 
 # Test resistance to temperature conversion - exact points
 note("Testing resistance to temperature conversion at calibration points");

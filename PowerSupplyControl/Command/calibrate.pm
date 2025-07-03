@@ -507,9 +507,9 @@ sub _verifyCalibrationPoints {
 sub _calculateResistanceTemperatureMapping {
   my ($self) = @_;
 
-  my $pwl = $PowerSupplyControl::PiecewiseLinear->new;
+  my $pwl = $PowerSupplyControl::Math::PiecewiseLinear->new;
   my $points = $self->{'calibration-points'};
-  my $mapping = PowerSupplyControl::PiecewiseLinear->new;
+  my $mapping = PowerSupplyControl::Math::PiecewiseLinear->new;
 
   # Get the resistance at the point before and after the keypress and use linear interpolation to estimate the resistance at the keypress.
   foreach my $point (@$points) {
@@ -580,7 +580,7 @@ sub _averagePowerResistance {
 sub _calculateHeatCapacity {
   my ($self) = @_;
 
-  my $est = PowerSupplyControl::FirstOrderStepEstimator->new(resistance => $self->{'thermal-resistance'});
+  my $est = PowerSupplyControl::Math::FirstOrderStepEstimator->new(resistance => $self->{'thermal-resistance'});
   my $warmUp = $est->fitCurve($self->{'warm-up-history'}, 'temp', 'now');
   my $coolDown = $est->fitCurve($self->{'cool-down-history'}, 'temp', 'now');
 

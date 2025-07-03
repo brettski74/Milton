@@ -1,7 +1,7 @@
 package PowerSupplyControl::Controller::RTDController;
 
 use strict;
-use PowerSupplyControl::PiecewiseLinear;
+use PowerSupplyControl::Math::PiecewiseLinear;
 use base qw(PowerSupplyControl::Controller);
 use Readonly;
 
@@ -27,7 +27,7 @@ sub new {
   my $self = $class->SUPER::new($config, $interface);
 
   # Convert the temperature/resistance values into a piecewise linear estimator
-  my $est = PowerSupplyControl::PiecewiseLinear->new;
+  my $est = PowerSupplyControl::Math::PiecewiseLinear->new;
   foreach my $measurement (@{$self->{temperatures}}) {
     $est->addPoint($measurement->{resistance}, $measurement->{temperature});
   }
@@ -46,7 +46,7 @@ calibration data and start fresh from some (hopefully) sane defaults.
 sub resetTemperatureCalibration {
   my ($self, $flag) = @_;
 
-  $self->{rt_estimator} = PowerSupplyControl::PiecewiseLinear->new;
+  $self->{rt_estimator} = PowerSupplyControl::Math::PiecewiseLinear->new;
   $self->{reset} = $flag // 1;
 }
 

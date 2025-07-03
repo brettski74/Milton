@@ -1,4 +1,4 @@
-package PowerSupplyControl::PiecewiseLinear;
+package PowerSupplyControl::Math::PiecewiseLinear;
 
 =head1 CONSTRUCTOR
 
@@ -229,4 +229,4 @@ sub end {
   return $self->[-1]->[0];
 }
 
-1;
+1; 

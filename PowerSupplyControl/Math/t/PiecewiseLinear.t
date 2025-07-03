@@ -2,12 +2,12 @@
 
 use lib '.';
 use Test2::V0;
-use PowerSupplyControl::PiecewiseLinear;
+use PowerSupplyControl::Math::PiecewiseLinear;
 
 # Test basic constructor
 note("Testing constructor");
-my $pwl = PowerSupplyControl::PiecewiseLinear->new();
-isa_ok($pwl, 'PowerSupplyControl::PiecewiseLinear');
+my $pwl = PowerSupplyControl::Math::PiecewiseLinear->new();
+isa_ok($pwl, 'PowerSupplyControl::Math::PiecewiseLinear');
 is($pwl->length(), 0, 'New estimator should have 0 points');
 
 # Test adding single point
@@ -56,16 +56,16 @@ is($pwl->estimate(40), 140, 'Extrapolate further above should continue gradient'
 
 # Test method chaining
 note("Testing method chaining");
-my $pwl3 = PowerSupplyControl::PiecewiseLinear->new();
+my $pwl3 = PowerSupplyControl::Math::PiecewiseLinear->new();
 my $result = $pwl3->addPoint(1, 2)->addPoint(3, 4);
-isa_ok($result, 'PowerSupplyControl::PiecewiseLinear');
+isa_ok($result, 'PowerSupplyControl::Math::PiecewiseLinear');
 is($result->length(), 2, 'Should have 2 points after chaining');
 is($result->estimate(1), 2, 'Should return exact value for existing point');
 is($result->estimate(3), 4, 'Should return exact value for existing point');
 
 # Test with single point (edge case)
 note("Testing single point edge case");
-my $pwl4 = PowerSupplyControl::PiecewiseLinear->new();
+my $pwl4 = PowerSupplyControl::Math::PiecewiseLinear->new();
 $pwl4->addPoint(5, 10);
 is($pwl4->estimate(5), 10, 'Single point should return exact value');
 is($pwl4->estimate(0), 10, 'Extrapolate below single point should return point value');
@@ -73,7 +73,7 @@ is($pwl4->estimate(10), 10, 'Extrapolate above single point should return point 
 
 # Test with two points
 note("Testing two points");
-my $pwl5 = PowerSupplyControl::PiecewiseLinear->new();
+my $pwl5 = PowerSupplyControl::Math::PiecewiseLinear->new();
 $pwl5->addPoint(0, 0, 10, 20);
 is($pwl5->estimate(5), 10, 'Interpolate between two points');
 is($pwl5->estimate(-5), -10, 'Extrapolate below two points');
@@ -81,7 +81,7 @@ is($pwl5->estimate(15), 30, 'Extrapolate above two points');
 
 # Test named points and segment naming
 note("Testing addNamedPoint and segment naming");
-my $pwl_named = PowerSupplyControl::PiecewiseLinear->new();
+my $pwl_named = PowerSupplyControl::Math::PiecewiseLinear->new();
 $pwl_named->addNamedPoint(0, 0, 'A', 10, 20, 'B', 20, 40, 'C');
 
 is($pwl_named->length(), 3, 'Should have 3 named points');
@@ -114,7 +114,7 @@ is($seg5, 'C', 'Extrapolation above range should return last segment name');
 
 # Test mixing named and unnamed points
 note("Testing mixed named and unnamed points");
-my $pwl_mixed = PowerSupplyControl::PiecewiseLinear->new();
+my $pwl_mixed = PowerSupplyControl::Math::PiecewiseLinear->new();
 $pwl_mixed->addPoint(0, 0, 10, 10);
 $pwl_mixed->addNamedPoint(20, 20, 'Z');
 my ($ym, $segm) = $pwl_mixed->estimate(15);
@@ -125,7 +125,7 @@ is($segm2, 'Z', 'Segment name for x=19 should be Z');
 
 # Test single named point
 note("Testing single named point");
-my $pwl_single_named = PowerSupplyControl::PiecewiseLinear->new();
+my $pwl_single_named = PowerSupplyControl::Math::PiecewiseLinear->new();
 $pwl_single_named->addNamedPoint(42, 99, 'Only');
 my ($ys, $segs) = $pwl_single_named->estimate(42);
 is($ys, 99, 'Single named point returns correct value');

@@ -4,15 +4,15 @@ use strict;
 use warnings qw(all -uninitialized);
 use lib '.';
 use Test2::V0;
-use PowerSupplyControl::FirstOrderStepEstimator;
+use PowerSupplyControl::Math::FirstOrderStepEstimator;
 
 # Seed the random number generator for repeatable tests
 srand(20250624);
 
 # Test construction
 note("Constructor and property assignment");
-my $est = PowerSupplyControl::FirstOrderStepEstimator->new(resistance => 10);
-isa_ok($est, 'PowerSupplyControl::FirstOrderStepEstimator');
+my $est = PowerSupplyControl::Math::FirstOrderStepEstimator->new(resistance => 10);
+isa_ok($est, 'PowerSupplyControl::Math::FirstOrderStepEstimator');
 is($est->{resistance}, 10, 'Resistance set');
 
 # Test fitting a simple exponential (simulate T(t) = 100 - 100*exp(-t/20))
@@ -62,7 +62,7 @@ compareResult($result
 
 # Test with no resistance (capacitance should be undefined)
 note("No resistance provided");
-my $est2 = PowerSupplyControl::FirstOrderStepEstimator->new(resistance => 0);
+my $est2 = PowerSupplyControl::Math::FirstOrderStepEstimator->new(resistance => 0);
 $result = $est2->fitCurve($data, 'temp', 'time');
 compareResult($result
             , capacitance => undef
@@ -71,7 +71,7 @@ compareResult($result
 
 # Test with missing resistance (capacitance should be undefined)
 note("Missing resistance");
-my $est3 = PowerSupplyControl::FirstOrderStepEstimator->new();
+my $est3 = PowerSupplyControl::Math::FirstOrderStepEstimator->new();
 $result = $est3->fitCurve($data, 'temp', 'time');
 compareResult($result
             , capacitance => undef
@@ -81,7 +81,7 @@ compareResult($result
 # Cooling down dataset
 note("Cooling down dataset");
 my $data2 = generateDataSet(180, 20, 45);
-my $est4 = PowerSupplyControl::FirstOrderStepEstimator->new(resistance => 2.5);
+my $est4 = PowerSupplyControl::Math::FirstOrderStepEstimator->new(resistance => 2.5);
 $result = $est4->fitCurve($data2, 'temp', 'time', final => 20);
 compareResult($result
             , tau => float(45, tolerance => 0.0001)
@@ -141,4 +141,4 @@ sub generateDataSet {
     push @$data, { time => $time, temp => $temp };
   }
   return $data;
-}
+} 

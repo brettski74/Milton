@@ -6,7 +6,7 @@ use warnings qw(all -uninitialized);
 use base qw(PowerSupplyControl::Command::StateMachineCommand);
 use Time::HiRes qw(sleep);
 use PowerSupplyControl::Config;
-use PowerSupplyControl::SteadyStateDetector;
+use PowerSupplyControl::Math::SteadyStateDetector;
 use Carp qw(confess);
 use Math::Round qw(round);
 
@@ -197,7 +197,7 @@ sub _setupSteady {
   $meanPower /= scalar @$samples;
   $meanResistance /= scalar @$samples;
 
-  $self->{'steady-state'} = PowerSupplyControl::SteadyStateDetector->new(%{$self->{config}->clone('steady-state')});
+  $self->{'steady-state'} = PowerSupplyControl::Math::SteadyStateDetector->new(%{$self->{config}->clone('steady-state')});
   $self->{'manual-steady-state'} = 0;
 
   $self->{'steady-power'} = $meanPower * ($self->{'target-temperature'} - $self->{'ambient-temperature'}) / ($meanTemperature - $self->{'ambient-temperature'});

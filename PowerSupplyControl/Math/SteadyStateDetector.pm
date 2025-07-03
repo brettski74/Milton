@@ -1,4 +1,4 @@
-package PowerSupplyControl::SteadyStateDetector;
+package PowerSupplyControl::Math::SteadyStateDetector;
 
 use strict;
 use warnings qw(all -uninitialized);
@@ -7,11 +7,11 @@ use Carp;
 
 =head1 NAME
 
-PowerSupplyControl::SteadyStateDetector - Detect steady state conditions using IIR filtering and hysteresis
+PowerSupplyControl::Math::SteadyStateDetector - Detect steady state conditions using IIR filtering and hysteresis
 
 =head1 SYNOPSIS
 
-  my $detector = PowerSupplyControl::SteadyStateDetector->new(
+  my $detector = PowerSupplyControl::Math::SteadyStateDetector->new(
     smoothing => 0.9,
     threshold => 0.0001,
     samples => 10,

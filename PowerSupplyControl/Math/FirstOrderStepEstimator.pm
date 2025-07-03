@@ -1,4 +1,4 @@
-package PowerSupplyControl::FirstOrderStepEstimator;
+package PowerSupplyControl::Math::FirstOrderStepEstimator;
 
 use strict;
 use warnings qw(all -uninitialized);
@@ -6,14 +6,14 @@ use Carp;
 
 =head1 NAME
 
-PowerSupplyControl::FirstOrderStepEstimator - First-order step response estimator for electrical/thermal systems
+PowerSupplyControl::Math::FirstOrderStepEstimator - First-order step response estimator for electrical/thermal systems
 
 =head1 SYNOPSIS
 
-    use PowerSupplyControl::FirstOrderStepEstimator;
+    use PowerSupplyControl::Math::FirstOrderStepEstimator;
     
     # Create estimator for a thermal system
-    my $estimator = PowerSupplyControl::FirstOrderStepEstimator->new(
+    my $estimator = PowerSupplyControl::Math::FirstOrderStepEstimator->new(
         initial => 25.0,      # Initial value (eg. temperature, voltage, etc) (°C)
         final   => 100.0,     # Final value (eg. temperature, voltage, etc) (°C)
         resistance => 10.0    # Thermal resistance (°C/W) or electrical resistance (Ω)
@@ -29,7 +29,7 @@ PowerSupplyControl::FirstOrderStepEstimator - First-order step response estimato
 
 =head1 DESCRIPTION
 
-PowerSupplyControl::FirstOrderStepEstimator implements a first-order step response estimator for thermal systems.
+PowerSupplyControl::Math::FirstOrderStepEstimator implements a first-order step response estimator for thermal systems.
 It analyzes temperature vs. time data to estimate the time constant (τ) and step response
 characteristics of a first-order thermal system.
 
@@ -172,7 +172,7 @@ Only calculated if resistance was provided in the constructor.
     ];
     
     # Create estimator
-    my $estimator = PowerSupplyControl::FirstOrderStepEstimator->new(
+    my $estimator = PowerSupplyControl::Math::FirstOrderStepEstimator->new(
         initial => 25.0,
         final   => 100.0,
         resistance => 5.0
@@ -224,7 +224,7 @@ Brett Gersekowski
 
 =head1 SEE ALSO
 
-L<PowerSupplyControl::Controller>, L<PowerSupplyControl::PiecewiseLinear>
+L<PowerSupplyControl::Controller>, L<PowerSupplyControl::Math::PiecewiseLinear>
 
 =cut
 
@@ -340,4 +340,4 @@ sub fitCurve {
   return $result;
 }
 
-1;
+1; 

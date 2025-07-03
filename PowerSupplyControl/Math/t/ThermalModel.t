@@ -5,13 +5,13 @@ use warnings;
 
 use lib '.';
 use Test2::V0;
-use PowerSupplyControl::ThermalModel;
+use PowerSupplyControl::Math::ThermalModel;
 
-my $model = PowerSupplyControl::ThermalModel->new({
+my $model = PowerSupplyControl::Math::ThermalModel->new({
     resistance => 2.5,
     capacity => 40,
 });
-isa_ok($model, 'PowerSupplyControl::ThermalModel');
+isa_ok($model, 'PowerSupplyControl::Math::ThermalModel');
 
 is($model->period, 1, 'Default period');
 is($model->ambient, 20, 'Default ambient');
@@ -70,10 +70,10 @@ is($model->capacity, 10, 'capacity');
 is($model->kp, 0.15, 'kp');
 is($model->kt, 0.001875, 'kt');
 
-$model = PowerSupplyControl::ThermalModel->new({ capacity => 40, resistance => 2.5 });
+$model = PowerSupplyControl::Math::ThermalModel->new({ capacity => 40, resistance => 2.5 });
 is($model->predictDeltaT(100, 20), 2.5, 'predict temperature change for 100W power applied at 20C ambient');
 is($model->predictDeltaT(80, 60), 1.6, 'predict temperature change for 80W power applied at 60C ambient');
 is($model->predictPower(20, 21), 40, 'predict power required to achieve temperature change from 20 to 21');
 is($model->predictPower(60, 61.2), float(64, tolerance => 0.0000001), 'predict power required to achieve temperature change from 60 to 61.2');
 
-done_testing;
+done_testing; 

@@ -21,7 +21,7 @@ isa_ok($controller, 'PowerSupplyControl::Controller::RTDController');
 isa_ok($controller, 'PowerSupplyControl::Controller');
 
 # Test inheritance - should have RTD estimator
-is($controller->estimatorLength(), 2, 'Should have 2 calibration points from config');
+is($controller->temperatureEstimatorLength(), 2, 'Should have 2 calibration points from config');
 
 # Test bang-bang control logic
 note("Testing bang-bang control logic");

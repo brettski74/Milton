@@ -17,8 +17,8 @@ A mock controller that provides a simple two-point calibration by default.
 sub new {
     my ($class, @args) = @_;
     my $self = $class->SUPER::new(@args);
-    $self->setCalibrationPoint(0, 1);
-    $self->setCalibrationPoint(100, 2);
+    $self->setTemperaturePoint(0, 1);
+    $self->setTemperaturePoint(100, 2);
     return $self;
 }
 

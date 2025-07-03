@@ -147,9 +147,9 @@ sub getAmbient {
   return $self->{ambient};
 }
 
-=head2 setCalibrationPoint($temperature, $resistance)
+=head2 setTemperaturePoint($temperature, $resistance)
 
-Set a calibration point for the RTD estimator.
+Set a temperature calibration point for the RTD estimator.
 
 =over
 
@@ -165,18 +165,18 @@ The measured resistance of the hotplate at this calibration point.
 
 =cut
 
-sub setCalibrationPoint {
+sub setTemperaturePoint {
   my ($self, $temperature, $resistance) = @_;
   $self->{rt_estimator}->addPoint($resistance, $temperature);
 }
 
-=head2 estimatorLength()
+=head2 temperatureEstimatorLength()
 
 Get the number of calibration points in the RTD estimator.
 
 =cut
 
-sub estimatorLength {
+sub temperatureEstimatorLength {
   my ($self) = @_;  
   return $self->{rt_estimator}->length();
 }

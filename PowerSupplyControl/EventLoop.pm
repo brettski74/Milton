@@ -137,7 +137,7 @@ sub lineBufferInput {
       print "\b \b";
     }
     $self->{'line-buffer'} = substr $self->{'line-buffer'}, 0, -1;
-  } elsif ($char eq "\n") {
+  } elsif ($char eq "\n" || $char eq "\r") {
     print "\n";
     $| = 0;
     my $result = delete $self->{'line-buffer'};
@@ -319,7 +319,7 @@ sub _initializeCommand {
     croak "Failed to load $cmd_pkg: $@";
   }
 
-  $self->{command} = $cmd_pkg->new($self->{config}->clone('command', $command), $self->{controller}, $self->{interface}, @args);
+  $self->{command} = $cmd_pkg->new($self->{config}->clone('command', $command), $self->{interface}, $self->{controller}, @args);
 }
 
 1;

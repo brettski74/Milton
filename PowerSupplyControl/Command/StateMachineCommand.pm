@@ -6,9 +6,9 @@ use warnings qw(all -uninitialized);
 use base qw(PowerSupplyControl::Command);
 
 sub new {
-    my ($class, $config, $controller, $interface, @args) = @_;
+    my ($class, $config, $interface, $controller, @args) = @_;
 
-    my $self = $class->SUPER::new($config, $controller, $interface, @args);
+    my $self = $class->SUPER::new($config, $interface, $controller, @args);
 
     return $self;
 }

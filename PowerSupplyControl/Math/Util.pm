@@ -7,6 +7,7 @@ use Scalar::Util qw(reftype);
 use Exporter 'import';
 
 our @EXPORT_OK = qw(
+  mean
   mean_squared_error
 );
 
@@ -151,6 +152,53 @@ sub mean_squared_error {
   }
 
   return $sum / scalar(@samples);
+}
+
+=head2 mean($values, $key1, $val1{, $key2, $val2, ...})
+
+Calculate mean values from a list of hashes.
+
+=over
+
+=item $values
+
+A reference to a list of hash references.
+
+=item $key1, $key2, ..., $keyN
+
+The hash keys corresponding to each variable from which the sample data to be averaged will be taken.
+
+=item $val1, $val2, ..., $valN
+
+The set of variables to which the mean values will be assigned.
+
+=cut
+
+sub mean {
+  my $values = shift;
+  my @count = ();
+
+  for (my $idx = 1; $idx < @_; $idx += 2) {
+    $_[$idx] = undef;
+    $count[$idx] = 0;
+  }
+
+  foreach my $row (@$values) {
+    for (my $idx = 1; $idx < @_; $idx += 2) {
+      my $key = $_[$idx-1];
+      
+      if (defined $row->{$key}) {
+        $_[$idx] += $row->{$key};
+        $count[$idx]++;
+      }
+    }
+  }
+
+  for (my $idx = 1; $idx < @_; $idx += 2) {
+    $_[$idx] /= $count[$idx] if defined($_[$idx]) && $count[$idx] > 0;
+  }
+
+  return;
 }
 
 1;

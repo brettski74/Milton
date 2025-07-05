@@ -208,6 +208,18 @@ sub getState {
   };
 }
 
+=head2 getCount
+
+Get the current count of steady state samples.
+
+=cut
+
+sub getCount {
+  my ($self) = @_;
+
+  return $self->{count};
+}
+
 =head2 getParameters()
 
 Get the current parameters of the detector.

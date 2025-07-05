@@ -5,11 +5,12 @@
 # to these temperatures.
 # Calibrating temperatures below 75 celsius may be very slow and is not recommended.
 temperatures:
-  - 75
-  - 100
-  - 140
-  - 180
-  - 200
+#  - 75
+#  - 100
+#  - 130
+#  - 170
+#  - 200
+  - 215
 
 # The number of on-off cycles to complete during the bang-bang stages of the
 # calibration. The first few captures will be skipped to allow the hotplate to

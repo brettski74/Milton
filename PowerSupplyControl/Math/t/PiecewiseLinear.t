@@ -209,4 +209,133 @@ my @no_valid_points = (
 $pwl_no_valid->addHashPoints('x', 'y', @no_valid_points);
 is($pwl_no_valid->length(), 0, 'Should have 0 points when no valid points provided');
 
+# Test addNamedHashPoints method
+note("Testing addNamedHashPoints method");
+
+# Test basic addNamedHashPoints functionality
+my $pwl_named_hash = PowerSupplyControl::Math::PiecewiseLinear->new();
+my @named_hash_points = (
+    { temperature => 0, power => 20, name => 'cold' },
+    { temperature => 100, power => 80, name => 'warm' },
+    { temperature => 200, power => 120, name => 'hot' }
+);
+
+$pwl_named_hash->addNamedHashPoints('temperature', 'power', 'name', @named_hash_points);
+is($pwl_named_hash->length(), 3, 'Should have 3 named points from hash data');
+
+# Test that points are sorted by x value (temperature) and have names
+my @named_hash_points_result = $pwl_named_hash->getPoints;
+is($named_hash_points_result[0]->[0], 0, 'First point temperature should be 0');
+is($named_hash_points_result[0]->[1], 20, 'First point power should be 20');
+is($named_hash_points_result[0]->[2], 'cold', 'First point name should be cold');
+is($named_hash_points_result[1]->[0], 100, 'Second point temperature should be 100');
+is($named_hash_points_result[1]->[1], 80, 'Second point power should be 80');
+is($named_hash_points_result[1]->[2], 'warm', 'Second point name should be warm');
+is($named_hash_points_result[2]->[0], 200, 'Third point temperature should be 200');
+is($named_hash_points_result[2]->[1], 120, 'Third point power should be 120');
+is($named_hash_points_result[2]->[2], 'hot', 'Third point name should be hot');
+
+# Test interpolation with named hash points
+my ($y_hash1, $seg_hash1) = $pwl_named_hash->estimate(50);
+is($y_hash1, 50, 'Interpolate at 50°C should be 50W');
+is($seg_hash1, 'cold', 'Segment name for 50°C should be cold');
+
+my ($y_hash2, $seg_hash2) = $pwl_named_hash->estimate(150);
+is($y_hash2, 100, 'Interpolate at 150°C should be 100W');
+is($seg_hash2, 'warm', 'Segment name for 150°C should be warm');
+
+# Test exact point values from named hash
+my ($y_hash3, $seg_hash3) = $pwl_named_hash->estimate(0);
+is($y_hash3, 20, 'Exact point at 0°C should be 20W');
+is($seg_hash3, 'cold', 'Exact point at 0°C should have name cold');
+
+my ($y_hash4, $seg_hash4) = $pwl_named_hash->estimate(100);
+is($y_hash4, 80, 'Exact point at 100°C should be 80W');
+is($seg_hash4, 'warm', 'Exact point at 100°C should have name warm');
+
+my ($y_hash5, $seg_hash5) = $pwl_named_hash->estimate(200);
+is($y_hash5, 120, 'Exact point at 200°C should be 120W');
+is($seg_hash5, 'hot', 'Exact point at 200°C should have name hot');
+
+# Test method chaining with addNamedHashPoints
+my $pwl_named_chain = PowerSupplyControl::Math::PiecewiseLinear->new();
+my $named_chain_result = $pwl_named_chain->addNamedHashPoints('x', 'y', 'name', 
+    { x => 1, y => 2, name => 'first' },
+    { x => 3, y => 4, name => 'second' }
+);
+isa_ok($named_chain_result, 'PowerSupplyControl::Math::PiecewiseLinear');
+is($named_chain_result->length(), 2, 'Should have 2 named points after chaining');
+
+# Test addNamedHashPoints with missing keys
+my $pwl_named_missing = PowerSupplyControl::Math::PiecewiseLinear->new();
+my @named_missing_points = (
+    { temperature => 0, power => 20, name => 'cold' },
+    { temperature => 100, power => 80 },  # missing name
+    { temperature => 200, name => 'hot' }, # missing power
+    { power => 120, name => 'hot' },      # missing temperature
+    { temperature => 300, power => 150, name => 'very_hot' }
+);
+
+$pwl_named_missing->addNamedHashPoints('temperature', 'power', 'name', @named_missing_points);
+is($pwl_named_missing->length(), 2, 'Should only add points with all three keys present');
+
+# Test addNamedHashPoints with empty array
+my $pwl_named_empty = PowerSupplyControl::Math::PiecewiseLinear->new();
+$pwl_named_empty->addNamedHashPoints('x', 'y', 'name');
+is($pwl_named_empty->length(), 0, 'Should have 0 points with empty array');
+
+# Test addNamedHashPoints with different key names
+my $pwl_named_diff_keys = PowerSupplyControl::Math::PiecewiseLinear->new();
+my @named_diff_key_points = (
+    { resistance => 100, temp => 25, zone => 'low' },
+    { resistance => 200, temp => 50, zone => 'medium' },
+    { resistance => 300, temp => 75, zone => 'high' }
+);
+
+$pwl_named_diff_keys->addNamedHashPoints('resistance', 'temp', 'zone', @named_diff_key_points);
+is($pwl_named_diff_keys->length(), 3, 'Should have 3 named points with different key names');
+
+my ($y_diff_named, $seg_diff_named) = $pwl_named_diff_keys->estimate(150);
+is($y_diff_named, 37.5, 'Interpolate at resistance 150 should be temp 37.5');
+is($seg_diff_named, 'low', 'Segment name for resistance 150 should be low');
+
+
+# Test addNamedHashPoints with single point
+my $pwl_named_single_hash = PowerSupplyControl::Math::PiecewiseLinear->new();
+my @named_single_point = ({ x => 42, y => 99, name => 'single' });
+
+$pwl_named_single_hash->addNamedHashPoints('x', 'y', 'name', @named_single_point);
+is($pwl_named_single_hash->length(), 1, 'Should have 1 named point from single hash');
+
+my ($y_single_named, $seg_single_named) = $pwl_named_single_hash->estimate(42);
+is($y_single_named, 99, 'Single named point should return exact value');
+is($seg_single_named, 'single', 'Single named point should return name');
+
+# Test addNamedHashPoints with no valid points
+my $pwl_named_no_valid = PowerSupplyControl::Math::PiecewiseLinear->new();
+my @named_no_valid_points = (
+    { x => 10, y => 20 },           # missing name
+    { x => 30, name => 'test' },    # missing y
+    { y => 40, name => 'test' },    # missing x
+    { z => 30, w => 40, v => 'test' }   # wrong keys
+);
+
+$pwl_named_no_valid->addNamedHashPoints('x', 'y', 'name', @named_no_valid_points);
+is($pwl_named_no_valid->length(), 0, 'Should have 0 points when no valid named points provided');
+
+# Test addNamedHashPoints with empty name values
+my $pwl_named_empty_names = PowerSupplyControl::Math::PiecewiseLinear->new();
+my @named_empty_name_points = (
+    { x => 0, y => 0, name => '' },
+    { x => 10, y => 10, name => 'valid' },
+    { x => 20, y => 20, name => undef }
+);
+
+$pwl_named_empty_names->addNamedHashPoints('x', 'y', 'name', @named_empty_name_points);
+is($pwl_named_empty_names->length(), 3, 'Should have 3 points even with empty/undef names');
+
+my ($y_empty_named, $seg_empty_named) = $pwl_named_empty_names->estimate(5);
+is($y_empty_named, 5, 'Interpolate at x=5 should be y=5');
+is($seg_empty_named, '', 'Segment name should be empty string');
+
 done_testing(); 

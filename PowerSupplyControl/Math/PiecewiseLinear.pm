@@ -98,6 +98,26 @@ sub addHashPoints {
   return $self->addPoint(@new);
 }
 
+=head2 addNamedHashPoints($xlabel, $ylabel, $namelabel, @points)
+
+Add one or more data points to this piecewise linear estimator.
+
+=cut
+
+sub addNamedHashPoints {
+  my ($self, $xlabel, $ylabel, $namelabel, @points) = @_;
+
+  my @new = ();
+
+  foreach my $point (@points) {
+    if (exists $point->{$xlabel} && exists $point->{$ylabel} && exists $point->{$namelabel}) {
+      push @new, $point->{$xlabel}, $point->{$ylabel}, $point->{$namelabel};
+    }
+  }
+
+  return $self->addNamedPoint(@new);
+}
+
 =head2 addPoint($x, $y {, $x, $y})
 
 Add one or more data points to this piecewise linear estimator.

@@ -3,10 +3,11 @@ package PowerSupplyControl::EventLoop;
 use strict;
 use AnyEvent;
 use EV;
-use Carp;
+use Carp qw(cluck croak);
 use Term::ReadKey;
 use PowerSupplyControl::DataLogger;
 use Readonly;
+use PowerSupplyControl::ValueTools qw(boolify);
 
 =head1 NAME
 
@@ -107,6 +108,143 @@ sub poll {
   push(@{$self->{history}}, $status);
 
   return $status;
+}
+
+=head2 fanStart
+
+If configured, cool down the hot plate by turning on a fan.
+
+The fan can be configured using another Interface object with connection parameters
+to a second power supply connected to the fan. This can be useful for cooling the 
+hotplace and/or load more quickly after the completion of a command. Commands may
+call this at the end of their normal processing if required. This will turn on the
+fan and return a hash containing the fan configuration.
+
+=over
+
+=item $status
+
+The status hash containing the current state of the hotplate.
+
+=item $ambient
+
+The current ambient temperature.
+
+=item Return Value
+
+Returns true if the fan is configured and the fan cooldown criteria are met, otherwise returns false.
+
+=back
+
+=cut
+
+sub fanStart {
+  my ($self, $status, $ambient) = @_;
+  my $config = $self->{config};
+
+  my $fanConfig = $config->{fan};
+
+  if (!exists $self->{fan}) {
+    my $fan = { started => $status->{now}
+              , ambient => $ambient
+              };
+
+    boolify($fanConfig->{enabled});
+    if (!$fanConfig->{enabled}) {
+      return;
+    }
+
+    if ($fanConfig->{'finish-temperature'}) {
+      # If specified in terms of ambient, then adjust accordingly
+      if ($fanConfig->{'finish-temperature'} =~ /ambient(\s*\+\s*(\d+(\.\d+)))?/) {
+        $fan->{'finish-temperature'} = $ambient + $2;
+      } else {
+        $fan->{'finish-temperature'} = $fanConfig->{'finish-temperature'};
+      }
+
+      if ($status->{temperature} <= $fan->{'finish-temperature'}) {
+        return;
+      }
+    }
+
+    # Must have a fan duration so we don't sit waiting forever!
+    if ($fanConfig->{'duration'} <= 0) {
+      return;
+    }
+    $fan->{'finish-time'} = $fan->{started} + $fanConfig->{'duration'};
+
+    eval {
+      my $ifConfig = $config->clone('fan', 'interface');
+
+      $fan->{interface} = $self->_initializeNamedObject($ifConfig->{package}, $ifConfig);
+    };
+
+    if ($@) {
+      cluck "Failed to initialize fan interface: $@";
+    }
+    if (!defined $fan->{interface}) {
+      cluck "No fan interface, so no fan cooling\n";
+      return;
+    }
+
+    # Turn on the fan!
+    $self->{fan} = $fan;
+    $fan->{interface}->setVoltage($fanConfig->{voltage}, $fanConfig->{current} || 10);
+    return 1;
+  }
+
+  return !$self->fanComplete($status);
+}
+
+=head2 fanComplete
+
+Check if the fan cooldown is complete.
+
+Fan cooldown is complete if any of the following conditions are met:
+
+  1. The fan has been running for the configured duration in seconds.
+  2. The hotplate is at or below the configured finish temperature.
+  3. The hotplate is at or below the ambient temperature.
+
+=over
+
+=item Return Value
+
+Returns false if the fan is configured, fan cooldown has been started and is not yet complete.
+Otherwise, it returns true.
+
+=back
+
+=cut
+
+sub fanComplete {
+  my ($self, $status) = @_; 
+
+  if (!exists $self->{'fan'}) {
+    return 1;
+  }
+
+  my $fan = $self->{fan};
+
+  # Have we reached the finish time?
+  if ($fan->{'finish-time'} <= $status->{now}) {
+    $fan->{interface}->off(1);
+    return 1;
+  }
+
+  # Have we reached the finish temperature?
+  if (exists($fan->{'finish-temperature'}) && $status->{temperature} <= $fan->{'finish-temperature'}) {
+    $fan->{interface}->off(1);
+    return 1;
+  }
+
+  # Have we reached the ambient temperature?
+  if ($status->{temperature} <= $fan->{ambient}) {
+    $fan->{interface}->off(1);
+    return 1;
+  }
+
+  return;
 }
 
 sub isLineBuffering {
@@ -273,6 +411,7 @@ sub run {
     }
 
     $self->{'timer-watcher'} = AnyEvent->timer(interval => $self->{config}->{period}
+                                             , after => 5
                                              , cb => sub {
                                                 $self->_timerWatcher($evl);
                                              });
@@ -293,33 +432,61 @@ sub run {
   }
 }
 
+=head2 getHistory
+
+Get the complete history of hotplate status.
+
+=cut
+
+sub getHistory {
+  my ($self) = @_;
+
+  return $self->{history};
+}
+
 sub _initializeObject {
   my ($self, $key, @args) = @_;
 
   my $package = $self->{config}->{$key}->{package};
 
-  eval "use $package";
-  
+  eval {
+    $self->{$key} = $self->_initializeNamedObject($package, $self->{config}->clone($key), @args);
+  };
+
   if ($@) {
-    croak "Failed to load $key package: $@";
+    if ($@ =~ /Failed to load package/) {
+      croak "Failed to load $key package ($package): $@";
+    }
+
+    croak "Failed to initialize $key: $@";
   }
 
-  $self->{$key} = $package->new($self->{config}->clone($key), @args);
-
   return;
+}
+
+sub _initializeNamedObject {
+  my ($self, $package, @args) = @_;
+
+  eval "use $package";
+
+  if ($@) {
+    croak "Failed to load package $package: $@";
+  }
+
+  return $package->new(@args);
 }
 
 sub _initializeCommand {
   my ($self, $command, @args) = @_;
 
   my $cmd_pkg = "PowerSupplyControl::Command::$command";
-  eval "use $cmd_pkg";
 
-  if ($@) {
-    croak "Failed to load $cmd_pkg: $@";
-  }
-
-  $self->{command} = $cmd_pkg->new($self->{config}->clone('command', $command), $self->{interface}, $self->{controller}, @args);
+  $self->{command} = $self->_initializeNamedObject($cmd_pkg
+                                                 , $self->{config}->clone('command', $command)
+                                                 , $self->{interface}
+                                                 , $self->{controller}
+                                                 , @args
+                                                 );
 }
 
 1;

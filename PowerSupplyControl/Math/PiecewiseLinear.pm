@@ -60,6 +60,44 @@ sub addNamedPoint {
   return $self;
 }
 
+=head2 addHashPoints($xlabel, $ylabel, @points)
+
+Add one or more data points to this piecewise linear estimator.
+
+=over
+
+=item $xlabel
+
+The label for the x value of the data points.
+
+=item $ylabel
+
+The label for the y value of the data points.
+
+=item @points
+
+An array of hash references, each containing the x and y values for a data point.
+
+=item Return Value
+
+Returns the PiecewiseLinear estimator, so that method calls may be chained.
+
+=cut
+
+sub addHashPoints {
+  my ($self, $xlabel, $ylabel, @points) = @_;
+  
+  my @new = ();
+
+  foreach my $point (@points) {
+    if (exists $point->{$xlabel} && exists $point->{$ylabel}) {
+      push @new, $point->{$xlabel}, $point->{$ylabel};
+    }
+  }
+
+  return $self->addPoint(@new);
+}
+
 =head2 addPoint($x, $y {, $x, $y})
 
 Add one or more data points to this piecewise linear estimator.

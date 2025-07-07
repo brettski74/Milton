@@ -131,4 +131,82 @@ my ($ys, $segs) = $pwl_single_named->estimate(42);
 is($ys, 99, 'Single named point returns correct value');
 is($segs, 'Only', 'Single named point always returns name');
 
+# Test addHashPoints method
+note("Testing addHashPoints method");
+
+# Test basic addHashPoints functionality
+my $pwl_hash = PowerSupplyControl::Math::PiecewiseLinear->new();
+my @hash_points = (
+    { temperature => 0, power => 20 },
+    { temperature => 100, power => 80 },
+    { temperature => 200, power => 120 }
+);
+
+$pwl_hash->addHashPoints('temperature', 'power', @hash_points);
+is($pwl_hash->length(), 3, 'Should have 3 points from hash data');
+
+# Test that points are sorted by x value (temperature)
+my @hash_points_result = $pwl_hash->getPoints;
+is($hash_points_result[0]->[0], 0, 'First point temperature should be 0');
+is($hash_points_result[1]->[0], 100, 'Second point temperature should be 100');
+is($hash_points_result[2]->[0], 200, 'Third point temperature should be 200');
+
+# Test interpolation with hash points
+is($pwl_hash->estimate(50), 50, 'Interpolate at 50°C should be 50W');
+is($pwl_hash->estimate(150), 100, 'Interpolate at 150°C should be 100W');
+
+# Test exact point values from hash
+is($pwl_hash->estimate(0), 20, 'Exact point at 0°C should be 20W');
+is($pwl_hash->estimate(100), 80, 'Exact point at 100°C should be 80W');
+is($pwl_hash->estimate(200), 120, 'Exact point at 200°C should be 120W');
+
+# Test method chaining with addHashPoints
+my $pwl_chain = PowerSupplyControl::Math::PiecewiseLinear->new();
+my $chain_result = $pwl_chain->addHashPoints('x', 'y', 
+    { x => 1, y => 2 },
+    { x => 3, y => 4 }
+);
+isa_ok($chain_result, 'PowerSupplyControl::Math::PiecewiseLinear');
+is($chain_result->length(), 2, 'Should have 2 points after chaining');
+
+# Test addHashPoints with missing keys
+my $pwl_missing = PowerSupplyControl::Math::PiecewiseLinear->new();
+my @missing_key_points = (
+    { temperature => 0, power => 20 },
+    { temperature => 100 },  # missing power
+    { power => 80 },         # missing temperature
+    { temperature => 200, power => 120 }
+);
+
+$pwl_missing->addHashPoints('temperature', 'power', @missing_key_points);
+is($pwl_missing->length(), 2, 'Should only add points with both keys present');
+
+# Test addHashPoints with empty array
+my $pwl_empty = PowerSupplyControl::Math::PiecewiseLinear->new();
+$pwl_empty->addHashPoints('x', 'y');
+is($pwl_empty->length(), 0, 'Should have 0 points with empty array');
+
+# Test addHashPoints with different key names
+my $pwl_diff_keys = PowerSupplyControl::Math::PiecewiseLinear->new();
+my @diff_key_points = (
+    { resistance => 100, temp => 25 },
+    { resistance => 200, temp => 50 },
+    { resistance => 300, temp => 75 }
+);
+
+$pwl_diff_keys->addHashPoints('resistance', 'temp', @diff_key_points);
+is($pwl_diff_keys->length(), 3, 'Should have 3 points with different key names');
+is($pwl_diff_keys->estimate(150), 37.5, 'Interpolate at resistance 150 should be temp 37.5');
+
+# Test addHashPoints with no valid points
+my $pwl_no_valid = PowerSupplyControl::Math::PiecewiseLinear->new();
+my @no_valid_points = (
+    { x => 10 },           # missing y
+    { y => 20 },           # missing x
+    { z => 30, w => 40 }   # wrong keys
+);
+
+$pwl_no_valid->addHashPoints('x', 'y', @no_valid_points);
+is($pwl_no_valid->length(), 0, 'Should have 0 points when no valid points provided');
+
 done_testing(); 

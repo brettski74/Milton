@@ -140,6 +140,16 @@ sub getMinimumCurrent {
   return $self->{current}->{minimum} || 0.1;
 }
 
+=head2 getMeasurableCurrent
+
+Get the minimum current where resistance can reasonably be measured.
+
+=cut
+
+sub getMeasurableCurrent {
+  return $self->{current}->{measurable} || 0.1;
+}
+
 =head2 getCurrentLimits
 
 Get the minimum and maximum current limits of the power supply.

@@ -111,7 +111,92 @@ Returns the power level to apply:
 =head1 CONFIGURATION
 
 The controller inherits configuration from L<PowerSupplyControl::Controller::RTDController>.
-No additional configuration parameters are required for bang-bang control.
+No additional configuration parameters are required for bang-bang control. Bang-bang control
+is one of the simplest control schemes. The controller varies between on and off states based
+on whether the hotplate temperature is above the target temperature or not. Because we need
+some current flowing to measure the resistance and derive the temperature, the off state is
+actually a minimum power state, but otherwise the controller is very simple and can be used
+with minimal or even no calibration. On the down side, the controller is less accurate, will
+produce a temperature curve that oscillates around the target temperature and may cause
+greater wear on the hotplate. For a smoother temperature, you can use a feed-forward or PID
+controller, but both of these require much more calibration and tuning to work well.
+
+While this controller can be used with no calibration or tuning, the following options can
+be used to improve the performance of the controller.
+
+=head2 Resistance-Temperature Mapping
+
+The controller can use a resistance-temperature mapping to more accurately derive the temperature
+of the hotplate. Note that "accurately" can be a very subjective term when measuring the
+temperature of something like a hotplate. The construction of the hotplate assembly, the
+the placement of the sensor relative to the working surface and other factors can affect how
+well the measured temperature matches the temperature of the working surface of the hotplate
+or the current hotplate load (ie. your PCB being reflowed).
+
+This controller measures the temperature of the hotplate using the heating element itself.
+The heating element has very low thermal inertia, which means that its temperature varies
+relatively quickly in response to changes in power. It takes time for this heat to be soaked
+up by the surrounding materials such as the FR4 substrate, a heat spreader if used and the 
+hotplate load. As a result, the temperature measured at the surface of the hotplate may be 
+lower than that of the heating element. While temperature is varying slowly - which it the
+case for most of the reflow cycle - this temperature offset should be relatively small but
+will vary with temperature. Calibrating the hotplate temperature by measuring the temperature
+of the working surface of the hotplate at several temperatures may allow better control of
+the temperature subjected to the hotplate load. You can produce a resistance-temperature
+mapping using the rtcal or rampcal commands. These produce a separate configuration file
+that you can include in your controller configuration.
+
+Note that this behaviour is inherited from the L<PowerSupplyControl::Controller::RTDController>
+base class, so it works the same way for all RTD-based controllers.
+
+=head2 Power-Temperature Mappings
+
+Bang-bang control can produce large temperature overshoots - especially at lower temperatures.
+This is due to the use of maximum output power in the on state. This effect can be mitigated
+by providing a power-temperature mapping that tells the controller to use different power
+levels at different temperatures. It still switches between on and off states, but the power
+level used in the on state varies based on the target temperature of the hotplate.
+
+There is currently no calibration process for this, so you'll have to wing it a bit. As a
+general guideline for a 100mm square hotplate, you probably don't want to use less than 20W
+of heating at room temperature and you probably want to aim for about 100W at 200 celsius.
+
+=head2 Configuration Attributes
+
+=over
+
+=item power-levels
+
+An array of temperature/power mappings. The controller will interpolate between these points
+to derive a power level to use for the on state of the controller.
+
+=over
+
+=item temperature
+
+The temperature at which a particualr power level should apply for the on state.
+
+=item power
+
+The power in watts that will apply at the corresponding temperature.
+
+=back
+
+=item temperatures
+
+=pver
+
+=item resistance
+
+The resistance of the heating element at a given temperature.
+
+=item temperature
+
+The temperature at which the heating element should be at the corresponding resistance.
+
+=back
+
+=back
 
 =head1 SEE ALSO
 
@@ -140,19 +225,28 @@ sub new {
 
   my $self = $class->SUPER::new($config, $interface);
 
+  my ($minPower, $maxPower) = $interface->getPowerLimits();
+
+  if (defined $config->{'power-levels'}) {
+    $self->{'on-power'} = PowerSupplyControl::Math::PiecewiseLinear->new
+            ->addHashPoints('temperature', 'power', @{$config->{'power-levels'}});
+  } else {
+    $self->{'on-power'} = PowerSupplyControl::Math::PiecewiseLinear->new(20, $maxPower);
+  }
+
+  $self->{'min-power'} = $minPower;
+
   return $self;
 }
 
 sub getRequiredPower {
   my ($self, $status, $target_temp) = @_;
 
-  my ($minPower, $maxPower) = $self->{interface}->getPowerLimits();
-
   if ($status->{temperature} < $target_temp) {
-    return $maxPower;
+    return $self->{'on-power'}->estimate($target_temp);
   }
 
-  return $minPower;
+  return $self->{'min-power'};
 }
 
 1;

@@ -45,7 +45,13 @@ finds. If $filename is undefined, then it will be defaulted to hp.yaml.
 sub new {
   my ($class, $filename) = @_;
 
-  my $self = _load_file($filename);
+  my $self;
+
+  if(defined $filename) {
+    $self = _load_file($filename);
+  } else {
+    $self = {};
+  }
 
   return bless $self, $class;
 }
@@ -88,7 +94,7 @@ sub _resolve_file_path {
 
   # Check if filename is relative
   if ($filename !~ /^\//) {
-    $filename ||= 'hp.yaml';
+    $filename ||= 'psc.yaml';
 
     my ($found_path) = grep { path($_, $filename)->is_file } @search_path;
 

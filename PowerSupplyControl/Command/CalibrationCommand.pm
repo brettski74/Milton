@@ -2,8 +2,9 @@ package PowerSupplyControl::Command::CalibrationCommand;
 
 use strict;
 use warnings qw(all -uninitialized);
-
-use base qw(PowerSupplyControl::StateMachineCommand);
+use Carp qw(croak);
+use Scalar::Util qw(reftype);
+use base qw(PowerSupplyControl::Command::StateMachineCommand);
 
 =head1 METHODS
 
@@ -202,7 +203,7 @@ sub writeCalibration {
     my $key = shift;
     my $data = shift;
 
-    _dual_print "$key: $data\n";
+    _dual_print($fh, "$key: $data\n");
   }
 
   _dual_print($fh, "\n");
@@ -233,8 +234,6 @@ sub writeCalibration {
       _dual_print($fh, "    heat-capacity: $point->{'heat-capacity'}\n");
     }
   }
-
-  $fh->close;
 
   return $self;
 }

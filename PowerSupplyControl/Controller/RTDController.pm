@@ -27,11 +27,8 @@ sub new {
   my $self = $class->SUPER::new($config, $interface);
 
   # Convert the temperature/resistance values into a piecewise linear estimator
-  my $est = PowerSupplyControl::Math::PiecewiseLinear->new;
-  foreach my $measurement (@{$self->{temperatures}}) {
-    $est->addPoint($measurement->{resistance}, $measurement->{temperature});
-  }
-  $self->{rt_estimator} = $est;
+  $self->{rt_estimator} = PowerSupplyControl::Math::PiecewiseLinear->new
+          ->addHashPoints('resistance', 'temperature', @{$config->{'temperatures'}});
 
   return $self;
 }
@@ -77,7 +74,7 @@ sub getTemperature {
   my $est = $self->{rt_estimator};
 
   # If there is insufficient current flowing, temperature cannot be estimated.
-  return if ($status->{current} < $self->{interface}->getMinimumCurrent);
+  return if ($status->{current} < $self->{interface}->getMeasurableCurrent);
 
   my $resistance = $status->{resistance} // ($status->{voltage} / $status->{current});
 

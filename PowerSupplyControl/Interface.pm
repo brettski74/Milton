@@ -34,11 +34,53 @@ sub new {
   return $config;
 }
 
+=head1 DESTRUCTOR
+
+=head2 DESTROY
+
+The destructor for the interface. This is called when the interface object goes out
+of scope. The default implementation ensures that the power supply is turned off and
+the connection to the power supply is gracefully closed by calling:
+
+    $self->on(0);
+    $self->shutdown;A
+
+if your implementation requires any additional processing beyond this, you should
+override this method. It is strongly recommended that you call SUPER::DESTROY from
+within your implementation.
+
+=cut
+
+sub DESTROY {
+  my ($self) = @_;
+
+  $self->on(0);
+  $self->shutdown;
+  return;
+}
+
 =head1 METHODS
 
-=head2 poll
+=head2 poll([$status])
 
-Poll the power supply and/or heating element for current status. The return value is a reference to a hash containing current status information. Subclasses may provide additional values, but they must provide the following as a bare minimum:
+Poll the power supply and/or heating element for current status.
+
+=over
+
+=item $status
+
+An optional parameter containing a reference to a hash to be used as the status
+hash returned by this method. If provided, the interface must use this hash and
+return it as the return value. The passed hash reference may or may not contain
+existing data which may be overwritten by the interface. It is generally expected
+that the interface will not alter data unrelated to its normal operation, so any
+additional keys in the has will not have their values altered.
+
+=item Return Value
+
+A reference to a status hash. The exact contents of the hash are not completely 
+specified here and different interface implementations may return additional data
+as they see fit, but the following values must be returned as a minimum:
 
 =over
 
@@ -52,7 +94,10 @@ The current current measured at the output of the power supply.
 
 =back
 
-Note that this default implementation returns undef. You must use an appropriate subclass that supports your power supply and interface.
+Note that this default implementation returns undef. You must use an appropriate
+subclass that supports your power supply and interface.
+
+=back
 
 =cut
 

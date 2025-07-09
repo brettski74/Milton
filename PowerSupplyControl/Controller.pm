@@ -47,6 +47,28 @@ sub getTemperature {
   return;
 }
 
+=head2 adviseProfile($profile)
+
+Advise the controller of the reflow profile that will be used.
+
+Most controller will probably ignore this, but it does provide options for controllers to use
+this information to better adjust the control outputs to more smoothly and closely follow the
+profile.
+
+=over
+
+=item $profile
+
+A piecewise linear estimator that maps time to temperature.
+
+=back
+
+=cut
+
+sub adviseProfile {
+  return;
+}
+
 =head2 getRequiredPower($status, $target_temp
 
 Calculate the power required to achieve a certain hotplate temperature by the next sample period.

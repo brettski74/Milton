@@ -87,14 +87,30 @@ sub setCurrent { return; }
 sub setPower { return; }
 sub shutdown { return; }
 
-sub getPowerLimits {
-    my ($self) = @_;
-    return ($self->{min_power} // 0.0, $self->{max_power} // 100.0);
+sub getMinimumCurrent {
+  my ($self) = @_;
+  return $self->{current}->{minimum} // 0.1;
 }
 
-sub getMinimumCurrent {
-    my ($self) = @_;
-    return $self->{min_current} // 0.1;
+sub setPowerLimits {
+  my ($self, $min_power, $max_power) = @_;
+  $self->{power}->{minimum} = $min_power;
+  $self->{power}->{maximum} = $max_power;
+  return $self;
+}
+
+sub setVoltageLimits {
+  my ($self, $min_voltage, $max_voltage) = @_;
+  $self->{voltage}->{minimum} = $min_voltage;
+  $self->{voltage}->{maximum} = $max_voltage;
+  return $self;
+}
+
+sub setCurrentLimits {
+  my ($self, $min_current, $max_current) = @_;
+  $self->{current}->{minimum} = $min_current;
+  $self->{current}->{maximum} = $max_current;
+  return $self;
 }
 
 1; 

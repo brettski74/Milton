@@ -39,6 +39,34 @@ sub timerEvent {
   return $self->$stage($status);
 }
 
+=head2 newSteadyState
+
+Prepare this command for detecting a new steady state condition using the command's steady-state criteria.
+
+The following configuration attributes will be used to set the parameters for the steady-state detection:
+
+=over
+
+=item steady-state.samples
+
+The number of successive samples that must meet the steady state criteria for detection.
+
+=item steady-state.threshold
+
+The threshold value for the IIR filter output to start counting steady state samples.
+
+=item steady-state.smoothing
+
+The smoothing factor for the IIR filter.
+
+=item steady-state.reset
+
+The reset threshold above which the steady state sample counter is reset.
+
+=back
+
+
+
 =head2 advanceStage($stage, $status)
 
 Advance to the next stage. This method should not be overridden by subclasses. It calls through to the appropriate method based on the current state.

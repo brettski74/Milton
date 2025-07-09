@@ -6,6 +6,10 @@ current:
 
 # Steady-state detection criteria
 steady-state:
-  samples: 20
+  samples: 15
   threshold: 0.0001
   smoothing: 0.9
+
+# Some base cold-temperature calibration data.
+R0: 1.324694813
+T0: 20

@@ -6,7 +6,72 @@ use Carp qw(croak);
 use Scalar::Util qw(reftype);
 use base qw(PowerSupplyControl::Command::StateMachineCommand);
 
+=head1 CONSTRUCTOR
+
+=head2 new($config, $interface, $controller, @args)
+
+Create a new CalibrationCommand object. This calls through to the superclass constructor, but
+also sets up the ambient temperature if it is not already set from the command line.
+
+=cut
+
+sub new {
+  my ($class, $config, $interface, $controller, @args) = @_;
+
+  my $self = $class->SUPER::new($config, $interface, $controller, @args);
+
+  $self->infoMessage();
+
+  if (!defined $self->{ambient}) {
+    $self->{ambient} = $self->prompt('Ambient temperature', $config->{'ambient-temperature'} || 25);
+  }
+
+  bless $self->{config}, 'PowerSupplyControl::Config';
+
+  return $self;
+}
+
 =head1 METHODS
+
+=head2 infoMessage
+
+Display an information message to the user. This will typically include details such as ensuring
+that the hotplate is currently resting at ambient temperature, that any unnecessary fans or
+ventilation systems are turned off and that the calibration may take some time and require user
+attention.
+
+=cut
+
+sub infoMessage {
+  print <<'EOS';
+You are about to begin a calibration cycle for your hotplate. A typical calibration cycle may take
+30 to 60 minutes to complete assuming about a 6 point calibration. It may require your input at
+times. Ensure that you are comfortable and have sufficient time to complete the calibration. The
+calibration should beep when it passes various stages or requires user input.
+
+The temperature of the hotplate can be very sensitive to the flow of air around it. Ensure that
+any unnecessary fans or ventilation systems are turned off. You can continue working around the
+fan but be aware that rapid movements near the hotplate may cause air currents that could affect
+the results of the calibration.
+
+The hotplate should be resting at ambient temperature. If it has recently been used, it may still
+be at a higher temperature than ambient. If that is the case, allow the hotplate to cool down to
+ambient temperature before beginning. You can use fans to cool the hotplate down faster. Just ensure
+to turn them off before beginning the calibration.
+
+Your reference sensor (eg. thermocouple, digital thermometer, etc) should be securely attached to
+the centre of the hotplate now. The calibration will require a measurement of the ambient
+temperature for reference. You can use the reference sensor attached to your hotplate but it is
+strongly recommended to confirm that with a measurement taken from elsewhere to ensure that your
+hotplate is currently at ambient temperature.
+
+Finally, note that a side effect of the event framework used to run these commands can make the
+keyboard response a little sluggish at times. If your keypresses don't seem to be registering,
+hit some more keys and/or use backspace to correct any errors in your entry. If you are confident
+that your response is correct and complete, try hitting ENTER again.
+
+EOS
+}
 
 =head2 eventPrompt($prompt, $validChars)
 
@@ -236,6 +301,19 @@ sub writeCalibration {
   }
 
   return $self;
+}
+
+=head2 _fanCoolDown($status)
+
+A default stage taht can be advanced to to use fan cooling of the hotplate at the end of a
+calibration run.
+
+=cut
+
+sub _fanCoolDown {
+  my ($self, $status) = @_;
+
+  return $status->{'event-loop'}->fanStart($status, $self->{ambient});
 }
 
 1;

@@ -167,6 +167,9 @@ Readonly my @FACTOR => ( 100    # V-set
                        , 100    # V-in
                        );
 
+# Hash to store details of DPS power supplies found on various serial port devices.
+my %ADDRESS_MAP = ();
+
 =head1 CONSTRUCTOR
 
 =head2 new(<named arguments>)
@@ -189,6 +192,8 @@ sub new {
     if (! $self->openDPSPort(@devs)) {
       die "Unable to open connection to DPS power supply!\n";
     }
+  } else {
+    $self->openDPSPort($self->{port});
   }
 
   $self->fetch;

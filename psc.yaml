@@ -41,6 +41,7 @@ interface:
   current:
     maximum: 8
     minimum: 1.2
+    measurable: 0.1
   voltage:
     maximum: 30
     minimum: 2
@@ -49,6 +50,16 @@ interface:
     minimum: 1
   calibration:
     !include power_supply_calibration.yaml
+
+fan:
+  interface:
+    package: PowerSupplyControl::Interface::DPS
+    baudrate: 19200
+    address: 2
+  voltage: 12.5
+  current: 1.0
+  timeout: 600
+  enabled: false
 
 command:
   calibrate:

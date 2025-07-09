@@ -3,12 +3,13 @@ package PowerSupplyControl::Command::rtcal;
 use strict;
 use warnings qw(all -uninitialized);
 
-use base qw(PowerSupplyControl::Command::StateMachineCommand);
+use base qw(PowerSupplyControl::Command::CalibrationCommand);
 use Time::HiRes qw(sleep);
 use PowerSupplyControl::Config;
 use PowerSupplyControl::Math::SteadyStateDetector;
 use Carp qw(confess);
 use Math::Round qw(round);
+use Readonly;
 
 sub new {
     my ($class, $config, $interface, $controller, @args) = @_;
@@ -17,25 +18,24 @@ sub new {
 
     $self->{temperatures} = [ sort { $a <=> $b } @{$config->{temperatures}} ];
 
-    if (!defined $self->{ambient}) {
-      $self->{ambient} = $self->prompt('Ambient temperature', $config->{'ambient-temperature'} || 25);
-    }
-
-    bless $self->{config}, 'PowerSupplyControl::Config';
-
     return $self;
 }
 
 sub defaults {
     return { current => { startup => 2 }
            , cycles => 10
-           , filename => 'temperature_calibration.yaml'
+           , filename => 'thermal-calibration.yaml'
            };
+}
+
+sub options {
+  return ( 'R0=f', 'T0=f' );
 }
 
 sub preprocess {
     my ($self, $status) = @_;
     my $interface = $self->{interface};
+    my $config = $self->{config};
 
     $interface->setCurrent($self->{current}->{startup} || 2);
     sleep(0.5);
@@ -43,8 +43,18 @@ sub preprocess {
     $interface->poll($status);
     $self->{controller}->setAmbient($self->{ambient});
     $self->{controller}->resetTemperatureCalibration(0);
+    if (!exists($self->{R0}) || !exists($self->{T0})) {
+      if (exists($config->{R0}) && exists($config->{T0})) {
+        $self->{R0} = $config->{R0};
+        $self->{T0} = $config->{T0};
+      } else {
+        $self->{R0} = $status->{resistance};
+        $self->{T0} = $self->{ambient};
+      }
+    }
+    $self->{'calibration-points'} = [ { temperature => $self->{T0}, resistance => $self->{R0} } ];
+    $self->{controller}->setTemperaturePoint($self->{T0}, $self->{R0});
     $self->{controller}->getTemperature($status);
-    $self->{'calibration-points'} = [ { temperature => $self->{ambient}, resistance => $status->{resistance}, power => 0 } ];
 
     $self->_setupBangBang();
 
@@ -99,22 +109,40 @@ sub lineEvent {
     return $self;
   }
 
-  print "All done\n";
-
-  return;
+  $self->allDone($status->{'event-loop'}->getHistory());
+  return $self->advanceStage('fanCoolDown', $status);
 }
+
+Readonly my %ADJUSTMENTS => ( up => 0.01
+                            , down => -0.01
+                            , pageup => 0.1
+                            , pagedown => -0.1
+                            );
 
 sub keyEvent {
   my ($self, $status) = @_;
 
   if ($status->{key} eq 's') {
     $self->{'manual-steady-state'}++;
+  } elsif (exists $ADJUSTMENTS{$status->{key}}) {
+    $self->{adjustment}++;
+    my $adjusted = $self->{'steady-voltage'} + $ADJUSTMENTS{$status->{key}};
+    $self->{'steady-voltage'} = round($adjusted * 100.0) / 100.0;
   }
 
   return $self;
 }
 
-sub postprocess {
+=head2 allDone($status, $history)
+
+Called when the calibration is complete. This would have normally been a postprocess command,
+but we may want to do fan cooldown and we don't want to wait until that's done and something
+possibly crashes and we lose all this precious data, so let's just write it now and be done
+with it. Too bad if it takes longer than a sample period - we're done sampling anyway.
+
+=cut
+
+sub allDone {
   my ($self, $status, $history) = @_;
   $self->{interface}->off;
   
@@ -178,13 +206,17 @@ sub _setupSteady {
   $self->{'manual-steady-state'} = 0;
 
   $self->{'steady-power'} = $meanPower * ($self->{'target-temperature'} - $self->{'ambient-temperature'}) / ($meanTemperature - $self->{'ambient-temperature'});
-  $self->{'steady-voltage'} = round(sqrt($meanResistance * $self->{'steady-power'}), 2);
+  $self->{'steady-voltage'} = round(sqrt($meanResistance * $self->{'steady-power'}) * 100.0) / 100.0;
+  $self->{adjustment} = 0;
   $self->{interface}->setVoltage($self->{'steady-voltage'});
 }
 
 sub _bangBang {
   my ($self, $status) = @_;
   my $off = $self->{'transition-count'} % 2;
+
+#  print "BangBang: ". ($off ? 'off' : 'on') . ", transition-count: $self->{'transition-count'}, power: $status->{power}, resistance: $status->{resistance}\n";
+#  print "BangBang: (". join(', ', sort keys %$status) ."), temperature: $status->{temperature}\n";
 
   if ($self->{'transition-count'} >= $self->{'transition-skip'}) {
     push @{$self->{'samples'}}, { temperature => $status->{temperature}
@@ -228,7 +260,14 @@ sub _steady {
     $self->{'steady-samples'} = [ { temperature => $status->{temperature}, power => $status->{power}, resistance => $status->{resistance} } ];
     $self->eventPrompt('input', $status, 'Steady state detected. Enter hotplate temperature: ', qr/[0-9.]/);
   }
-  #$self->{interface}->setVoltage($self->{'steady-voltage'});
+
+  # Only set the voltage if there was an adjustment requested
+  if ($self->{adjustment}) {
+    $self->{interface}->setVoltage($self->{'steady-voltage'});
+    $self->{adjustment} = 0;
+    print "Adjusted steady voltage to $self->{'steady-voltage'}\n";
+  }
+
   $status->{'steady-state-count'} = $self->{'steady-state'}->{count};
   $status->{'filtered-delta'} = $self->{'steady-state'}->{'filtered-delta'};
 

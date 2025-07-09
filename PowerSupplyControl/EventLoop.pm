@@ -292,9 +292,9 @@ sub lineBufferInput {
 sub _now {
   my ($self) = @_;
   my $now = AnyEvent->now;
-  if (!exists $self->{'start-time'}) {
-    $self->{'start-time'} = $now;
-  }
+#  if (!exists $self->{'start-time'}) {
+#    $self->{'start-time'} = $now;
+#  }
   return $now - $self->{'start-time'};
 }
 
@@ -310,14 +310,28 @@ Run the event loop.
 
 =cut
 
-sub _cleanShutdown {
-  my ($self, $notDone) = @_;
+sub _signalWatcher {
+  my ($self, $signal) = @_;
+
+  if ($self->{command}->can('quitEvent')) {
+    my $status = { now => $self->_now 
+                 , time => $self->_time
+                 , event => 'quitEvent'
+                 , signal => $signal
+                 , 'event-loop' => $self
+                 };
+    push @{$self->{history}}, $status;
+    my $continue = $self->{command}->quitEvent($status);
+    $self->{logger}->log($status);
+    
+    return if $continue;
+  }
 
   $self->_eventsDone;
 
   $self->{interface}->shutdown;
 
-  exit(0) unless $notDone;
+  exit(0);
 }
 
 sub _eventsDone {
@@ -334,6 +348,53 @@ END {
   ReadMode('normal');
 }
 
+Readonly my %KEY_MAP => ( "\e[A"   => 'up'
+                        , "\e[B"   => 'down'
+                        , "\e[C"   => 'right'
+                        , "\e[D"   => 'left'
+                        , "\e[F"   => 'end'
+                        , "\e[H"   => 'home'
+                        , "\e[2~"  => 'insert'
+                        , "\e[3~"  => 'delete'
+                        , "\e[5~"  => 'pageup'
+                        , "\e[6~"  => 'pagedown'
+                        , "\e[7~"  => 'home'
+                        , "\e[8~"  => 'end'
+                        , "\e[9~"  => 'delete'
+                        , "\e[11~" => 'f1'
+                        , "\e[12~" => 'f2'
+                        , "\eOP"   => 'f1'
+                        , "\eOQ"   => 'f2'
+                        , "\eOR"   => 'f3'
+                        , "\eOS"   => 'f4'
+                        , "\e[15~" => 'f5'
+                        , "\e[17~" => 'f6'
+                        , "\e[18~" => 'f7'
+                        , "\e[19~" => 'f8'
+                        , "\e[20~" => 'f9'
+                        , "\e[21~" => 'f10'
+                        , "\e[23~" => 'f11'
+                        , "\e[24~" => 'f12'
+                        );
+sub _readKey {
+  my ($self) = @_;
+  my $key = ReadKey(-1);
+  if (defined $key) {
+    if ($key eq "\e") {
+      # Escape sequence
+      while (defined(my $next = ReadKey(-1))) {
+        $key .= $next;
+      }
+
+      if (exists $KEY_MAP{$key}) {
+        return $KEY_MAP{$key};
+      }
+    }
+    return $key;
+  }
+  return;
+}
+
 sub _keyWatcher {
   my ($self, $evl) = @_;
 
@@ -343,7 +404,7 @@ sub _keyWatcher {
                , 'event-loop' => $self
                , now => $self->_now
                , time => $self->_time
-               , key => ReadKey(-1)
+               , key => $self->_readKey
                };
 
   push(@{$self->{history}}, $status);
@@ -399,6 +460,9 @@ sub run {
 
   if ($cmd->can('timerEvent')) {
     my $evl = AnyEvent->condvar;
+    # Make sure we reset AnyEvent's internal clock to avoid catch-up issues at startup
+    AnyEvent->now_update;
+    $self->{'start-time'} = AnyEvent->time;
 
     if ($cmd->can('keyEvent')) {
       ReadMode('cbreak');
@@ -411,14 +475,13 @@ sub run {
     }
 
     $self->{'timer-watcher'} = AnyEvent->timer(interval => $self->{config}->{period}
-                                             , after => 5
                                              , cb => sub {
                                                 $self->_timerWatcher($evl);
                                              });
 
-    my $int_watcher = AnyEvent->signal(signal => 'INT', cb => sub { $self->_cleanShutdown });
-    my $term_watcher = AnyEvent->signal(signal => 'TERM', cb => sub { $self->_cleanShutdown });
-    my $quit_watcher = AnyEvent->signal(signal => 'QUIT', cb => sub { $self->_cleanShutdown });
+    my $int_watcher = AnyEvent->signal(signal => 'INT', cb => sub { $self->_signalWatcher('INT') });
+    my $term_watcher = AnyEvent->signal(signal => 'TERM', cb => sub { $self->_signalWatcher('TERM') });
+    my $quit_watcher = AnyEvent->signal(signal => 'QUIT', cb => sub { $self->_signalWatcher('QUIT') });
 
     $evl->recv;
 

@@ -125,6 +125,50 @@ sub _create_node {
   return {};
 }
 
+=head2 exists(@keys)
+
+Check if the specified path exists in the configuration.
+
+=over
+
+=item @keys
+
+A list of keys to define the desired configuration path.
+
+=item Return Value
+
+Returns the value if it exists or undef if it does not.
+
+Note that this means that a non-existent value is indistinguishable from a value that
+exists but is set to undef, but I'm good with that.
+
+=back
+
+=cut
+
+sub exists {
+  my ($self, @keys) = @_;
+  my $node = $self;
+
+  while (@keys && defined($node)) {
+    my $key = shift @keys;
+
+    if (reftype($node) eq 'HASH') {
+      $node = $node->{$key};
+    } elsif (reftype($node) eq 'ARRAY') {
+      if ($key =~ /^-?\d+$/) {
+        $node = $node->[$key];
+      } else {
+        return;
+      }
+    } else {
+      return;
+    }
+  }
+
+  return $node;
+}
+
 =head1 PRIVATE METHODS
 
 =head2 _descend(@keys)

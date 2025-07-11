@@ -33,6 +33,73 @@ ok(!PowerSupplyControl::Config->configFileExists('nonexistent.yaml'), 'nonexiste
 ok(PowerSupplyControl::Config->configFileExists('command/test.yaml'), 'command/test.yaml does exist');
 ok(!PowerSupplyControl::Config->configFileExists('command/are_you_serious.yaml'), 'command/are_you_serious.yaml does not exist');
 
+# Test exists method
+note("Testing exists method");
+subtest 'exists method' => sub {
+    # Test basic hash key existence
+    is($cfg2->exists('test1'), 'value1', 'exists returns value for existing top-level key');
+    is($cfg2->exists('test2'), 'value2', 'exists returns value for existing top-level key');
+    is($cfg2->exists('test3'), { colour => 'green', size => 'large' }, 'exists returns value for existing hash key');
+    
+    # Test non-existent keys
+    is($cfg2->exists('nonexistent'), undef, 'exists returns undef for non-existent top-level key');
+    is($cfg2->exists('test1', 'nonexistent'), undef, 'exists returns undef for non-existent nested key');
+    
+    # Test nested hash access
+    is($cfg2->exists('test3', 'colour'), 'green', 'exists returns value for existing nested hash key');
+    is($cfg2->exists('test3', 'size'), 'large', 'exists returns value for existing nested hash key');
+    is($cfg2->exists('test3', 'nonexistent'), undef, 'exists returns undef for non-existent nested hash key');
+    
+    # Test deep nesting
+    is($cfg2->exists('test3', 'colour'), 'green', 'exists works with deep nesting');
+    
+    # Test with empty key list
+    is($cfg2->exists(), $cfg2, 'exists with no keys returns the entire config');
+    
+    # Test with undef values
+    my $cfg_with_undef = PowerSupplyControl::Config->new();
+    $cfg_with_undef->{undef_key} = undef;
+    is($cfg_with_undef->exists('undef_key'), undef, 'exists returns undef for key that exists but has undef value');
+    
+    # Test with array access (if we had arrays in the test config)
+    # Since testconfig.yaml doesn't have arrays, let's create a test config with arrays
+    my $array_cfg = PowerSupplyControl::Config->new();
+    $array_cfg->{array_key} = ['item1', 'item2', 'item3'];
+    $array_cfg->{nested} = {
+        array => ['nested1', 'nested2', { 'nested-hash-key' => 'nested-hash-value' } ],
+        hash => { key => 'value' }
+    };
+    
+    is($array_cfg->exists('array_key', 0), 'item1', 'exists returns value for existing array index');
+    is($array_cfg->exists('array_key', 1), 'item2', 'exists returns value for existing array index');
+    is($array_cfg->exists('array_key', 2), 'item3', 'exists returns value for existing array index');
+    is($array_cfg->exists('array_key', 3), undef, 'exists returns undef for non-existent array index');
+    is($array_cfg->exists('array_key', -1), 'item3', 'exists returns undef for negative array index');
+    
+    # Test nested array access
+    is($array_cfg->exists('nested', 'array', 0), 'nested1', 'exists returns value for existing nested array index');
+    is($array_cfg->exists('nested', 'array', 1), 'nested2', 'exists returns value for existing nested array index');
+    is($array_cfg->exists('nested', 'array', 2), { 'nested-hash-key' => 'nested-hash-value' }, 'exists returns value for existing nested array index');
+    is($array_cfg->exists('nested', 'array', 3), undef, 'exists returns undef for non-existent nested array index');
+
+    # Test mixed hash and array access
+    is($array_cfg->exists('nested', 'hash', 'key'), 'value', 'exists works with mixed hash and array access');
+    is($array_cfg->exists('nested', 'array', 2, 'nested-hash-key'), 'nested-hash-value', 'hash-array-hash nesting'); 
+    is($array_cfg->exists('nested', 'array', 2, 'nested-has-key'), undef, 'hash-array-hash nesting'); 
+    
+    # Test with non-integer keys on arrays
+    is($array_cfg->exists('array_key', 'string'), undef, 'exists returns undef for non-integer key on array');
+    
+    # Test with empty strings as keys
+    $array_cfg->{''} = 'empty_key_value';
+    is($array_cfg->exists(''), 'empty_key_value', 'exists works with empty string as key');
+    
+    # Test with zero as key
+    $array_cfg->{0} = 'zero_key_value';
+    is($array_cfg->exists(0), 'zero_key_value', 'exists works with zero as key');
+    
+};
+
 # Merge another file into the config
 $cfg2->merge('command/test.yaml', 'command', 'test');
 is($cfg2->{command}->{test}->{'command-value-1'}, 100);
@@ -140,7 +207,5 @@ eval {
 ok($@ =~ /include_circular2.yaml/, 'Error message should be correct') || diag($@);
 ok(!defined $circular_cfg);
 
-
-
-done_testing();
+done_testing;
 

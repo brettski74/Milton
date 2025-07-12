@@ -5,6 +5,7 @@ use warnings qw(all -uninitialized);
 use Carp qw(croak);
 use Scalar::Util qw(reftype);
 use base qw(PowerSupplyControl::Command::StateMachineCommand);
+use List::Util qw(min);
 
 =head1 CONSTRUCTOR
 
@@ -23,7 +24,18 @@ sub new {
   $self->infoMessage();
 
   if (!defined $self->{ambient}) {
-    $self->{ambient} = $self->prompt('Ambient temperature', $config->{'ambient-temperature'} || 25);
+    if ($self->{controller}->hasTemperatureDevice) {
+      my ($hot, $cold) = $self->{controller}->getDeviceTemperature;
+      if (defined $cold) {
+        $self->{ambient} = min($hot, $cold);
+      } else {
+        $self->{ambient} = $hot;
+      }
+
+      print "Set ambient temperature to $self->{ambient}\n";
+    } else {
+      $self->{ambient} = $self->prompt('Ambient temperature', $config->{'ambient-temperature'} || 25);
+    }
   }
 
   bless $self->{config}, 'PowerSupplyControl::Config';
@@ -152,7 +164,8 @@ The reset threshold above which the steady state sample counter is reset.
 sub newSteadyState {
   my ($self, $status) = @_;
 
-  $self->{'steady-state'} = PowerSupplyControl::Math::SteadyStateDetector($self->{config}->clone('steady-state'));
+  my $config = $self->{config}->clone('steady-state');
+  $self->{'steady-state'} = PowerSupplyControl::Math::SteadyStateDetector->new(%$config);
   $self->{'manual-steady-state'} = 0;
 }
 

@@ -1,11 +1,11 @@
 package PowerSupplyControl::ValueTools;
 
 use strict;
-use warnings qw(all -uninitialized);
+use warnings qw(all -uninitialized -digit);
 use Carp qw(croak);
 use base qw(Exporter);
 
-our @EXPORT_OK = qw(boolify checkMinimum checkMaximum checkMinMax timestamp);
+our @EXPORT_OK = qw(boolify checkMinimum checkMaximum checkMinMax timestamp hexToNumber);
 
 =head1 NAME
 
@@ -154,6 +154,18 @@ sub timestamp {
 
   my ($sec, $min, $hour, $day, $month, $year) = localtime($when);
   return sprintf("%04d%02d%02d-%02d%02d%02d", $year + 1900, $month + 1, $day, $hour, $min, $sec);
+}
+
+=head2 hexToNumber(@hexData)
+
+Convert a list of hexadecimal strings to numbers.
+
+=cut
+
+sub hexToNumber {
+  for (my $i=0; $i<@_; $i++) {
+    $_[$i] = hex($_[$i]);
+  }
 }
 
 =head1 AUTHOR

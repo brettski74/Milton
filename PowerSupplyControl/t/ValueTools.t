@@ -5,7 +5,7 @@ use warnings;
 
 use lib '.';
 use Test2::V0;
-use PowerSupplyControl::ValueTools qw(boolify checkMinimum checkMaximum checkMinMax timestamp);
+use PowerSupplyControl::ValueTools qw(boolify checkMinimum checkMaximum checkMinMax timestamp hexToNumber);
 
 # Test boolify function
 subtest 'boolify function' => sub {
@@ -45,6 +45,69 @@ subtest 'boolify function' => sub {
     is($hash->{d}, F(), 'FALSE is false in a hash');
     is($hash->{e}, F(), 'False is false in a hash');
     is($hash->{f}, F(), 'false is false in a hash');
+};
+
+# Test hexToNumber function
+subtest 'hexToNumber function' => sub {
+    # Test basic hex conversion
+    my @hex_vals = ('0', '1', 'A', 'a', 'F', 'f', '10', 'FF', 'ff', '100', 'FFFF');
+    my @original = @hex_vals;
+    hexToNumber(@hex_vals);
+    
+    is($hex_vals[0], 0, "'0' converts to 0");
+    is($hex_vals[1], 1, "'1' converts to 1");
+    is($hex_vals[2], 10, "'A' converts to 10");
+    is($hex_vals[3], 10, "'a' converts to 10");
+    is($hex_vals[4], 15, "'F' converts to 15");
+    is($hex_vals[5], 15, "'f' converts to 15");
+    is($hex_vals[6], 16, "'10' converts to 16");
+    is($hex_vals[7], 255, "'FF' converts to 255");
+    is($hex_vals[8], 255, "'ff' converts to 255");
+    is($hex_vals[9], 256, "'100' converts to 256");
+    is($hex_vals[10], 65535, "'FFFF' converts to 65535");
+    
+    # Test edge cases
+    my @edge_cases = ('0x0', '0X1', '0xABCD', '0Xabcd');
+    hexToNumber(@edge_cases);
+    
+    is($edge_cases[0], 0, "'0x0' converts to 0");
+    is($edge_cases[1], 1, "'0X1' converts to 1");
+    is($edge_cases[2], 43981, "'0xABCD' converts to 43981");
+    is($edge_cases[3], 43981, "'0Xabcd' converts to 43981");
+    
+    # Test large numbers
+    my @large_nums = ('FFFFFFFF', '7FFFFFFF', '80000000');
+    hexToNumber(@large_nums);
+    
+    is($large_nums[0], 4294967295, "'FFFFFFFF' converts to 4294967295");
+    is($large_nums[1], 2147483647, "'7FFFFFFF' converts to 2147483647");
+    is($large_nums[2], 2147483648, "'80000000' converts to 2147483648");
+    
+    # Test single value
+    my $single_val = 'DEADBEEF';
+    hexToNumber($single_val);
+    is($single_val, 3735928559, "'DEADBEEF' converts to 3735928559");
+    
+    # Test empty array
+    my @empty = ();
+    hexToNumber(@empty);
+    is(scalar @empty, 0, 'Empty array remains empty');
+    
+    # Test with hash values
+    my $hash = { 'a' => '1A', 'b' => '2B', 'c' => '3C' };
+    hexToNumber($hash->{a}, $hash->{b}, $hash->{c});
+    
+    is($hash->{a}, 26, "'1A' converts to 26 in hash");
+    is($hash->{b}, 43, "'2B' converts to 43 in hash");
+    is($hash->{c}, 60, "'3C' converts to 60 in hash");
+    
+    # Test mixed case
+    my @mixed_case = ('aBcD', 'EfGh', '1234');
+    hexToNumber(@mixed_case);
+    
+    is($mixed_case[0], 43981, "'aBcD' converts to 43981");
+    is($mixed_case[1], 239, "'EfGh' converts to 239 (invalid 'G' ignored)");
+    is($mixed_case[2], 4660, "'1234' converts to 4660");
 };
 
 # Test checkMinimum function
@@ -189,4 +252,4 @@ subtest 'timestamp function' => sub {
 
 };
 
-done_testing(); 
+done_testing; 

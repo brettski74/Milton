@@ -58,20 +58,21 @@ your power supply.
 
 sub new {
   my ($class, $config) = @_;
+  my $self = $config;
 
-  bless $config, $class;
+  bless $self, $class;
 
-  $config->_buildCalibration;
+  $self->_buildCalibration;
 
-  my ($vset, $iset, $on, $vout, $iout) = $config->_connect;
+  my ($vset, $iset, $on, $vout, $iout) = $self->_connect;
 
   # Store the raw values as reported by the power supply.
-  $config->{raw} = { vset => $vset
-                   , iset => $iset
-                   , on => $on
-                   , vout => $vout
-                   , iout => $iout
-                   };
+  $self->{raw} = { vset => $vset
+                 , iset => $iset
+                 , on => $on
+                 , vout => $vout
+                 , iout => $iout
+                 };
 
   # Store the cooked values after calibration adjustments.
   my $cooked = { on => $on };
@@ -96,9 +97,19 @@ sub new {
     $cooked->{iout} = $iout;
   }
 
-  $config->{cooked} = $cooked;
+  $self->{cooked} = $cooked;
 
-  return $config;
+  if (!exists $self->{current}) {
+    $self->{current} = {};
+  }
+  if (!exists $self->{voltage}) {
+    $self->{voltage} = {};
+  }
+  if (!exists $self->{power}) {
+    $self->{power} = {};
+  }
+
+  return $self;
 }
 
 
@@ -262,6 +273,25 @@ sub getCurrentSetPoint {
   return $self->{cooked}->{iset};
 }
 
+=head2 isOn
+
+Check if the power supply is on.
+
+=over
+
+=item Return Value
+
+Returns true if the power supply is on, false otherwise.
+
+=back
+
+=cut
+
+sub isOn {
+  my ($self) = @_;
+  return $self->{raw}->{on};
+}
+
 =head2 getOutputVoltage
 
 Get the output voltage of the power supply.
@@ -342,7 +372,9 @@ sub setVoltage {
   my ($self, $voltage) = @_;
   my $raw = $self->{raw};
   my $cooked = $self->{cooked};
-  my ($min, $max) = $self->getVoltageLimits;
+  my ($vmin, $vmax) = $self->getVoltageLimits;
+  my ($imin, $imax) = $self->getCurrentLimits;
+  my ($pmin, $pmax) = $self->getPowerLimits;
 
   my $vset;
   if (exists $self->{'voltage-requested'}) {
@@ -350,27 +382,46 @@ sub setVoltage {
   } else {
     $vset = $voltage;
   }
-  $vset = $min if $vset < $min;
-  $vset = $max if $vset > $max;
+  $vset = $vmin if $vset < $vmin;
+  $vset = $vmax if $vset > $vmax;
 
   my ($ok, $on, $iset) = $self->_setVoltage($vset);
 
   croak "setVoltage: Failed to set output voltage" if !$ok;
   $raw->{vset} = $vset;
-  $cooked->{vset} = $voltage;
+
+  if ($self->{'voltage-setpoint'}) {
+    $cooked->{vset} = $self->{'voltage-setpoint'}->estimate($vset);
+  } else {
+    $cooked->{vset} = $vset;
+  }
 
   if (!defined $iset || $iset <= 0) {
-    my ($min, $max) = $self->getCurrentLimits;
-    $iset = $max;
+    $iset = $imax;
+    
+    # Verify that we won't exceed max power
+    if (($vset*$iset) > $pmax) {
+      $iset = $pmax / $vset;
+    }
     ($ok, $on) = $self->_setCurrent($iset);
     croak "setVoltage: Failed to set current set point" if !$ok;
   }
   $raw->{iset} = $iset;
-  $cooked->{iset} = $self->{'current-setpoint'}->estimate($iset);
-
-  if (!$on) {
-    if (defined($on) || (!defined($on) && !$raw->{on})) {
+  if ($self->{'current-setpoint'}) {
+    $cooked->{iset} = $self->{'current-setpoint'}->estimate($iset);
+  } else {
+    $cooked->{iset} = $iset;
   }
+
+  if ($on) {
+    $raw->{on} = $cooked->{on} = 1;
+  } else {
+    if (defined($on) || (!defined($on) && !$raw->{on})) {
+      $self->_on(1);
+      $raw->{on} = 1;
+      $cooked->{on} = 1;
+    }
+  } 
 
   return $self;
 }
@@ -397,7 +448,9 @@ sub setCurrent {
   my ($self, $current) = @_;
   my $raw = $self->{raw};
   my $cooked = $self->{cooked};
-  my ($min, $max) = $self->getCurrentLimits;
+  my ($vmin, $vmax) = $self->getVoltageLimits;
+  my ($imin, $imax) = $self->getCurrentLimits;
+  my ($pmin, $pmax) = $self->getPowerLimits;
 
   my $iset;
   if (exists $self->{'current-requested'}) {
@@ -405,25 +458,40 @@ sub setCurrent {
   } else {
     $iset = $current;
   }
-  $iset = $min if $iset < $min;
-  $iset = $max if $iset > $max;
+  $iset = $imin if $iset < $imin;
+  $iset = $imax if $iset > $imax;
 
   my ($ok, $on, $vset) = $self->_setCurrent($iset);
 
   croak "setCurrent: Failed to set output current" if !$ok;
   $raw->{iset} = $iset;
-  $cooked->{iset} = $current;
+
+  if ($self->{'current-setpoint'}) {
+    $cooked->{iset} = $self->{'current-setpoint'}->estimate($iset);
+  } else {
+    $cooked->{iset} = $iset;
+  }
 
   if (!defined $vset || $vset <= 0) {
-    my ($min, $max) = $self->getVoltageLimits;
-    $vset = $max;
+    $vset = $vmax;
+
+    if (($iset*$vset) > $pmax) {
+      $vset = $pmax / $iset;
+    }
+
     ($ok, $on) = $self->_setVoltage($vset);
     croak "setCurrent: Failed to set voltage set point" if !$ok;
   }
   $raw->{vset} = $vset;
-  $cooked->{vset} = $self->{'voltage-setpoint'}->estimate($vset);
+  if ($self->{'voltage-setpoint'}) {
+    $cooked->{vset} = $self->{'voltage-setpoint'}->estimate($vset);
+  } else {
+    $cooked->{vset} = $vset;
+  }
 
-  if (!$on) {
+  if ($on) {
+    $raw->{on} = $cooked->{on} = 1;
+  } else {
     if (defined($on) || (!defined($on) && !$raw->{on})) {
       $self->_on(1);
       $raw->{on} = 1;
@@ -465,6 +533,10 @@ resistance measurement.
 
 sub setPower {
   my ($self, $power, $resistance) = @_;
+  my ($pmin, $pmax) = $self->getPowerLimits;
+
+  $power = $pmin if $power < $pmin;
+  $power = $pmax if $power > $pmax;
 
   if (!defined $resistance) {
     my $iout = $self->getOutputCurrent;
@@ -523,6 +595,10 @@ sub getMeasurableCurrent {
 
 Get the minimum and maximum current limits of the power supply.
 
+Since these are often set to values to avoid triggering hardware protections like overcurrent
+protection that may shut down the power supply, these values are interpreted as raw values - as in
+the values actual sent to the power supply after calibration adjustments are applied.
+
 =over
 
 =item Return Value
@@ -541,6 +617,10 @@ sub getCurrentLimits {
 =head2 getVoltageLimits
 
 Get the minimum and maximum voltage limits of the power supply.
+
+Since these are often set to values to avoid triggering hardware protections like overvoltage
+protection that may shut down the power supply, these values are interpreted as raw values - as in
+the values actual sent to the power supply after calibration adjustments are applied.
 
 =over
 
@@ -568,6 +648,10 @@ Get the minimum and maximum power limits of the power supply.
 
 A two element list containing the mimimum and maximum power limits configured for this interface.
 
+Since these are often set to values to avoid triggering hardware protections like overpower
+protection that may shut down the power supply, these values are interpreted as raw values - as in
+the values actual sent to the power supply after calibration adjustments are applied.
+
 =back
 
 =cut
@@ -594,11 +678,24 @@ To be implemented by subclasses.
 If $flag is true, the power supply output is turned on.
 If $flag is false, the power supply output is turned off.
 
+=item Return Value
+
+Returns true if the output state was set to the desired value or false otherwise.
+
 =back
 
 =cut
 
 sub on {
+  my ($self, $flag) = @_;
+
+  $flag = $flag ? 1 : 0;
+
+  if ($self->_on($flag)) {
+    $self->{raw}->{on} = $self->{cooked}->{on} = $flag;
+    return 1;
+  }
+  
   return;
 }
 
@@ -652,7 +749,7 @@ Returns a five element list containing:
 =cut
 
 sub _connect {
-  return;
+  croak ref($_[0]) .': _connect not implemented.';
 }
 
 =head2 _disconnect
@@ -662,7 +759,7 @@ Disconnect from the power supply. This is used to close the connection to the po
 =cut
 
 sub _disconnect {
-  return;
+  croak ref($_[0]) .': _disconnect not implemented.'
 }
 
 =head2 _poll
@@ -686,10 +783,36 @@ request, then return undef for the on-state and let the calling logic figure it 
 =cut
 
 sub _poll {
-  return;
+  croak ref($_[0]) .': _poll not implemented.'
 }
 
-=head2 _setCurrent($current)
+=head2 _on($flag)
+
+Set the on-state of the power supply without affecting anything else.
+
+This method should blindly set the on-state of the power supply and should aim to do so in a single
+request if possible, or in as few requests as possible.
+
+=over
+
+=item $flag
+
+A true value indicates that the output should be turned on/enabled.
+A false value indicates that the output should be turned off/disabled.
+
+=item Return Value
+
+Returns true if the output was set to the desired on-state or false otherwise.
+
+=back
+
+=cut
+
+sub _on {
+  croak ref($_[0]) .': not implemented.'
+}
+
+=head2 _setCurrent($current, $recommendedVoltage)
 
 Set the output current set point of the power supply and if possible, ensure that the output is on and
 the power supply will favour constant current operation. 
@@ -710,6 +833,12 @@ multiple requests are required, that will be dealt with elsewhere.
 
 The current to request from the power supply in amperes.
 
+=item $recommendedVoltage
+
+The recommended voltage to set to favour constant current operation while staying within current and power limits.
+If the subclass can set voltage and current in one request, it is generally a good idea to blindly set the
+voltage set point to this value.
+
 =item Return Value
 
 Returns a three element list containing:
@@ -727,10 +856,10 @@ the desired outcomes. (ie. current set, output on, constant current operation)
 =cut
 
 sub _setCurrent {
-  return;
+  croak ref($_[0]) .': _setCurrent not implemented.';
 }
 
-=head2 _setVoltage($voltage)
+=head2 _setVoltage($voltage, $recommendedCurrent)
 
 Set the output voltage set point of the power supply and if possible, ensure that the output is on and
 the power supply will favour constant voltage operation. 
@@ -751,6 +880,12 @@ multiple requests are required, that will be dealt with elsewhere.
 
 The voltage to request from the power supply in volts.
 
+=item $recommendedCurrent
+
+The recommended current to set to favour constant voltage operation while staying within current and power limits.
+If the subclass can set voltage and current in one request, it is generally a good idea to blindly set the
+current set point to this value.
+
 =item Return Value
 
 Returns a three element list containing:
@@ -768,7 +903,7 @@ the desired outcomes. (ie. voltage set, output on, constant voltage operation)
 =cut
 
 sub _setVoltage {
-  return;
+  croak ref($_[0]) .': _setVoltage not implemented.';
 }
 
 =head2 _buildEstimator($input, $output, @key)
@@ -781,22 +916,30 @@ a list of keys that are used to access the data in the configuration.
 sub _buildEstimator {
   my ($self, $input, $output, @key) = @_;
 
-  my $array = $self->{config}->exists(@key);
+  my $fullKey = join('.', @key);
+  my $array = $self;
+  while ($array && @key) {
+    my $key = shift @key;
+
+    if (exists $array->{$key}) {
+      $array = $array->{$key};
+    } else {
+      $array = undef;
+      last;
+    }
+  }
 
   my $estimator = PowerSupplyControl::Math::PiecewiseLinear->new;
   if ($array && @$array) {
     $estimator->addHashPoints($input, $output, @{$array});
   }
   
+  # No data, no estimator.
+  return if ($estimator->length == 0);
+
   # If we don't have at least two points, add the origin.
   if ($estimator->length < 2) {
     $estimator->addPoint(0,0);
-  }
-
-  # If we still don't have two points, make this an identity estimator.
-  # Using negative values should avoid causing too many problems if real values are added later.
-  if ($estimator->length < 2) {
-    $estimator->addPoint(-1, -1);
   }
 
   return $estimator;
@@ -812,12 +955,30 @@ raw values from the power supply into the requested and reported values.
 sub _buildCalibration {
   my ($self) = @_;
 
-  $self->{'voltage-requested'} = $self->_buildEstimator(qw(actual requested calibration voltage));
-  $self->{'voltage-output'} = $self->_buildEstimator(qw(sampled actual calibration voltage));
-  $self->{'voltage-setpoint'} = $self->_buildEstimator(qw(requested actual calibration voltage));
-  $self->{'current-requested'} = $self->_buildEstimator(qw(actual requested calibration current));
-  $self->{'current-output'} = $self->_buildEstimator(qw(sampled actual calibration current));
-  $self->{'current-setpoint'} = $self->_buildEstimator(qw(requested actual calibration current));
+  my $est = $self->_buildEstimator(qw(actual requested calibration voltage));
+  if ($est) {
+    $self->{'voltage-requested'} = $est;
+  }
+  $est = $self->_buildEstimator(qw(sampled actual calibration voltage));
+  if ($est) {
+    $self->{'voltage-output'} = $est;
+  }
+  $est = $self->_buildEstimator(qw(requested actual calibration voltage));
+  if ($est) {
+    $self->{'voltage-setpoint'} = $est;
+  }
+  $est = $self->_buildEstimator(qw(actual requested calibration current));
+  if ($est) {
+    $self->{'current-requested'} = $est;
+  }
+  $est = $self->_buildEstimator(qw(sampled actual calibration current));
+  if ($est) {
+    $self->{'current-output'} = $est;
+  }
+  $est = $self->_buildEstimator(qw(requested actual calibration current));
+  if ($est) {
+    $self->{'current-setpoint'} = $est;
+  }
 
   return;
 }

@@ -519,6 +519,87 @@ subtest 'setPower method' => sub {
   $result = $interface->getCurrentSetPoint;
   is($result, 6.0, '2W/3ohms: setPower limits current based on max current');
 
+  note('setPower when output current is currently zero');
+  # setPower when output current is currently zero
+  $config = { 'mock-output-current' => 0
+            , 'mock-output-voltage' => 8.61
+            , 'mock-on-state' => 1
+            , 'mock-voltage-setpoint' => 8.60
+            , 'mock-current-setpoint' => 8.0
+            , current => { minimum => 0.5, maximum => 11.0, measurable => 2 }
+            , voltage => { minimum => 2, maximum => 30 }
+            , power => { minimum => 1, maximum => 1000 }
+            , rows => [ { voltage => 8.61, current => 5.74 } ] };
+  $interface = PowerSupplyControl::t::MockInterface->new($config);
+
+  # Confirm pre-test state
+  is($interface->isOn, T(), 'output is initially on');
+  $result = $interface->getOutputVoltage;
+  is($result, 8.61, 'output voltage is initially 8.61V');
+  $result = $interface->getOutputCurrent;
+  is($result, 0, 'output current is initially 0');
+  $result = $interface->getVoltageSetPoint;
+  is($result, 8.60, 'voltage setpoint is initially 8.60V');
+  $result = $interface->getCurrentSetPoint;
+  is($result, 8.0, 'current setpoint is initially 8.0A');
+  is($interface->{'poll-count'}, 0, 'We have not polled yet');
+
+  like(dies {$interface->setPower(27)}
+     , qr/Resistance.*not available/i
+     , 'setPower croaks when output is on but current is zero'
+     );
+
+  $result = $interface->getOutputVoltage;
+  is($interface->isOn, T(), 'output is still on after setPower');
+  is($result, 8.61, '27W/1.5ohms: failed setPower call changed nothing');
+  $result = $interface->getOutputCurrent;
+  is($result, 0, '27W/3ohms: failed setPower call changed nothing');
+  $result = $interface->getVoltageSetPoint;
+  is($result, 8.60, '27W/1.5ohms: voltage setpoint is unchanged');
+  $result = $interface->getCurrentSetPoint;
+  is($result, 8.0, '27W/1.5ohms: current setpoint is unchanged');
+  is($interface->{'poll-count'}, 0, 'We still have not polled.');
+
+  # setPower when output is currently off
+  $config = { 'mock-output-current' => 0
+            , 'mock-output-voltage' => 0
+            , 'mock-on-state' => 0
+            , 'mock-voltage-setpoint' => 8.60
+            , 'mock-current-setpoint' => 8.0
+            , current => { minimum => 0.5, maximum => 11.0, measurable => 2 }
+            , voltage => { minimum => 2, maximum => 30 }
+            , power => { minimum => 1, maximum => 1000 }
+            , rows => [ { voltage => 8.64, current => 4.80 } ] };
+  $interface = PowerSupplyControl::t::MockInterface->new($config);
+
+  # Confirm pre-test state
+  is($interface->isOn, F(), 'output is initially off');
+  $result = $interface->getOutputVoltage;
+  is($result, 0, 'output voltage is initially 0');
+  $result = $interface->getOutputCurrent;
+  is($result, 0, 'output current is initially 0');
+  $result = $interface->getVoltageSetPoint;
+  is($result, 8.60, 'voltage setpoint is initially 8.60V');
+  $result = $interface->getCurrentSetPoint;
+  is($result, 8.0, 'current setpoint is initially 8.0A');
+  is($interface->{'poll-count'}, 0, 'We have not polled yet');
+
+  like(dies {$interface->setPower(42) }
+     , qr/Resistance.*not available/i
+     , 'setPower croaks when output is off and current is zero'
+     );
+
+  is($interface->isOn, F(), 'output is still off after setPower');
+  $result = $interface->getOutputVoltage;
+  is($result, 0, 'output voltage is still 0 after setPower');
+  $result = $interface->getOutputCurrent;
+  is($result, 0, 'output current is still 0 after setPower');
+  $result = $interface->getVoltageSetPoint;
+  is($result, 8.60, '42W/3ohms: Output voltage is still 8.60V after setPower');
+  $result = $interface->getCurrentSetPoint;
+  is($result, 8.0, '42W/3ohms: Output current is still 8.0A after setPower');
+  is($interface->{'poll-count'}, 0, 'We still have not polled.');
+
 };
 
 # Test on method

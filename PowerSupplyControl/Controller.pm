@@ -127,4 +127,16 @@ sub getAmbient {
   return;
 }
 
+sub hasTemperatureDevice {
+  return;
+}
+
+sub getDeviceTemperature {
+  return;
+}
+
+sub startDeviceListening {
+  return;
+}
+
 1;

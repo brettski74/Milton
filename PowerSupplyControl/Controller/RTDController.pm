@@ -4,6 +4,7 @@ use strict;
 use PowerSupplyControl::Math::PiecewiseLinear;
 use base qw(PowerSupplyControl::Controller);
 use Readonly;
+use Carp qw(croak);
 
 Readonly my $ALPHA_CU => 0.00393;
 
@@ -28,9 +29,42 @@ sub new {
 
   # Convert the temperature/resistance values into a piecewise linear estimator
   $self->{rt_estimator} = PowerSupplyControl::Math::PiecewiseLinear->new
-          ->addHashPoints('resistance', 'temperature', @{$config->{'temperatures'}});
+          ->addHashPoints('resistance', 'temperature', @{$config->{calibration}->{temperatures}});
+
+  if (exists $config->{'device'}) {
+    $self->_initializeDevice($config->{'device'});
+  }
 
   return $self;
+}
+
+sub _initializeDevice {
+  my ($self, $config) = @_;
+  my $package = $config->{'package'};
+
+  eval "use $package";
+
+  if ($@) {
+    croak "Failed to load package $package: $@";
+  }
+
+  my $device = undef;
+  eval {
+    $device = $package->new(%$config);
+  };
+  # Ignore errors. Device assistance is optional. Warn the user and continue.
+  if (!defined $device) {
+    print "\a\a\aFailed to initialize device $package: $@\nContinuing without device assistance.\n";
+    return;
+  }
+
+  print "Connected to device $package\n";
+
+  $device->listenNow();
+
+  $self->{device} = $device;
+
+  return $device;
 }
 
 =head2 resetTemperatureCalibration($status)
@@ -107,6 +141,14 @@ sub getTemperature {
   $status->{resistance} = $resistance;
   $status->{temperature} = $temperature;
 
+  if ($self->hasTemperatureDevice) {
+    my ($hot, $cold) = $self->{device}->getTemperature;
+    $status->{'device-temperature'} = $hot;
+    if (defined $cold) {
+      $status->{'device-ambient'} = $cold;
+    }
+  }
+
   return $temperature;
 }
 
@@ -176,6 +218,39 @@ Get the number of calibration points in the RTD estimator.
 sub temperatureEstimatorLength {
   my ($self) = @_;  
   return $self->{rt_estimator}->length();
+}
+
+=head2 hasTemperatureDevice
+
+Returns true if the controller has a temperature device available to measure
+the temperature of the hotplate independent of the heating element RTD.
+
+=cut
+
+sub hasTemperatureDevice {
+  my ($self) = @_;
+
+  return defined $self->{device};
+}
+
+sub getDeviceTemperature {
+  my ($self) = @_;
+
+  if ($self->hasTemperatureDevice) {
+    return $self->{device}->getTemperature;
+  }
+
+  return;
+}
+
+sub startDeviceListening {
+  my ($self) = @_;
+
+  if ($self->hasTemperatureDevice) {
+    $self->{device}->startListening;
+  }
+
+  return;
 }
 
 1;

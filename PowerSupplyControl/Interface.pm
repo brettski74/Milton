@@ -64,7 +64,13 @@ sub new {
 
   $self->_buildCalibration;
 
-  my ($vset, $iset, $on, $vout, $iout) = $self->_connect;
+  my ($vset, $iset, $on, $vout, $iout);
+  
+  if  (($vset, $iset, $on, $vout, $iout) = $self->_connect) {
+    $self->{connected} = 1;
+  } else {
+    croak ref($self) .': Unable to connect to power supply';
+  }
 
   # Store the raw values as reported by the power supply.
   $self->{raw} = { vset => $vset
@@ -385,7 +391,12 @@ sub setVoltage {
   $vset = $vmin if $vset < $vmin;
   $vset = $vmax if $vset > $vmax;
 
-  my ($ok, $on, $iset) = $self->_setVoltage($vset);
+  my $irec = $imax;
+  if (($vset*$irec) > $pmax) {
+    $irec = $pmax / $vset;
+  }
+
+  my ($ok, $on, $iset) = $self->_setVoltage($vset, $irec);
 
   croak "setVoltage: Failed to set output voltage" if !$ok;
   $raw->{vset} = $vset;
@@ -397,14 +408,9 @@ sub setVoltage {
   }
 
   if (!defined $iset || $iset <= 0) {
-    $iset = $imax;
-    
-    # Verify that we won't exceed max power
-    if (($vset*$iset) > $pmax) {
-      $iset = $pmax / $vset;
-    }
-    ($ok, $on) = $self->_setCurrent($iset);
+    ($ok, $on) = $self->_setCurrent($irec);
     croak "setVoltage: Failed to set current set point" if !$ok;
+    $iset = $irec;
   }
   $raw->{iset} = $iset;
   if ($self->{'current-setpoint'}) {
@@ -461,7 +467,12 @@ sub setCurrent {
   $iset = $imin if $iset < $imin;
   $iset = $imax if $iset > $imax;
 
-  my ($ok, $on, $vset) = $self->_setCurrent($iset);
+  my $vrec = $vmax;
+  if (($iset*$vrec) > $pmax) {
+    $vrec = $pmax / $iset;
+  }
+
+  my ($ok, $on, $vset) = $self->_setCurrent($iset, $vrec);
 
   croak "setCurrent: Failed to set output current" if !$ok;
   $raw->{iset} = $iset;
@@ -473,15 +484,11 @@ sub setCurrent {
   }
 
   if (!defined $vset || $vset <= 0) {
-    $vset = $vmax;
-
-    if (($iset*$vset) > $pmax) {
-      $vset = $pmax / $iset;
-    }
-
-    ($ok, $on) = $self->_setVoltage($vset);
+    ($ok, $on) = $self->_setVoltage($vrec);
     croak "setCurrent: Failed to set voltage set point" if !$ok;
+    $vset = $vrec;
   }
+
   $raw->{vset} = $vset;
   if ($self->{'voltage-setpoint'}) {
     $cooked->{vset} = $self->{'voltage-setpoint'}->estimate($vset);
@@ -541,6 +548,13 @@ sub setPower {
   if (!defined $resistance) {
     my $iout = $self->getOutputCurrent;
 
+    # We *could* call setCurrent to set the output to a measureable current level and turn
+    # the output on, wait a bit for the output to settle and then poll to get a resistance
+    # measurement, but we're probably inside an event loop. This could generate multiple
+    # extra request-response cycles plus that settling time, which could block the event loop
+    # for much longer than the sampling period. Better to croak and require commands that
+    # need to use setPower to ensure the power supply is turned on and polled before the
+    # event loop start - probably in the preprocess method.
     croak "setPower: Resistance measurement not available because iout = 0" if $iout <= 0;
 
     my $vout = $self->getOutputVoltage;

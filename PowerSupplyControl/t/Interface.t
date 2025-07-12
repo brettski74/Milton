@@ -295,6 +295,7 @@ subtest 'setVoltage method' => sub {
   $interface->setCurrentLimits(1.1, 9.9);
   $interface->setPowerLimits(1,1000);
   my $result = $interface->setVoltage(15.0);
+  is($interface->{'last-setVoltage'}, [ 15.0, 9.9 ], 'correct values sent to _setVoltage');
   is($result, exact_ref($interface), 'setVoltage returns self for chaining');
   is($interface->getVoltageSetPoint(), 15.0, 'setVoltage sets voltage setpoint - no calibration');
   is($interface->isOn, 1, 'setVoltage turns output on');
@@ -308,6 +309,7 @@ subtest 'setVoltage method' => sub {
   $interface->setCurrentLimits(2.2, 8.8);
   $interface->setPowerLimits(1,1000);
   $result = $interface->setVoltage(14.7);
+  is($interface->{'last-setVoltage'}, [ 14.7, 8.8 ], 'correct values sent to _setVoltage');
   is($interface->getVoltageSetPoint(), 14.7, 'setVoltage sets voltage setpoint - no calibration');
   is($interface->isOn, 1, 'setVoltage turns output on');
   ($cooked, $raw) = $interface->getCurrentSetPoint;
@@ -320,6 +322,7 @@ subtest 'setVoltage method' => sub {
   $interface->setCurrentLimits(2.3, 8.7);
   $interface->setPowerLimits(1,1000);
   $result = $interface->setVoltage(14.5);
+  is($interface->{'last-setVoltage'}, [ 14.5, 8.7 ], 'correct values sent to _setVoltage');
   is($interface->getVoltageSetPoint(), 14.5, 'setVoltage sets voltage setpoint - no calibration');
   is($interface->isOn, 1, 'setVoltage turns output on');
   ($cooked, $raw) = $interface->getCurrentSetPoint;
@@ -333,6 +336,7 @@ subtest 'setVoltage method' => sub {
   $interface->setPowerLimits(1,1000);
   $result = $interface->setVoltage(14.2);
   is($interface->getVoltageSetPoint(), 14.2, 'setVoltage sets voltage setpoint - no calibration');
+  is($interface->{'last-setVoltage'}, [ 14.2, 8.7 ], 'correct values sent to _setVoltage');
   is($interface->isOn, 1, 'setVoltage turns output on');
   ($cooked, $raw) = $interface->getCurrentSetPoint;
   is($cooked, 9.1, 'Cooked current set point reflects returned value - no calibration');
@@ -342,18 +346,20 @@ subtest 'setVoltage method' => sub {
   $interface->setVoltageLimits(3, 12);
   $interface->setResult('voltage', 1, 1, -1);
   $interface->setVoltage(13);
+  is($interface->{'last-setVoltage'}, [ 12, 8.7 ], 'correct values sent to _setVoltage');
   is($interface->getVoltageSetPoint(), 12, 'setVoltage sets voltage setpoint to maximum - no calibration');
   is($interface->getCurrentSetPoint, 8.7, 'setVoltage sets current setpoint to max current');
 
   $interface->setVoltage(2.5);
+  is($interface->{'last-setVoltage'}, [ 3, 8.7 ], 'correct values sent to _setVoltage');
   is($interface->getVoltageSetPoint(), 3, 'setVoltage sets voltage setpoint to minimum - no calibration');
   is($interface->getCurrentSetPoint, 8.7, 'setVoltage sets current setpoint to max current');
 
   $interface->setPowerLimits(1, 90);
   $interface->setVoltage(13);
+  is($interface->{'last-setVoltage'}, [ 12, 7.5 ], 'correct values sent to _setVoltage');
   is($interface->getVoltageSetPoint(), 12, 'setVoltage sets voltage setpoint to maximum - no calibration');
   is($interface->getCurrentSetPoint, 7.5, 'setVoltage sets current setpoint based on max power');
-
 
   my $config = { calibration => { voltage => offset_estimator(1,2), current => offset_estimator(0.5, 1.5) }};
   $interface = PowerSupplyControl::t::MockInterface->new($config);
@@ -363,6 +369,7 @@ subtest 'setVoltage method' => sub {
   $interface->setCurrentLimits(1.1, 9.9);
   $interface->setPowerLimits(1,1000);
   $result = $interface->setVoltage(10.0);
+  is($interface->{'last-setVoltage'}, [ 11.0, 9.9 ], 'correct values sent to _setVoltage');
   is($interface->getVoltageSetPoint(), 10.0, 'setVoltage sets voltage setpoint - with calibration');
   ($cooked, $raw) = $interface->getVoltageSetPoint;
   is($cooked, 10.0, 'Cooked voltage set point is now requested voltage - with calibration');
@@ -383,6 +390,7 @@ subtest 'setCurrent method' => sub {
   $interface->setVoltageLimits(2, 30);
   $interface->setPowerLimits(1,1000);
   my $result = $interface->setCurrent(5.0);
+  is($interface->{'last-setCurrent'}, [ 5.0, 30 ], 'correct values sent to _setCurrent');
   is($result, exact_ref($interface), 'setCurrent returns self for chaining');
   is($interface->getCurrentSetPoint, 5.0, 'setCurrent sets current setpoint - no calibration');
   is($interface->isOn, 1, 'setCurrent turns output on');
@@ -396,6 +404,7 @@ subtest 'setCurrent method' => sub {
   $interface->setVoltageLimits(2, 29);
   $interface->setPowerLimits(1,1000);
   $result = $interface->setCurrent(5.2);
+  is($interface->{'last-setCurrent'}, [ 5.2, 29 ], 'correct values sent to _setCurrent');
   is($interface->getCurrentSetPoint, 5.2, 'setCurrent sets current setpoint - no calibration');
   is($interface->isOn, 1, 'setCurrent turns output on');
   ($cooked, $raw) = $interface->getVoltageSetPoint;
@@ -408,6 +417,7 @@ subtest 'setCurrent method' => sub {
   $interface->setVoltageLimits(2, 29);
   $interface->setPowerLimits(1,1000);
   $result = $interface->setCurrent(4.5);
+  is($interface->{'last-setCurrent'}, [ 4.5, 29 ], 'correct values sent to _setCurrent');
   is($interface->getCurrentSetPoint, 4.5, 'setCurrent sets current setpoint - no calibration');
   is($interface->isOn, 1, 'setCurrent turns output on');
   ($cooked, $raw) = $interface->getVoltageSetPoint;
@@ -420,6 +430,7 @@ subtest 'setCurrent method' => sub {
   $interface->setVoltageLimits(2, 29);
   $interface->setPowerLimits(1,1000);
   $result = $interface->setCurrent(4.4);
+  is($interface->{'last-setCurrent'}, [ 4.4, 29 ], 'correct values sent to _setCurrent');
   is($interface->getCurrentSetPoint, 4.4, 'setCurrent sets current setpoint - no calibration');
   is($interface->isOn, 1, 'setCurrent turns output on');
   ($cooked, $raw) = $interface->getVoltageSetPoint;
@@ -431,18 +442,20 @@ subtest 'setCurrent method' => sub {
   $interface->setVoltageLimits(2, 30);
   $interface->setResult('current', 1, 1, -1);
   $interface->setCurrent(13);
+  is($interface->{'last-setCurrent'}, [ 12, 30 ], 'correct values sent to _setCurrent');
   is($interface->getCurrentSetPoint, 12, 'setCurrent sets current setpoint to maximum - no calibration');
   is($interface->getVoltageSetPoint, 30, 'setCurrent sets voltage setpoint to max voltage');
 
   $interface->setCurrent(2.5);
+  is($interface->{'last-setCurrent'}, [ 3, 30 ], 'correct values sent to _setCurrent');
   is($interface->getCurrentSetPoint, 3, 'setCurrent sets current setpoint to minimum - no calibration');
   is($interface->getVoltageSetPoint, 30, 'setCurrent sets voltage setpoint to max voltage');
 
   $interface->setPowerLimits(1, 90);
   $interface->setCurrent(13);
+  is($interface->{'last-setCurrent'}, [ 12, 7.5 ], 'correct values sent to _setCurrent');
   is($interface->getCurrentSetPoint, 12, 'setCurrent sets current setpoint to maximum - no calibration');
   is($interface->getVoltageSetPoint, 7.5, 'setCurrent sets voltage setpoint based on max power');
-
 
   my $config = { calibration => { voltage => offset_estimator(1,2), current => offset_estimator(0.5, 1.5) }};
   $interface = PowerSupplyControl::t::MockInterface->new($config);
@@ -452,6 +465,7 @@ subtest 'setCurrent method' => sub {
   $interface->setVoltageLimits(2, 30);
   $interface->setPowerLimits(1,1000);
   $result = $interface->setCurrent(6.0);
+  is($interface->{'last-setCurrent'}, [ 6.5, 30 ], 'correct values sent to _setCurrent');
   is($interface->getCurrentSetPoint, 6.0, 'setCurrent sets current setpoint - with calibration');
   ($cooked, $raw) = $interface->getCurrentSetPoint;
   is($cooked, 6.0, 'Cooked current set point is now requested current - with calibration');

@@ -479,6 +479,8 @@ sub run {
                                                 $self->_timerWatcher($evl);
                                              });
 
+    $self->{controller}->startDeviceListening;
+
     my $int_watcher = AnyEvent->signal(signal => 'INT', cb => sub { $self->_signalWatcher('INT') });
     my $term_watcher = AnyEvent->signal(signal => 'TERM', cb => sub { $self->_signalWatcher('TERM') });
     my $quit_watcher = AnyEvent->signal(signal => 'QUIT', cb => sub { $self->_signalWatcher('QUIT') });

@@ -7,6 +7,7 @@ use base qw(PowerSupplyControl::Command::CalibrationCommand);
 use Time::HiRes qw(sleep);
 use PowerSupplyControl::Config;
 use PowerSupplyControl::Math::SteadyStateDetector;
+use PowerSupplyControl::Math::Util qw(mean);
 use Carp qw(confess);
 use Math::Round qw(round);
 use Readonly;
@@ -63,38 +64,31 @@ sub preprocess {
     return $self;
 }
 
-sub lineEvent {
-  my ($self, $status) = @_;
+sub _processCalibrationPoint {
+  my ($self, $status, $samples, $temperature) = @_;
+  my ($power, $resistance);
 
-  my $mean_power = 0;
-  my $mean_resistance = 0;
-
-  print "lineEvent: " . $status->{'sample-count'} . "\n";
-
-  foreach my $sample (@{$self->{'steady-samples'}}) {
-    $mean_power += $sample->{power};
-    $mean_resistance += $sample->{resistance};
+  if (!defined $temperature) {
+    mean($samples, 'power', $power, 'resistance', $resistance, 'device-temperature', $temperature);
+  } else {
+    mean($samples, 'power', $power, 'resistance', $resistance);
   }
 
-  $mean_power /= scalar @{$self->{'steady-samples'}};
-  $mean_resistance /= scalar @{$self->{'steady-samples'}};
-  
-  print "mean_power: $mean_power\n";
-  print "mean_resistance: $mean_resistance\n";
+  my $thermal_resistance = ($temperature - $self->{ambient}) / $power;
 
-  my $temperature = $status->{line} + 0.0;
-  my $thermal_resistance = ($temperature - $self->{ambient}) / $mean_power;
+  my $new_point = { temperature          => $temperature
+                  , resistance           => $resistance
+                  , power                => $power
+                  , 'thermal-resistance' => $thermal_resistance
+                  };
 
+  print "calibration-points: " . scalar @{$self->{'calibration-points'}} . "\n";
+  print "mean_power: $power\n";
+  print "mean_resistance: $resistance\n";
   print "temperature: $temperature\n";
   print "thermal_resistance: $thermal_resistance\n";
 
-  push @{$self->{'calibration-points'}}, { temperature => $temperature
-                                         , resistance => $mean_resistance
-                                         , power => $mean_power
-                                         , 'thermal-resistance' => $thermal_resistance
-                                         };
-
-  print "calibration-points: " . scalar @{$self->{'calibration-points'}} . "\n";
+  push @{$self->{'calibration-points'}}, $new_point;
 
   $self->{controller}->resetTemperatureCalibration(1);
   foreach my $point (@{$self->{'calibration-points'}}) {
@@ -103,14 +97,24 @@ sub lineEvent {
 
   print "calibration reset complete\n";
 
+  # If we have more temperatures to calibrate, set up the next stage
   if (scalar @{$self->{temperatures}}) {
     $self->_setupBangBang();
     $self->advanceStage('bangBang', $status);
     return $self;
   }
 
+  # If we're done, write the calibration data and cool down the hotplate
   $self->allDone($status->{'event-loop'}->getHistory());
   return $self->advanceStage('fanCoolDown', $status);
+}
+
+sub lineEvent {
+  my ($self, $status) = @_;
+
+  print "lineEvent: " . $status->{'sample-count'} . "\n";
+
+  return $self->_processCalibrationPoint($status, $self->{'steady-samples'}, $status->{line} + 0.0);
 }
 
 Readonly my %ADJUSTMENTS => ( up => 0.01
@@ -119,7 +123,7 @@ Readonly my %ADJUSTMENTS => ( up => 0.01
                             , pagedown => -0.1
                             );
 
-sub keyEvent {
+sub otherKeys {
   my ($self, $status) = @_;
 
   if ($status->{key} eq 's') {
@@ -202,11 +206,11 @@ sub _setupSteady {
   $meanPower /= scalar @$samples;
   $meanResistance /= scalar @$samples;
 
-  $self->{'steady-state'} = PowerSupplyControl::Math::SteadyStateDetector->new(%{$self->{config}->clone('steady-state')});
-  $self->{'manual-steady-state'} = 0;
+  $self->newSteadyState($status);
 
   $self->{'steady-power'} = $meanPower * ($self->{'target-temperature'} - $self->{'ambient-temperature'}) / ($meanTemperature - $self->{'ambient-temperature'});
   $self->{'steady-voltage'} = round(sqrt($meanResistance * $self->{'steady-power'}) * 100.0) / 100.0;
+  $self->{'steady-samples'} = [];
   $self->{adjustment} = 0;
   $self->{interface}->setVoltage($self->{'steady-voltage'});
 }
@@ -256,9 +260,23 @@ sub _bangBang {
 sub _steady {
   my ($self, $status) = @_;
 
-  if ($self->{'steady-state'}->check($status->{resistance}) || $self->{'manual-steady-state'} >= 3) {
-    $self->{'steady-samples'} = [ { temperature => $status->{temperature}, power => $status->{power}, resistance => $status->{resistance} } ];
-    $self->eventPrompt('input', $status, 'Steady state detected. Enter hotplate temperature: ', qr/[0-9.]/);
+  my $check = $self->checkSteadyState($status->{resistance});
+  $status->{'steady-state-count'} = $self->{'steady-state'}->{count};
+  $status->{'filtered-delta'} = $self->{'steady-state'}->{'filtered-delta'};
+
+  # If we're starting to see a steady state, start collecting samples
+  if ($status->{'steady-state-count'} > 0) {
+    push @{$self->{'steady-samples'}}, $status;
+  } else {
+    splice @{$self->{'steady-samples'}};
+  }
+
+  if ($check) {
+    if ($self->{controller}->hasTemperatureDevice) {
+      return $self->_processCalibrationPoint($status, $self->{'steady-samples'});
+    }
+
+    return $self->eventPrompt('input', $status, 'Steady state detected. Enter hotplate temperature: ', qr/[0-9.]/);
   }
 
   # Only set the voltage if there was an adjustment requested
@@ -268,16 +286,13 @@ sub _steady {
     print "Adjusted steady voltage to $self->{'steady-voltage'}\n";
   }
 
-  $status->{'steady-state-count'} = $self->{'steady-state'}->{count};
-  $status->{'filtered-delta'} = $self->{'steady-state'}->{'filtered-delta'};
-
   return $self;
 }
 
 sub _input {
   my ($self, $status) = @_;
 
-  push @{$self->{'steady-samples'}}, { temperature => $status->{temperature}, power => $status->{power}, resistance => $status->{resistance} };
+  push @{$self->{'steady-samples'}}, $status;
   #$self->{interface}->setVoltage($self->{'steady-voltage'});
   $status->{'steady-state-count'} = $self->{'steady-state'}->{count};
   $status->{'filtered-delta'} = $self->{'steady-state'}->{'filtered-delta'};

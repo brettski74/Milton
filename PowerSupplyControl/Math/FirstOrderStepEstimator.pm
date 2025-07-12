@@ -2,7 +2,9 @@ package PowerSupplyControl::Math::FirstOrderStepEstimator;
 
 use strict;
 use warnings qw(all -uninitialized);
-use Carp;
+use Carp qw(croak);
+
+use PowerSupplyControl::Math::SimpleLinearRegression;
 
 =head1 NAME
 
@@ -281,12 +283,8 @@ sub fitCurve {
 
   my ($initial, $final, $step, $direction, $threshold) = $self->_setupResponseParameters($data, $ylabel, $xlabel, \%config);
 
-  # Regression sum variables
-  my $xsum = 0;
-  my $ysum = 0;
-  my $x2sum = 0;
-  my $xysum = 0;
-  my $n = 0;
+  my $slr = PowerSupplyControl::Math::SimpleLinearRegression->new;
+  my @points = ();
 
   # build up the regression sum variables
   for my $point (@$data) {
@@ -296,32 +294,27 @@ sub fitCurve {
       last;
     }
 
-    my $x = $point->{$xlabel};
-    my $logy = log($direction * ($final - $y));
-
-    $xsum += $x;
-    $ysum += $logy;
-    $x2sum += $x * $x;
-    $xysum += $x * $logy;
-    $n++;
+    push @points, $point->{$xlabel}, log($direction * ($final - $y));
   }
 
-  if ($n < 2) {
+  if (@points < 4) {
     croak "Not enough data points to perform regression";
   }
 
+  $slr->addData(@points);
+
   # calculate the gradient and intercept of the regression line
-  my $gradient = ($n * $xysum - $xsum * $ysum) / ($n * $x2sum - $xsum * $xsum);
-  my $intercept = ($ysum - $gradient * $xsum) / $n;
+  my $gradient = $slr->gradient;
+  my $intercept = $slr->intercept;
 
   # calculate the time constant and step response magnitude
   my $tau = -1 / $gradient;
 
-  my $result = { xsum => $xsum
-               , ysum => $ysum
-               , x2sum => $x2sum
-               , xysum => $xysum
-               , n => $n
+  my $result = { xsum => $slr->xsum
+               , ysum => $slr->ysum
+               , x2sum => $slr->x2sum
+               , xysum => $slr->xysum
+               , n => $slr->n
                , gradient => $gradient
                , intercept => $intercept
                , tau => $tau

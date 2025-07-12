@@ -329,7 +329,11 @@ sub _signalWatcher {
 
   $self->_eventsDone;
 
-  $self->{interface}->shutdown;
+  # Trash our objects so they get destroyed.
+  $self->{interface} = undef;
+  $self->{controller} = undef;
+  $self->{command} = undef;
+  $self->{fan} = undef;
 
   exit(0);
 }

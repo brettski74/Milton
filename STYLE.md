@@ -11,4 +11,8 @@ The modules in this repository following the following general guidelines:
 - POD documentation for methods and subroutines should immediately precede the method or subroutine that it describes.
 - Perl modules should generally always use strict and use warnings qw(all -uninitialized).
 - Boolean false return values should use a bare return wherever possible to ensure they are false in both scalar and list contexts.
+- Use Readonly for constants. Do not use "use constant".
+- When overflowing a comma-separated list onto multiple lines, prefer prefixed commas.
+- When calling methods with no arguments, prefer omitting the parentheses.
+
 

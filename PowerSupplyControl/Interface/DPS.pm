@@ -183,62 +183,99 @@ sub new {
 
   # Include default values ahead of argument array so that arguments will override defaults
   my $self = $class->SUPER::new($config);
-  $self->{factor} = [ @FACTOR ];
-
-  bless $self, $class;
-
-  if (!$self->{port}) {
-    my @devs = $self->findUSBDevs;
-    if (! $self->openDPSPort(@devs)) {
-      die "Unable to open connection to DPS power supply!\n";
-    }
-  } else {
-    $self->openDPSPort($self->{port});
-  }
-
-  $self->fetch;
-
-  # If no specific ifactor was specified and the maximum current is higher than 10 amps, assume only 2 decimal places for current
-  if (substr($self->model, 2, 2) > 10) {
-    $self->{factor}->[1] = 100;
-    $self->{factor}->[3] = 100;
-    $self->fetch;
-  }
-  
-  if ($self->{calibration}) {
-    $self->_setupCalibration('current', $self->{calibration}->{current});
-    $self->_setupCalibration('voltage', $self->{calibration}->{voltage});
-  }
 
   return $self;
 }
 
-sub _setupCalibration {
-  my ($self, $name, $points) = @_;
+sub _connect {
+  my ($self) = @_;
 
-  return unless $points && @$points;
+  if (!$self->{connected}) {
+    $self->{factor} = [ @FACTOR ];
 
-  my $outputCal = PowerSupplyControl::Math::PiecewiseLinear->new;
-my $requestedCal = PowerSupplyControl::Math::PiecewiseLinear->new;
-  foreach my $point (@$points) {
-    if (exists $point->{actual}) {
-      if (exists $point->{sampled}) { 
-        $outputCal->addPoint($point->{sampled}, $point->{actual});
+    if (!$self->{port}) {
+      my @devs = $self->findUSBDevs;
+      if (! $self->openDPSPort(@devs)) {
+        die "Unable to open connection to DPS power supply!\n";
       }
-
-      if (exists $point->{requested}) {
-        $requestedCal->addPoint($point->{actual}, $point->{requested});
-      }
+    } else {
+      $self->openDPSPort($self->{port});
     }
-  };
 
-  if ($outputCal->length >= 2) {
-    $self->{calibration}->{output}->{$name} = $outputCal;
+    $self->fetch;
+
+    # If no specific ifactor was specified and the maximum current is higher than 10 amps, assume only 2 decimal places for current
+    if (substr($self->model, 2, 2) > 10) {
+      $self->{factor}->[1] = 100;
+      $self->{factor}->[3] = 100;
+      $self->fetch;
+    }
   }
 
-  if ($requestedCal->length >= 2) {
-    $self->{calibration}->{requested}->{$name} = $requestedCal;
+  return ($self->vset, $self->iset, $self->enabled, $self->vout, $self->iout);
+}
+
+=head2 _disconnect
+
+Disconnect from the power supply.
+
+=cut
+
+sub _disconnect {
+  my ($self) = @_;
+
+  if ($self->{client}) {
+    $self->{client}->disconnect;
+    delete $self->{client};
   }
+
+  return 1;
+}
+
+=head2 _setVoltage($volts, $recommendedAmps)
+
+Set the output voltage of the power supply.
+
+=over
+
+=item $volts
+
+=item $recommendedAmps
+
+=back
+
+=cut
+
+sub _setVoltage {
+  my ($self, $volts, $recommendedAmps) = @_;
+
+  # Set voltage, current and enable the output in one request - hopefully.
+  $self->set(voltage => $volts, current => $recommendedAmps, enable => 1);
+
+  return (1, 1, $recommendedAmps);
+}
+
+=head2 _setCurrent($amps, recommendedVolts)
+
+Set the output current of the power supply.
+
+=over
+
+=item $amps
+
+=item $recommendedVolts
+
+=back
+
+=cut
+
+sub _setCurrent {
+  my ($self, $amps, $recommendedVolts) = @_;
+
+  # Set voltage, current and enable the output in one request - hopefully.
+  $self->set(voltage => $recommendedVolts, current => $amps, enable => 1);
+
+  return (1, 1, $recommendedVolts);
 }
 
 =head2 openDPSPort(@devs)
@@ -313,218 +350,28 @@ sub findUSBDevs {
   return @devs;
 }
 
-=head2 poll
+=head2 _poll
 
-Poll the power supply and/or heating element for current status. The return value is a reference to a hash containing current status information. Subclasses may provide additional values, but they must provide the following as a bare minimum:
+Poll the power supply for the output voltage and current.
 
 =over
 
-=item voltage
+=item Return Value
 
-The current voltage across the heating element. This value includes any calibration corrections that may be available.
-
-=item current
-
-The current current through the heating element. This value includes any calibration corrections that may be available.
-
-=item power
-
-The current power being delivered to the heating element. This value is the product of the voltage and current values also being returned.
-
-=item resistance
-
-The current resistance of the heating element. This should normally be equal to voltage divided by current. If current is zero, this value will not be returned.
+Returns a two element list containing the voltage in volts and the current in amps.
 
 =back
 
 =cut
 
-sub poll {
-  my ($self, $status) = @_;
+sub _poll {
+  my ($self) = @_;
 
   # Fetch the output voltage and current
   $self->fetch($REG_V_OUT, 2);
-  my $current = $self->iout;
-  my $voltage = $self->vout;
 
-  if (exists $self->{calibration}->{output}) {
-    my $outputCal = $self->{calibration}->{output};
-
-    if (exists $outputCal->{current}) {
-      $status->{'raw-current'} = $current;
-      $current = $outputCal->{current}->estimate($current);
-    }
-
-    if (exists $outputCal->{voltage}) {
-      $status->{'raw-voltage'} = $voltage;
-      $voltage = $outputCal->{voltage}->estimate($voltage);
-    }
-  }
-
-  $status->{voltage} = $voltage;
-  $status->{current} = $current;
-  $status->{power} = $voltage * $current;
-  if($current > 0) {
-    $status->{resistance} = $voltage / $current;
-  }
-
-  return $status;
+  return ($self->vout, $self->iout);
 }
-
-=head2 setPower($pwr, $r)
-
-Set the current heating element power level. This is presumably done by adjusting the output voltage and/or current of the power supply. Where possible, subclasses should attempt to set the power supply output such that the power supplied to the element itself matches the commanded power level. Where not possible this may instead set the output power of the power supply.
-
-=over
-
-=item $pwr
-
-The power level to be commanded to the heating element.
-
-=item $r
-
-The assumed resistance of the heating element. If not provided or otherwise invalid, the resistance will be calculated using the last retrieved output voltage and current.
-
-=back
-
-=cut
-
-sub setPower {
-  my ($self, $pwr, $r) = @_;
-
-  # If power is not positive, then turn off the output
-  if ($pwr <= 0) {
-    return $self->on(0);
-  }
-
-  if ($pwr > $self->{power}->{maximum}) {
-    $pwr = $self->{power}->{maximum};
-  }
-
-  # Need the current heating element resistance if not provided
-  if ($r <= 0) {
-
-    # if the output current is zero, then turn on the output and set minimum current
-    if (! $self->iout) {
-      $self->setCurrent($self->{current}->{minimum} || 1);
-
-      # Re-poll to get the output voltage and current
-      $self->poll;
-    }
-
-    $r = $self->vout / $self->iout;
-  }
-
-  my $vset = min(max(sqrt($pwr * $r), $self->{voltage}->{minimum}), $self->{voltage}->{maximum});
-  my $iexpected = $vset / $r;
-  if ($iexpected < $self->{current}->{minimum}) {
-    return $self->setCurrent($self->{current}->{minimum});
-  }
-
-  return $self->setVoltage($vset);
-}
-
-=head2 setCurrent($amps)
-
-Set the output current of the power supply directly.
-
-The current values will be limited to the minimum and maximum current limits defined for this interface.
-
-If calibration data is available, the requested current will be adjusted with calibration corrections.
-
-=over
-
-=item $amps
-
-The output current setting in amperes. This will be limited to the minimum and maximum current limits defined for this interface.
-
-=item $volts
-
-The output voltage setting in volts. In order to create the best chance of the power supply operating in constant current mode,
-this will default to the maximum output voltage defined for this interface. If a value is provided, it will be limited to the
-maximum output voltage defined for this interface and sent to the power supply.
-
-=back
-
-=cut
-
-sub setCurrent {
-  my ($self, $amps, $volts) = @_;
-
-  if ($self->{current}->{minimum} > 0 && $amps < $self->{current}->{minimum}) {
-    $amps = $self->{current}->{minimum};
-  }
-
-  if ($amps > $self->{current}->{maximum}) {
-    $amps = $self->{current}->{maximum};
-  }
-
-  if (exists $self->{calibration}->{requested}->{current}) {
-    $amps = $self->{calibration}->{requested}->{current}->estimate($amps);
-  }
-
-  if (!defined($volts) || $volts > $self->{voltage}->{maximum}) {
-    $volts = $self->{voltage}->{maximum};
-  } elsif ($self->{voltage}->{minimum} > 0 && $volts < $self->{voltage}->{minimum}) {
-    $volts = $self->{voltage}->{minimum};
-  }
-
-  $self->set(voltage => $volts, current => $amps, enable => 1);
-}
-
-=head2 setVoltage($volts [, $amps])
-
-Set the output voltage of the power supply directly.
-
-The voltage values will be limited to the minimum and maximum voltage limits defined for this interface.
-
-If calibration data is available, the requested voltage will be adjusted with calibration corrections.
-
-=over
-
-=item $volts
-
-The output voltage limit specified in volts.
-
-=item $amps
-
-The output current limit specified in amps. In order to create the best chance of the power supply operating in constant voltage mode,
-this will default to the maximum output current allowed for this interface. If a value is provided, it will be limited to the
-maximum output current allowed for this interface and sent to the power supply.
-
-=back
-
-=cut
-
-sub setVoltage {
-  my ($self, $volts, $amps) = @_;
-
-  # If voltage is set to zero, turn off the output
-  if ($volts <=0) {
-    return $self->on(0);
-  }
-
-  if ($self->{voltage}->{minimum} > 0 && $volts < $self->{voltage}->{minimum}) {
-    $volts = $self->{voltage}->{minimum};
-  }
-
-  if ($volts > $self->{voltage}->{maximum}) {
-    $volts = $self->{voltage}->{maximum};
-  }
-
-  if (exists $self->{calibration}->{requested}->{voltage}) {
-    $volts = $self->{calibration}->{requested}->{voltage}->estimate($volts);
-  }
-
-  if (!defined($amps) || $amps > $self->{current}->{maximum}) {
-    $amps = $self->{current}->{maximum};
-  } elsif ($self->{current}->{minimum} > 0 && $amps < $self->{current}->{minimum}) {
-    $amps = $self->{current}->{minimum};
-  }
-
-  $self->set(voltage => $volts, current => $amps, enable => 1);
-}
-
 
 # Utility method to convert fractional values supplied via method calls into the integer values expected when setting registers on the power supply via ModBus protocol.
 sub intify {
@@ -537,50 +384,6 @@ sub intify {
   return $val;
 }
 
-=head2 setMinCurrent($minCurrent)
-
-Set the minimum current limit for the power supply.
-
-=over
-
-=item $minCurrent
-
-The new value to use for the minimum output current of the power supply.
-
-If not defined and the minimum current has previously been changed using this method, restores the default value.
-
-=back
-
-=cut
-
-sub setMinCurrent {
-  my ($self, $minCurrent) = @_;
-
-  if (exists($self->{current}->{minimum}) && !exists($self->{current}->{'__minimum'}) && defined $minCurrent) {
-    $self->{current}->{'__minimum'} = $self->{current}->{minimum};
-  }
-
-  if (!defined $minCurrent && exists($self->{current}->{'__minimum'})) {
-    $self->{current}->{minimum} = $self->{current}->{'__minimum'};
-  } else {
-    $self->{current}->{minimum} = $minCurrent;
-  }
-
-  return;
-}
-
-=head2 getMinimumCurrent
-
-Get the minimum current required to measure the resistance of the hotplate.
-
-=cut
-
-sub getMinimumCurrent {
-  my ($self) = @_;
-
-  return $self->{current}->{minimum} || 0.1;
-}
-
 # Utility method to convert integer values retrieved from registers via ModBus protocol into fractional values in correct units such as volts, amps and watts.
 sub deintify {
   my ($self, $addr, $val) = @_;
@@ -590,21 +393,6 @@ sub deintify {
   }
 
   return $val;
-}
-
-=head2 shutdown
-
-Turn the power supply output off, close the connection to the power supply and release all resources. 
-
-=cut
-
-sub shutdown {
-  my $self = shift;
-  if ($self->{client}) {
-    $self->on(0);
-    $self->{client}->disconnect;
-    delete $self->{client};
-  }
 }
 
 =head2 fetch($address, $count)
@@ -774,6 +562,18 @@ sub iset {
   return $self->{values}->[$REG_I_SET];
 }
 
+=head2 enabled
+
+Return the current output enable state of the power supply.
+
+=cut
+
+sub enabled {
+  my ($self) = @_;
+
+  return $self->{values}->[$REG_OUT_EN];
+}
+
 =head2 vout
 
 Return the output voltage returned in the last poll.
@@ -833,43 +633,27 @@ sub cvcc {
   return $_[0]->{values}->[$REG_CVCC];
 }
 
-=head2 on([ $boolean ])
+=head2 _on([ $boolean ])
 
-If no argument is provided, then returns the on state of the power supply, with a true value indicating that the output is enabled and a false value indicating that the output is disabled.
+Turn the power supply output on or off.
 
-If an argument is provided, then sets the output enable state of the power supply. A true value enables the output. A false value disables the output.
+=over
 
-=cut
+=item $flag
 
-sub on {
-  my $self = shift;
+A true value turns the power supply output on.
+A false value turns the power supply output off.
 
-  if (@_) {
-    $self->set1($REG_OUT_EN, shift);
-    return;
-  }
-
-  return $self->{values}->[$REG_OUT_EN];
-}
-
-=head2 off([ $boolean ])
-
-If no argument is provided, then returns the on state of the power supply, with a true value indicating that the output is disabled and a false value indicating that the output is enabled.
-
-If an argument is provided, then sets the output enable state of the power supply. A true value disables the output. A false value enables the output.
-
-Note that both the return value and the $boolean flag are interpreted in the opposite way to the on() method.
+=back
 
 =cut
 
-sub off {
-  my $self = shift;
+sub _on {
+  my ($self, $flag) = @_;
 
-  if (@_) {
-    return $self->on(! shift);
-  }
+  $self->set1($REG_OUT_EN, $flag ? 1 : 0);
 
-  return !$self->on;
+  return 1;
 }
 
 sub b_led {
@@ -901,12 +685,6 @@ Return the firmware version of the connected power supply.
 
 sub version {
   return $_[0]->{values}->[$REG_VERSION];
-}
-
-sub getMaximumPower {
-  my $self = shift;
-
-  return $self->{power}->{maximum} || 120;
 }
 
 1;

@@ -214,8 +214,12 @@ sub poll {
   $status->{voltage} = $cooked->{vout};
   $status->{current} = $cooked->{iout};
   $status->{power} = $cooked->{vout} * $cooked->{iout};
+  $status->{'raw-voltage'} = $raw->{vout};
+  $status->{'raw-current'} = $raw->{iout};
+  $status->{'raw-power'} = $raw->{vout} * $raw->{iout};
   if ($cooked->{iout} > 0) {
     $status->{resistance} = $cooked->{vout} / $cooked->{iout};
+    $status->{'raw-resistance'} = $raw->{vout} / $raw->{iout};
   }
 
   return $status;

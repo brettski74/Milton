@@ -172,7 +172,10 @@ sub setResult {
 }
 
 sub _setVoltage {
-  my ($self, $voltage, $recommendedCurrent) = @_;
+  my $self = shift;
+  my ($voltage, $recommendedCurrent) = @_;
+
+  $self->{'last-setVoltage'} = [ @_ ];
 
   $self->{'mock-voltage-setpoint'} = $voltage;
 
@@ -193,7 +196,10 @@ sub _setVoltage {
 }
 
 sub _setCurrent {
-  my ($self, $current, $recommendedVoltage) = @_;
+  my $self = shift;
+  my ($current, $recommendedVoltage) = @_;
+
+  $self->{'last-setCurrent'} = [ @_ ];
 
   $self->{'mock-current-setpoint'} = $current;
 

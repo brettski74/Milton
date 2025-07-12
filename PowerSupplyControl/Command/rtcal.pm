@@ -7,6 +7,7 @@ use base qw(PowerSupplyControl::Command::CalibrationCommand);
 use Time::HiRes qw(sleep);
 use PowerSupplyControl::Config;
 use PowerSupplyControl::Math::SteadyStateDetector;
+use PowerSupplyControl::Math::SimpleLinearRegression;
 use PowerSupplyControl::Math::Util qw(mean);
 use Carp qw(confess);
 use Math::Round qw(round);
@@ -37,6 +38,7 @@ sub preprocess {
     my ($self, $status) = @_;
     my $interface = $self->{interface};
     my $config = $self->{config};
+    ($self->{pmin}, $self->{pmax}) = $interface->getPowerLimits;
 
     $interface->setCurrent($self->{current}->{startup} || 2);
     sleep(0.5);
@@ -148,12 +150,24 @@ with it. Too bad if it takes longer than a sample period - we're done sampling a
 
 sub allDone {
   my ($self, $status, $history) = @_;
-  $self->{interface}->off;
+  $self->{interface}->on(0);
   
   my $config = $self->{config};
   my $interface = $self->{interface};
   my $filename = $config->{'filename'} || 'temperature-calibration.yaml';
   my $fh = $self->replaceFile($filename);
+
+  # Extrapolate the calibration points to ambient temperatures
+  my $slr = PowerSupplyControl::Math::SimpleLinearRegression->new;
+  # Omit the first point as it's probably the existing "ambient" data point
+  my $n = scalar(@{$self->{'calibration-points'}}) - 1;
+  $slr->addHashData('temperature', 'resistance', @{$self->{'calibration-points'}}[1..$n]);
+
+  my $gradient = $slr->gradient;
+  my $intercept = $slr->intercept;
+  my $ambient_temperature = $self->{ambient};
+  my $ambient_resistance = $intercept + $gradient * $ambient_temperature;
+  push @{$self->{'calibration-points'}}, { temperature => $ambient_temperature, resistance => $ambient_resistance };
 
   return $self->writeCalibration($fh
                                , $self->{'calibration-points'}
@@ -162,11 +176,13 @@ sub allDone {
                                , 'Temperatures' => join(', ', @{$self->{temperatures}})
                                , 'Startup Current' => $config->{current}->{startup}
                                , 'Minimum Current' => $interface->getMinimumCurrent
-                               , 'Maximum Power' => $interface->getMaximumPower
+                               , 'Maximum Power' => $self->{pmax}
                                , 'Steady state samples' => $config->{'steady-state'}->{'samples'}
                                , 'Steady state smoothing' => $config->{'steady-state'}->{'smoothing'}
                                , 'Steady state threshold' => $config->{'steady-state'}->{'threshold'}
                                , 'Steady state reset' => $config->{'steady-state'}->{'reset'}
+                               , 'Extrapolated T0' => 20
+                               , 'Extrapolated R0' => $slr->gradient * 20 + $slr->intercept
                                );
   $fh->close;
 
@@ -180,7 +196,7 @@ sub _setupBangBang {
   $self->{'transition-skip'} = $self->{config}->{cycles}->{skip} * 2;
   $self->{'transition-end'} = $self->{'transition-skip'} + $self->{config}->{cycles}->{capture} * 2;
   $self->{'target-temperature'} = shift @{$self->{temperatures}};
-  $self->{interface}->setPower($self->{interface}->getMaximumPower());
+  $self->{interface}->setPower($self->{pmax});
   $self->{'samples'} = [];
 
   print "Banging up to $self->{'target-temperature'} celsius\n";
@@ -234,7 +250,7 @@ sub _bangBang {
 
   if ($off) {
     if ($status->{temperature} < $self->{'target-temperature'}) {
-      $self->{interface}->setPower($self->{interface}->getMaximumPower());
+      $self->{interface}->setPower($self->{pmax});
       $self->{'transition-count'}++;
     } else {
       $self->{interface}->setPower(0.01);
@@ -250,7 +266,7 @@ sub _bangBang {
       # Set power to a really low value and let the interface minimums apply
       $self->{interface}->setPower(0.01);
     } else {
-      $self->{interface}->setPower($self->{interface}->getMaximumPower());
+      $self->{interface}->setPower($self->{pmax});
     }
   }
 

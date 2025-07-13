@@ -323,6 +323,7 @@ subtest 'setVoltage method' => sub {
   delete $interface->{'last-setCurrent'};
   $interface->setVoltage(15.1);
   is($interface->{'last-setVoltage'}, [ 15.1, 8.8 ], 'correct values sent to _setVoltage');
+  is($interface->{'last-setCurrent'}, undef, '_setCurrent is not called if no change in current');
 
   $interface = PowerSupplyControl::t::MockInterface->new;
   note('true result and true on-state but no current set point result');
@@ -439,6 +440,7 @@ subtest 'setCurrent method' => sub {
   delete $interface->{'last-setCurrent'};
   $interface->setCurrent(5.1);
   is($interface->{'last-setCurrent'}, [ 5.1, 29 ], 'correct values sent to _setCurrent');
+  is($interface->{'last-setVoltage'}, undef, '_setVoltage is not called if no change in voltage');
 
   $interface = PowerSupplyControl::t::MockInterface->new;
   note('true result and true on-state but no voltage set point result');

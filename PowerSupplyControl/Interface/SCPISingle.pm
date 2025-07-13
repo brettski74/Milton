@@ -173,18 +173,29 @@ sub _connect {
   return ($vset, $iset, $on, $volts, $amps);
 }
 
+sub deviceName {
+  my ($self) = @_;
+
+  return "$self->{make} $self->{model}";
+}
+
 sub _disconnect {
   my ($self) = @_;
 
-  $self->on(0);
+  if ($self->{serial}) {
+    $self->on(0);
 
-  $self->{serial}->close();
-  $self->{serial} = undef;
+    $self->{serial}->close();
+    $self->{serial} = undef;
+  }
+
+  return $self;
 }
 
 sub _sendCommand {
   my ($self, $command) = @_;
   my $serial = $self->{serial};
+  return unless $serial;
 
   $serial->write("$command\n");
   my $response = $serial->read(255);

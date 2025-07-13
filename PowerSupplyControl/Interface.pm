@@ -787,12 +787,14 @@ sub resetCalibration {
 Return the smallest voltage step that the power supply can set measured in volts. This will probably be
 something like 0.01 or 0.001 volts.
 
-The default implementation returns 0.01 volts.
+The default implementation returns the voltage.precision value from your configuration or 0.01 volts.
 
 =cut
 
 sub voltagePrecision {
-  return 0.01;
+  my ($self) = @_;
+
+  return $self->{voltage}->{precision} || 0.01;
 }
 
 =head2 currentPrecision
@@ -800,12 +802,14 @@ sub voltagePrecision {
 Return the smallest current step that the power supply can set measured in amps. This will probably be
 something like 0.01 or 0.001 amps.
 
-The default implementation returns 0.01 amps.
+The default implementation returns the current.precision value from your configuration or 0.01 amps.
 
 =cut
 
 sub currentPrecision {
-  return 0.01;
+  my ($self) = @_;
+
+  return $self->{current}->{precision} || 0.01;
 }
 
 

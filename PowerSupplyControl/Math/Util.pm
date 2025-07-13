@@ -7,8 +7,10 @@ use Scalar::Util qw(reftype);
 use Exporter 'import';
 
 our @EXPORT_OK = qw(
+  maximum
   mean
   mean_squared_error
+  minimum
 );
 
 =head1 NAME
@@ -196,6 +198,84 @@ sub mean {
 
   for (my $idx = 1; $idx < @_; $idx += 2) {
     $_[$idx] /= $count[$idx] if defined($_[$idx]) && $count[$idx] > 0;
+  }
+
+  return;
+}
+
+=head2 minimum($values, $key1, $val1{, $key2, $val2, ...})
+
+Calculate the minimum value from a list of hashes.
+
+=over
+
+=item $values
+
+=item $key1, $key2, ..., $keyN
+
+The hash keys corresponding to each variable from which the sample data to be reviewed.
+
+=item $val1, $val2, ..., $valN
+
+The set of variables to which the minimum values will be assigned.
+
+=cut
+
+sub minimum {
+  my $values = shift;
+
+  for (my $i=1; $i < @_; $i += 2) {
+    $_[$i] = undef;
+  }
+
+  foreach my $row (@$values) {
+    for (my $i = 1; $i < @_; $i += 2) {
+      my $key = $_[$i-1];
+      if (defined $row->{$key}) {
+        if (!defined($_[$i]) || $_[$i] > $row->{$key}) {
+          $_[$i] = $row->{$key};
+        }
+      }
+    }
+  }
+
+  return;
+}
+
+=head2 maximum($values, $key1, $val1{, $key2, $val2, ...})
+
+Calculate the maximum value from a list of hashes.
+
+=over
+
+=item $values
+
+=item $key1, $key2, ..., $keyN
+
+The hash keys corresponding to each variable from which the sample data to be reviewed.
+
+=item $val1, $val2, ..., $valN
+
+The set of variables to which the maximum values will be assigned.
+
+=cut
+
+sub maximum {
+  my $values = shift;
+
+  for (my $i=1; $i < @_; $i += 2) {
+    $_[$i] = undef;
+  }
+
+  foreach my $row (@$values) {
+    for (my $i = 1; $i < @_; $i += 2) {
+      my $key = $_[$i-1];
+      if (defined $row->{$key}) {
+        if (!defined($_[$i]) || $_[$i] < $row->{$key}) {
+          $_[$i] = $row->{$key};
+        }
+      }
+    }
   }
 
   return;

@@ -37,7 +37,7 @@ following methods:
 
 _connect
 _disconnect
-on
+_on
 _poll
 _setCurrent
 _setVoltage
@@ -51,8 +51,6 @@ _setVoltage
 Create a new interface object with the specified properties. Check the exact subclass
 that you're using the understand the exact parameters that are required to connect to
 your power supply.
-
-=back
 
 =cut
 
@@ -139,12 +137,27 @@ within your implementation.
 sub DESTROY {
   my ($self) = @_;
 
-  $self->on(0);
-  $self->_disconnect;
+  $self->shutdown;
+
   return;
 }
 
 =head1 METHODS
+
+=cut
+
+sub deviceName {
+  croak ref($_[0]) .': deviceName not implemented.';
+}
+
+sub shutdown {
+  my ($self) = @_;
+
+  $self->on(0);
+  $self->_disconnect;
+
+  return $self;
+}
 
 =head2 poll([$status])
 
@@ -368,6 +381,10 @@ This method attempts to ensure constant voltage operation at the requested volta
 must also ensure that the output is on and that current limiting is unlikely by verifying that the
 current set point is set to the maximum allowed value.
 
+Do not override this method in subclasses. Instead, implement the _setVoltage method instead. This
+method includes all the logic required for managing voltage, current and power limits, exception
+handling and managing different instrument capabilities.
+
 =over
 
 =item $voltage
@@ -400,27 +417,40 @@ sub setVoltage {
     $irec = $pmax / $vset;
   }
 
-  my ($ok, $on, $iset) = $self->_setVoltage($vset, $irec);
+  my ($ok, $on, $iset);
+  
+  # Only set the voltage if this change is significant
+  if (abs($vset - $raw->{vset}) >= $self->voltagePrecision) {
+    ($ok, $on, $iset) = $self->_setVoltage($vset, $irec);
+    croak "setVoltage: Failed to set output voltage" if !$ok;
+    $raw->{vset} = $vset;
 
-  croak "setVoltage: Failed to set output voltage" if !$ok;
-  $raw->{vset} = $vset;
-
-  if ($self->{'voltage-setpoint'}) {
-    $cooked->{vset} = $self->{'voltage-setpoint'}->estimate($vset);
-  } else {
-    $cooked->{vset} = $vset;
+    if ($self->{'voltage-setpoint'}) {
+      $cooked->{vset} = $self->{'voltage-setpoint'}->estimate($vset);
+    } else {
+      $cooked->{vset} = $vset;
+    }
   }
 
-  if (!defined $iset || $iset <= 0) {
-    ($ok, $on) = $self->_setCurrent($irec);
-    croak "setVoltage: Failed to set current set point" if !$ok;
-    $iset = $irec;
+  # Have we set the recommended current?
+  if (!defined($iset) || $iset <= 0) {
+    # Only set the current if this change is significant
+    if (abs($irec - $raw->{iset}) >= $self->currentPrecision) {
+      ($ok, $on) = $self->_setCurrent($irec);
+      croak "setVoltage: Failed to set current set point" if !$ok;
+      $iset = $irec;
+    } else {
+      $iset = undef;
+    }
   }
-  $raw->{iset} = $iset;
-  if ($self->{'current-setpoint'}) {
-    $cooked->{iset} = $self->{'current-setpoint'}->estimate($iset);
-  } else {
-    $cooked->{iset} = $iset;
+
+  if (defined $iset) {
+    $raw->{iset} = $iset;
+    if ($self->{'current-setpoint'}) {
+      $cooked->{iset} = $self->{'current-setpoint'}->estimate($iset);
+    } else {
+      $cooked->{iset} = $iset;
+    }
   }
 
   if ($on) {
@@ -476,28 +506,40 @@ sub setCurrent {
     $vrec = $pmax / $iset;
   }
 
-  my ($ok, $on, $vset) = $self->_setCurrent($iset, $vrec);
+  my ($ok, $on, $vset);
+  if (abs($iset - $raw->{iset}) >= $self->currentPrecision) {
+    ($ok, $on, $vset) = $self->_setCurrent($iset, $vrec);
 
-  croak "setCurrent: Failed to set output current" if !$ok;
-  $raw->{iset} = $iset;
+    croak "setCurrent: Failed to set output current" if !$ok;
+    $raw->{iset} = $iset;
 
-  if ($self->{'current-setpoint'}) {
-    $cooked->{iset} = $self->{'current-setpoint'}->estimate($iset);
+    if ($self->{'current-setpoint'}) {
+      $cooked->{iset} = $self->{'current-setpoint'}->estimate($iset);
+    } else {
+      $cooked->{iset} = $iset;
+    }
   } else {
-    $cooked->{iset} = $iset;
+    $ok = 1;
   }
 
   if (!defined $vset || $vset <= 0) {
-    ($ok, $on) = $self->_setVoltage($vrec);
-    croak "setCurrent: Failed to set voltage set point" if !$ok;
-    $vset = $vrec;
+    # Only set the voltage if this change is significant
+    if (abs($vrec - $raw->{vset}) >= $self->voltagePrecision) {
+      ($ok, $on) = $self->_setVoltage($vrec);
+      croak "setCurrent: Failed to set voltage set point" if !$ok;
+      $vset = $vrec;
+    } else {
+      $vset = undef;
+    }
   }
 
-  $raw->{vset} = $vset;
-  if ($self->{'voltage-setpoint'}) {
-    $cooked->{vset} = $self->{'voltage-setpoint'}->estimate($vset);
-  } else {
-    $cooked->{vset} = $vset;
+  if (defined $vset) {
+    $raw->{vset} = $vset;
+    if ($self->{'voltage-setpoint'}) {
+      $cooked->{vset} = $self->{'voltage-setpoint'}->estimate($vset);
+    } else {
+      $cooked->{vset} = $vset;
+    }
   }
 
   if ($on) {
@@ -588,6 +630,8 @@ Get the minimum current required to measure the resistance of the hotplate. The 
 =item Return Value
 
 The minimum current required to measure the resistance of the hotplate.
+
+=back
 
 =cut
 
@@ -737,6 +781,33 @@ sub resetCalibration {
 
   return;
 }
+
+=head2 voltagePrecision
+
+Return the smallest voltage step that the power supply can set measured in volts. This will probably be
+something like 0.01 or 0.001 volts.
+
+The default implementation returns 0.01 volts.
+
+=cut
+
+sub voltagePrecision {
+  return 0.01;
+}
+
+=head2 currentPrecision
+
+Return the smallest current step that the power supply can set measured in amps. This will probably be
+something like 0.01 or 0.001 amps.
+
+The default implementation returns 0.01 amps.
+
+=cut
+
+sub currentPrecision {
+  return 0.01;
+}
+
 
 =head1 PRIVATE METHODS
 
@@ -909,7 +980,9 @@ current set point to this value.
 Returns a three element list containing:
 
 1. A true value if the voltage set point was successfully set.
+
 2. A true value if the output was turned on or undef if this method cannot determine that.
+
 3. The current set point that was actually set or undef if this method was unable to set the current set point.
 
 Note that it is important to return these three values correctly as the calling logic will use them

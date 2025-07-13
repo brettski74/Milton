@@ -303,6 +303,27 @@ subtest 'setVoltage method' => sub {
   is($cooked, 9.9, 'Cooked current set point is now max current - no calibration');
   is($raw, 9.9, 'Raw current set point is now max current - no calibration');
 
+  # Verify that _setVoltage is not called if the requested voltage is the same as the currently set voltage
+  delete $interface->{'last-setVoltage'};
+  delete $interface->{'last-setCurrent'};
+  $interface->setVoltage(15.0);
+  is($interface->{'last-setVoltage'}, undef, '_setVoltage is not called if no change in voltage');
+  is($interface->{'last-setCurrent'}, undef, '_setCurrent is not called if no change in current');
+
+  $interface->setVoltage(14.99999);
+  is($interface->{'last-setVoltage'}, undef, '_setVoltage is not called if change is insignificant');
+
+  $interface->setCurrentLimits(1.1, 8.8);
+  $interface->setVoltage(15.0);
+  is($interface->{'last-setVoltage'}, undef, '_setVoltage is not called if no change in voltage');
+  is($interface->{'last-setCurrent'}, [ 8.8 ], 'correct values set to _setCurrent for altered max current setting');
+
+  # Verify that _setVoltage is called if the requested voltage is different from the current setpoint
+  delete $interface->{'last-setVoltage'};
+  delete $interface->{'last-setCurrent'};
+  $interface->setVoltage(15.1);
+  is($interface->{'last-setVoltage'}, [ 15.1, 8.8 ], 'correct values sent to _setVoltage');
+
   $interface = PowerSupplyControl::t::MockInterface->new;
   note('true result and true on-state but no current set point result');
   $interface->setResult('voltage', 1, 1);
@@ -397,6 +418,27 @@ subtest 'setCurrent method' => sub {
   my ($cooked, $raw) = $interface->getVoltageSetPoint;
   is($cooked, 30, 'Cooked voltage set point is now max voltage - no calibration');
   is($raw, 30, 'Raw voltage set point is now max voltage - no calibration');
+
+  # Verify that _setCurrent is not called if the requested current is the same as the currently set current
+  delete $interface->{'last-setVoltage'};
+  delete $interface->{'last-setCurrent'};
+  $interface->setCurrent(5.0);
+  is($interface->{'last-setCurrent'}, undef, '_setCurrent is not called if no change in current');
+  is($interface->{'last-setVoltage'}, undef, '_setVoltage is not called if no change in voltage');
+
+  $interface->setCurrent(4.99999);
+  is($interface->{'last-setCurrent'}, undef, '_setCurrent is not called if change is insignificant');
+
+  $interface->setVoltageLimits(2, 29);
+  $interface->setCurrent(5.0);
+  is($interface->{'last-setCurrent'}, undef, '_setCurrent is not called if no change in current');
+  is($interface->{'last-setVoltage'}, [ 29 ], 'correct values set to _setVoltage for altered max voltage setting');
+
+  # Verify that _setCurrent is called if the requested current is different from the current setpoint
+  delete $interface->{'last-setVoltage'};
+  delete $interface->{'last-setCurrent'};
+  $interface->setCurrent(5.1);
+  is($interface->{'last-setCurrent'}, [ 5.1, 29 ], 'correct values sent to _setCurrent');
 
   $interface = PowerSupplyControl::t::MockInterface->new;
   note('true result and true on-state but no voltage set point result');

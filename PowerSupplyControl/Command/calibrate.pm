@@ -4,24 +4,16 @@ use strict;
 use warnings qw(all -uninitialized);
 
 
-use base qw(PowerSupplyControl::Command);
-use Scalar::Util qw(looks_like_number);
+use base qw(PowerSupplyControl::Command::CalibrationCommand);
+use Math::Round qw(round);
 use Readonly;
-use Carp;
+use Carp qw(croak);
 use Time::HiRes qw(sleep);
-use Hash::Merge;
 
-Readonly my %ALLOYS => ( In97Ag3 => 143
-                       , In52Sn48 => 118
-                       , In663Bi337 => 72
-                       , Sn63Pb37 => 183
-                       , Sn965Ag35 => 221
-                       , Sn62Pb36Ag2 => 179
-                       , Bi58Sn42 => 138
-                       , Sn993Cu07 => 227
-                       , Indium => 157
-                       , Tin => 232
-                       );
+use PowerSupplyControl::Math::FirstOrderStepEstimator;
+use PowerSupplyControl::Math::PiecewiseLinear;
+use PowerSupplyControl::Math::SimpleLinearRegression;
+use PowerSupplyControl::Math::Util qw(mean minimum maximum);
 
 =head1 NAME
 
@@ -36,155 +28,236 @@ PowerSupplyControl::Command::calibrate - Calibrate the hotplate
 
 =head1 DESCRIPTION
 
-Run a calibration cycle to determine the following details for the hotplate:
+Run a calibration cycle to fully characterize the thermal behaviour of the hotplate assembly. This will produce the following
+assets:
 
 =over
 
 =item Resistance to temperature mapping
 
+=item Temperature to Thermal resistance mapping
+
+=item Temperature to Heat capacity mapping
+
+=over
+
+=head1 DO YOU REALLY NEED TO CALIBRATE?
+
+If you have a PCB hotplate with a copper foil heating element, you probably don't need to calibrate. A quick linear
+approximation of the hotplate resistance based on a room temperature resistance measurement and the known properties
+of annealed copper should be sufficient. Use the BangBang controller - it needs virtually no calibration. This is more
+than sufficient for most applications.
+
+Where you may need/want to calibrate:
+
+=over
+
+=item You have a hotplate with a heating element not made of copper
+
+Maybe you're using some hotplate made from some exotic material fashioned by pixies in a dark forest in a far away land.
+Cool! If you don't know the material properties, calibration could be the way to let the software know just how to drive
+your fancy hotplate. Note that there is also a much quicker calibration command - the ramp calibration command. It's
+aimed at doing a quick one-pass calibration over the range of temperatures you care about. It only produces a resistance
+to temperature mapping, not a full characterization of the thermal behaviour, but that's still good enough for BangBang
+control to work.
+
+=item You're convinced that being 3 degrees off in temperature is going to cause premature failure of your components
+
+Realistically, this is probably not a thing. Reflow soldering is a far gentler process on components than other options
+like hand soldering or usnig a hot-air station. Soldering temperatures are more tightly controlled and generally lower
+than in other soldering processes and the thermal gradients are much smaller due to the even heating across the entire
+board being reflowed rather than spot heating that may occur in other processes. Realistically, a good calibration
+might take your hotplate's accuracy from maybe +/- 8 degrees celsius to maybe +/- 3 degrees. If tight controls are
+really that important, maybe a DIY solution isn't the right answer for your application.
+
+=item You're worried about the thermal stresses of Bang-Bang control
+
+If this is a thing, it's likely a pretty minor thing and likely most impactful for the hotplate PCB itself. The thermal
+time constant of a typical reflow hotplate assembly is quite long - probably on the order of 40-60 seconds or even more.
+That acts like a really slow responding, low-pass filter on the heat output of the hotplate. Your loads are unlikely to 
+see large thermal gradients due to the on-off cycling of Bang-Bang control. But if you're hoping to show off smoother
+graphs and hope that your hotplate PCB lasts 10% longer, maybe a calibration and using FeedForward+PID control will help
+you sleep better at night.
+
+=item Curiosity about thermal systems
+
+This is probably the most likely reason to do this. I wrote these calibration routines and the various control schemes
+partly as a learning exercise and partly because I really didn't know how well these things would work. Playing around
+with calibration and looking at graphs of the data I captured exposed a lot of interesting nuances about how systems
+like this hotplate behave, how they deviate from idealized first-order models and how the material properties change
+with temperature. A good calibration will show you effects of things like the glass transition temperature of the resin
+in your PCB affects effective heat capacity and the energy required to heat it up. You can see how thermal resistance
+changes with temperature as the heat spreads out into more and more of the assembly at higher temperatures, effectively
+increasing the area through which heat can be lost and lowering the effective thermal resistance. You can even see
+transient heat effects and how heat flows from the heating element and into the rest of the assembly. This can be a
+fun exercise, but in reality, it's probably not helping you reflow PCBs any better.
+
+=back
+
+=head1 CALIBRATION ASSETS
+
+=head2 Resistance to temperature mapping
+
 In theory, we can determine the resistance of the hotplace at different temperatures based on the resistance measured at
 one temperature and the applying the formula for resistance based on the temperature coefficient of the material -
-presumably copper. In practice, a piecewise linear approximation seems to produce better results, so you can specify
-several target temperatures that will have corresponding resistance recorded. During the calibration cycle, you will
-need to hit the spacebar as each calibration temperature is reached. The resistance measured at that time will then be
-recorded as the resistance corresponding to that temperature.
+presumably copper. In practice, this isn't quite perfect. A piecewise linear approximation of the resistance to temperature
+relationship can help adjust for thermal lag and offset effects that may lead to small differences in the temperature
+measured at the heating element versus at the surface of the hotplate. Or maybe it just gives you peace of mind knowing
+that your hotplate's output has been calibrated against a somewhat known standard rather than making a rough guess
+based on that physics textbook you found in your Dad's attic in 1973.
 
-=item Thermal resistance to ambient
+=head2 Thermal resistance to ambient
 
-For feed-forward control, we need an operating thermal model of the hotplate. The model used has two parameters. The
-first of those is the thermal resistance of the hotplate to the ambient environment. This relates the rate at which heat
-is lost to the surrounding environment in proportion to the temperature difference between the hotplate and the ambient
-temperature. This will be estimated by applying a constant power level to the hotplate and observing the steady state
-temperature that the hoplate reaches from both below and above the steady state temperature.
+For feed-forward control, you need an operating thermal model of the hotplate to predict how the hoplate will react
+to various power inputs. We use a first order thermal model with just two parameteters. The first is the thermal
+resistance of the hotplate to the ambient environment. This relates the rate at which the hotplate assembly loses
+heat to the surrounding environment. This increases with increasing temperature. Ideally, this would be a simple
+linear relationship. In practice, while heat flow is a linear process, our first-order thermal model only loosely
+matches reality. A more complicated model which beter matches reality creates more problems than it solves, so
+instead characterizing the thermal resistance as a value which varies with temperature is a simpler solution. We
+characterize the effective, first-order thermal resistance of the hotplate assembly as a function of temperature.
 
-=item Heat capacity
+For PID control, we don't necessarily need a working thermal model. We just need proportional, integral and differential
+gains that produce a good response to the temperature error. There are various ways to tune these gain parameters
+for good performance, but one way is based on knowing the thermal model parameters. We use thermal resistance and
+heat capacity to select PID parameters that should work well for a given hotplate assembly. Additionally, because
+we have characterized these properties as functions of temperature, we can apply variable PID gains at different
+temperature to better match the varying thermal behaviour of the hotplate assembly as it heats up and cools down.
+
+=head2 Heat capacity
 
 This is the second parameter needed for the thermal model. It specifies the amount of energy required to raise the
-temperature of the hotplate by one degree Celsius/Kelvin. Once we have the thermal resistance, we can fit an exponential
-curve to the time versus temperature data and calculate the heat capacity from the time constant of the system.
+temperature of the hotplate by one degree Celsius/Kelvin. Ideally, this would also be a constant value, but like
+thermal resistance, the effective, first-order heat capacity of teh hotplate assembly varies with temperature. There
+are two main reasons why. Firstly, as the assembly heats up, more heat starts to flow further into the various componets
+of your assembly. As this happens, it has an effect similar to adding more material that you need to heat up. This is
+the main component responible for the gentle gradient you see in the heat capacity mapping at lower temperatures.
+As you start getting up above 120-140 celsius, you'll likely see a much steeper gradient appear. This is likely due
+to the glass transition temperature of the resin in your PCB. As you approach and pass the glass transition temperature
+some of the resin starts to undergo a phase change as it starts to soften. Don't worry about this too much. Most FR4
+material used in PCBs is still pretty rigid up to and beyond reflow temperatures. But this phase change is happening
+and requires energy, so it starts to take more energy for every degree of temperature rise while this is going on.
+This shows up as a steeper gradient in your temperature to heat capacity mapping.
 
 =back
 
 =head2 Calibration Cycle
 
-The calibration cycle will progress through the following stages:
+The calibration cycle operates in a series of steps. It will apply constant power inputs to the hotplate at
+a varety of different power levels. It tries to approach the equilibrium point associated with each of these
+power levels from both directions - rising and falling. By doing this, we get the data we need to get very good
+estimates of the equilibrium temperature for each power level. By using an external temperature sensor such as
+a digital multimeter with a thermocouple or a digital kitchen thermometer or an arduino-based thermistor rig,
+we can note the mearured temperatures as we approach these equilbrium points. That provides our resistance to
+temperature mapping, which then allows us to put accurate temperatures against those equilibrium points and
+calculate thermal resistance. Finally, we can fit curves to the remaining data and use that to determine
+the effective heat capacity at the various temperatures
+
+The following parameters can be configured to control and fine-tune the calibration cycle:
 
 =over
 
-=item Warm Up
+=item power-step
 
-A constant power level is applied to the hotplate and the temperature difference between successive samples is monitored
-and recorded. The temperature deltas are passed through an IIR low pass filter and when the filtered result falls below
-a suitable threshold, the hotplate is assumed to be very close to the steady state temperature for the given power level.
-Based on that, an initial estimate of the thermal resistance and heat capacity are calculated and used in the next stage
-to effect control of the hotplate. Since we probably don't have a resistance to temperature mapping at this point, we use
-an approximation based on the cold resistance of the hotplate and the temperature coefficient of copper.
+A value in watts that specifies the difference between successive power levels to be applied during the calibration
+cycle. Each power level used during the calibration will be an integer multiple of this value. The default value
+is 8 watts.
 
-=item Slow Temperature Ramp
+=item step-duration
 
-Once a steady state temperature is reached in the previous stage, the hotplate is then heated at a constant slow rate
-until the maximum calibration temperature is reached. At this point, we can build a complete resistance to temperature
-mapping. The ramp continues for a small amount above the maximum calibration temperature as a certainty margin before
-advancing to the next stage.
+The amount of time in seconds to spend in each rising or falling step of the calibration cycle. It is strongly
+advised to ensure that thsi number is an integer multiple of your sampling interval.The default value
+is 180 seconds. For each power level, there will be two steps - one rising and one falling. So for a 6-point
+calibration cycle, you will spend 12 times this value running the calibration cycle.
 
-=item Short Hold
+=item maximum-temperature
 
-After the temperature ramp, the hotplate will be held at a constant temperature for a short time to ensure that the
-final stage starts from a steady state and avoids any inaccuracies due to thermal inertia and offset effects.
+This is what will ultimately limit the number of steps in the calibration cycle. The calibration will continue
+running increasingly higher power steps until a step reaches this apparent temperature. The default value is 220
+celsius. This defaults to 220 celsius, which is a little below the trigger point of a SnSb based thermal fuse,
+which trips at approximately 235 celsius.
 
-=item Cool Down
+=item discard-samples
 
-The initial calibration power is re-applied to the hotplate and it is allowed to cool down back to a steady state. The
-same steady state condition using an IIR low pass filter is used to determine steady state as in the warm up stage.
-
-=back
-
-Once all stages have been completed, the entire history of measurements are updated with accurate temperature values
-via our complete resistance to temperature mapping. We then re-calculate the thermal model parameters using both the
-warm up and cool down curves and average the results to produce a final set of parameters.
-
-=head1 CONFIGURATION PARAMETERS
-
-The following configuration parameters are understood by this command and should be specified in the commands->calibrate
-section of the configuration file. Some of them can also be provided on the command line.
+The number of samples that are discarded from the beginning of each step for curve fitting analysis. When we
+apply a significant step, the effect is most immediately seen in the temperature of the heating element, which
+has very low thermal inertia and there is a lag in the effects becoming visible in the rest of the hotplate
+assembly. this can lead to weird transient effects shortly after the step change is applied. Discarding the
+first few samples helps to get sample data that more closely fits the expected first-order step response and
+should produce more accurate resutls from the regression analysis. The default value is 4, which corresponds
+to 6 seconds of discarded data for a typical 1.5 second sampling interval. If you use a different sampling
+interval, you may want to adjust this parameter accordingly.
 
 =over
 
-=item temperatures
+=head1 COMMAND LINE OPTIONS
 
-A list of temperatures to calibrate the hotplate for the resistance to temperature mapping. These can be specified as
-either a temperature in degrees Celsius or a known alloy name. There are two suggested ways to calibrate the resistance
-to temperature mapping.
+The command recognizes the following command-line options:
 
 =over
 
-=item Digital Thermometer
+=item --keep
 
-If you have a digital thermometer of some sort you can use it to measure the temperature of the hotplate as it is heated
-during the calibration cycle. This could be a kitchen thermometer or a thermocouple attached to a multimeter or any other
-kind of device that can accurately record the temperature. Good thermal coupling to the hotplate is important to ensure
-accurate and timelin temperature measurements. The use of kaptan tape or thermal paste may be helpful in ensuring this,
-provided you're willing to get such materials onto your thermometer probe. Thermal paste may not be a great option if you
-plan to use the thermometer in the kitchen afterwards!
+Keep the existing resistance to temperature mapping defined in the configuration file/s and use that to
+estimate hotplate temperature. If specified, this will allow the execution of this command without a
+temperature sensing device configured. By default, any existing temperature calibration is ignored by the
+calibration.
 
-=item Calibration Alloys
+=head1 TEMPERATURE MEASUREMENT
 
-If you have several different solder alloys available, you can use them to calibrate the hotplate. Ideally, these should
-be eutectic solder alloys so that they have a well defined melting point. You simply cut a short piece of solder wire of
-each alloy - perhaps 3-4 mm long. You then place these near the centre of the hotplate and wait for them to melt. You want
-pieces that are about 2-3 times as long as they are wide. When they melt, surface tension will cause them to form a sphere
-almost instantly, which is easy to observe. If the wire is too short, the transition from cylinder to sphere may be had to
-spot. Similarly, if the wire is too long, the transition to a more ball-shaped glob of liquid may be slower.
+To effectively run this calibration, the software needs to be able to take independent temperature measurements of
+the working surface of the hotplate. This generally means using an instrument that can integrate with your PC and
+stream temperature readings to it. Some of the options for this are listed below:
 
-=back
+=head2 EEVBlog 121GW Multimeter
 
-=item hold-time
+An integration module for this multimeter is available in the PowerSupplyControl::Controller::Device::EEVBlog121GW
+module. It currently integrates by wrapping the bluetoothctl command line tool to connect to the multimeter and
+subscribe to it's indications. It's a little clunky, but it works well enough. It does seem to drop bytes here and
+there which means that it ends up dropping those temperature readings, but since it's streaming readings about
+once every 500 milliseconds, missing a few reading here and there is not a big deal. In the places where these
+readings are most important, they're changing relatively slowly, so even if you miss 3 in a row and don't get any
+updated temperature readings in a given sampling period as a result, the most recently received reading is likely
+still close enough to be useful. If you have the time and motivation to write a better integration - perhaps
+based on an XS or FFI::Platypus integration, feel free to submit a pull request.
 
-The time in seconds that the hotplate is held at the maximum temperature during the short hold stage of the calibration
-cycle. This defaults to 15 seconds.
+=head2 Arduino/Bluepill/etc based thermistor rig
 
-=item initial-current
+If you have a decent prototyping board lying around like an Arduino or a Bluepill or a Seeduino Xiao and any of the
+myriad others on the market, you can set that up with a thermistor divider and use that as a streaming temperature
+sensor for the purposes of calibrating your hotplate. It's maybe not as elegant as a commercial multimeter, but
+it works. An example Arduino sketch will be provided that you can customize to the needs of your particular
+board and thermistor.
 
-The initial current applied to the hotplate during preprocessing to ensure that resistance can be measured in the first polling
-once the main event loop starts. This defaults to 1.0 amps.
+=head2 Other Digital Multimeters
 
-=item power
+If you have some other digital multimeter that can take temperature readings with a thermocouple and can be read
+remotely via Bluetooth, USB, RS232 or some other means, you may be able to use that, but you'll need to implement
+a device interface module for it. The interface is described in the PowerSupplyControl::Controller::Device.pm file
+and you can also look at the EEVBlog121GW and ArduinoSerial modules for example implementations of this interface.
 
-The calibration power applied to the hotplate during the constant power stages of the calibration cycle. If not explicitly
-specified, it can be defaulted to a reasonable value based on an estimate of thermal resistance using the mechanical details
-of your hotplate assembly and the calibration temperatures you plan to use. The goal is to aim for a steady state temperature
-where the temperature rise above ambient is about 90% of the way to the first calibration temperature. In the absence of
-mechanical details of the hotplate assembly, a thermal resistance of 2.4K/W will be assumed.
+=head2 Metallurgical Standards
 
-=item ramp-rate
+You can use solder alloys themselves as temperature reference standards, although unfortunately not with this
+articular calibration routine. This calibration routine is designed to run at fixed power levels. This means we
+don't know exactly which temperature we need to measure until we run the calibration cycle and it probably won't
+be at the exact melting point of any of the alloys you use. There's also no way for the command to know when a
+given sample has melted, either and that's a requirement for this calibration routine. See the ramp command for
+more information about how to calibrate your resistance to temperature mapping against a metallurgical standard.
 
-The rate in Celsius/Kelvin per second at which the hotplate is heated during the slow temperature ramp. This defaults to
-0.5K/s.
+After doing a calibration against your metallurgical standard using the ramp command, you may be able to come
+back and run this calibration routine with the --keep option to use your ramp calibration results and the
+RTD temperature readings from your heating element to produce thermal resistance and heat capacity mappings.
 
-=item steady-state-smoothing
+=head2 Digital Kitchen Thermometer
 
-The smoothing factor for the IIR low pass filter used to determine steady state temperature. This defaults to 0.9. Must be a
-value between 0 and 1. Values closer to one will result in a slower response to temperature changes and a longer period of
-time for the calibration cycle to settle and move on to the next stage but will be more accurate in determining steady state.
+While these can be used as a temperature reference for calibration purposes, they generally don't have remote
+integration capabilities, so they're not usable with this calibration routine. See the ramp command for more
+information on how you might be able to calibrate your hotplate using your Mum's handy digital kitchen thermometer.
 
-=item steady-state-threshold
-
-The threshold for the IIR low pass filter used to determine steady state temperature. Since we don't yet have an up-to-date
-resistance to temperature mapping, steady state is determined by looking at resistance deltas as a proxy for temperature
-deltas. Therefore, the threshold is essentially a resistance value and will be defaulted to 10% of the cold temperature
-resistance of the hotplate.
-
-=item steady-state-samples
-
-The number of samples to use to determine steady state temperature. There must be at least 10 consecutive samples that meet
-the steady state criteria before steady state is considered to have been reached. This defaults to 10.
-
-=item steady-state-reset
-
-The threshold above which we stop counting positive steady state samples. This defaults to 1.5 times the steady state
-threshold.
-
-=back
+As with the metallurgical standard calibration option, you can use the ramp command to calibrate your hotplate
+resistance to temperature mapping and then come back to this calibration routine to produce thermal resistance
+and heat capacity mappings using the --keep option.
 
 =head1 METHODS
 
@@ -195,13 +268,12 @@ Return a hash of default configuration values for this command.
 =cut
 
 sub defaults {
-  return { 'initial-current' => 1.0
-         , 'ramp-rate' => 0.3
-         , 'steady-state-smoothing' => 0.9
-         , 'steady-state-samples' => 10
-         , 'steady-state-threshold' => 0.0001
-         , 'hold-time' => 15
-         , 'temperatures' => [ 100, 140, 180, 200 ]
+  return { 'power-step' => 10
+         , 'step-duration' => 450
+         , 'maximum-temperature' => 220
+         , 'discard-samples' => 4
+         , filename => 'thermal-calibration.yaml'
+         , samples => 10
          };
 }
 
@@ -212,7 +284,7 @@ Return a hash of options for Getopt::Long parsing of the command line arguments.
 =cut
 
 sub options {
-  return ( 'reset' );
+  return ( 'keep' );
 }
 
 =head2 initialize
@@ -223,399 +295,386 @@ Initialize the calibrate command.
 
 sub initialize {
   my ($self) = @_;
+  my $config = $self->{config};
 
-  my $temps = $self->{temperatures};
+  # Set up internal variables for the first step
 
-  # Build the numeric temperatures list.
-  foreach my $temp (@$temps) {
-    if (looks_like_number($temp)) {
-      push @$temps, $temp;
-    } else {
-      if (exists $ALLOYS{$temp}) {
-        push @$temps, $ALLOYS{$temp};
-      } else {
-        croak "Unknown calibration temperature in configuration: $temp";
-      }
-    }
-  }
+  # The step counter. This helps identify how to transition to the next step when this one completes.
+  $self->{step} = 0;
 
-  # Ensure that the temperatures are in ascending order.
-  @$temps = sort { $a <=> $b } @$temps;
-  $self->{'temperatures'} = $temps;
+  # The power level that will be applied throughout this step.
+  $self->{power} = $config->{'power-step'};
 
-  return $self;
+  # The time in seconds when this step will end.
+  $self->{'step-end'} = $config->{'step-duration'};
+
+  # The maximum temperature to watch for while the steps run.
+  $self->{'maximum-temperature'} = $config->{'maximum-temperature'};
+
+  # Give the step a name
+  $self->{'step-name'} = 'rising-'. $self->{power};
 }
 
-=head2 preprocess
-
-Initialize the calibrate command.
-
-This method is called during object creation.
-
-=cut
-
-sub preprocess {
+sub _nextStep {
   my ($self, $status) = @_;
+  my $config = $self->{config};
+  my $step = $self->{step};
 
-  # Prompt for the current hotplate and ambient temperature, just to be sure.
-  $self->{ambient} = $self->prompt('Ambient temperature', $self->{controller}->getAmbient || 20.0);
-  $self->{controller}->setAmbient($self->{ambient});
-
-  if (!$self->{keep}) {
-    $self->{controller}->resetTemperatureCalibration;
-  }
-
-  $self->{'starting-temperature'} = $self->prompt('Current hotplate temperature', $self->{ambient});
-
-  # Ensure that we have some power flowing into the hotplate so that resistance can be measured.
-  $self->{interface}->setCurrent($self->{config}->{'initial-current'});
-  # Pause for a bit to allow the power supply to settle.
-  sleep(0.5);
-
-  # Make sure that ambient temperature is part of our calibration set.
-  my $sts = $self->{controller}->poll;
-  my $merge = Hash::Merge->new('RIGHT_PRECEDENT');
-  %$status = $merge->merge($status, $sts);
-  $status->{stage} = 'preprocess';
-  $status->{temperature} = $self->{'starting-temperature'};
-  $status->{resistance} = $status->{voltage} / $status->{current};
-  $self->{controller}->setTemperaturePoint($status->{temperature}, $status->{resistance});
-  print "Calibration point set: $status->{'temperature'} => $status->{'resistance'}\n";
-
-  # Ensure that the starting temperature is part of our calibration set.
-  my $first = $self->{temperatures}->[0];
-  if (abs($first - $status->{temperature}) < 10) {
-    # We're within 10 degrees of the first temperature, so just replace it with the actual temperature.
-    $self->{temperatures}->[0] = $status->{temperature};
+  if ($step == 0) {
+    $self->{power} += $config->{'power-step'};
+    $self->{'step-name'} = 'rising-'. $self->{power};
+  } elsif ($step % 2 == 0) {
+    $self->{power} += 2 * $config->{'power-step'};
+    $self->{'step-name'} = 'rising-'. $self->{power};
   } else {
-    # Add in a new point at the beginning of the list.
-    unshift @{$self->{temperatures}}, $status->{temperature};
+    $self->{power} -= $config->{'power-step'};
+    $self->{'step-name'} = 'falling-'. $self->{power};
   }
-  $status->{'calibration-temperature'} = $status->{temperatures};
-  $status->{'calibration-resistance'} = $status->{resistance};
-  $self->{'calibration-points'} = [ $status ];
 
-  # Now we can start the calibration cycle.
-  $self->{stage} = 'warmUp';
+  $self->{'step-end'} += $config->{'step-duration'};
+  $self->{step}++;
 
   return $self;
 }
 
 =head2 timerEvent($status)
 
-Handle a timer event.
-
-=over
-
-=item $status
-
-A hash reference containing the current status of the hotplate.
-
-=back
+Handle a timer event. This command doesn't really need the state-machine implementation, so it
+overrides the timerEvent method to do what's needed.
 
 =cut
 
-sub timerEvent {
+sub timerEvent { 
   my ($self, $status) = @_;
-
-  $status->{stage} = $self->{stage};
-  my $stage = '_'. $self->{stage};
-
-  return $self->$stage($status);
-}
-
-=head2 keyEvent($status)
-
-Handle a key event.
-
-=cut
-
-sub keyEvent {
-  my ($self, $status) = @_;
-
-  if ($status->{key} eq ' ') {
-    my $index = @{$self->{'calibration-points'}};
-    $status->{'calibration-temperature'} = $self->{config}->{'temperatures'}->[$index];
-
-    push @{$self->{'calibration-points'}}, $status;
-    $self->beep;
-    return $self;
-  }
-}
-
-sub _checkSteadyState {
-  my ($self, $status) = @_;
-
-  return if !exists $status->{last} || !exists $status->{resistance};
-
-  my $last = $status->{last};
-
-  # If we don't have resistance readings, then we can't determine steady state.
-  return if !exists $last->{resistance};
-
-  my $smoothing = $self->{config}->{'steady-state-smoothing'};
-  my $threshold = $self->{config}->{'steady-state-threshold'};
-  my $samples = $self->{config}->{'steady-state-samples'};
-  my $reset = $self->{config}->{'steady-state-reset'};
-
-  my $deltaR = $status->{resistance} - $last->{resistance};
-  $status->{'delta-R'} = $deltaR;
+  my $config = $self->{config};
   
-  # Apply to low pass filter
-  if (exists $last->{'delta-R-filtered'}) {
-    $status->{'delta-R-filtered'} = $smoothing * $last->{'delta-R-filtered'} + (1 - $smoothing) * $deltaR;
-  } else {
-    $status->{'delta-R-filtered'} = $deltaR;
+  # Clean up any timer jitter
+  my $clean_now = round($status->{now} / $status->{period}) * $status->{period};
+
+  if ( $status->{temperature} > $self->{'maximum-temperature'} && $self->{'step-name'} =~ /rising/) {
+    $self->info('Maximum temperature reached. Starting final step.');
+    $self->{step}++;
+    $self->{power} -= $config->{'power-step'};
+    $self->{'step-name'} = 'falling-'. $self->{power};
+    $self->{'step-end'} = $clean_now +$config->{'step-duration'};
+    $self->{final} = 1;
   }
 
-  if ($status->{'delta-R-filtered'} < $threshold) {
-    $status->{'steady-state-count'}++;
-  } elsif ($status->{'delta-R-filtered'} > $reset) {
-    $status->{'steady-state-count'} = 0;
-  }
-
-  return $status->{'steady-state'} = $status->{'steady-state-count'} >= $samples;
-}
-
-=head2 _warmUp($status)
-
-Handle the warm up stage of the calibration cycle.
-
-=cut
-
-sub _warmUp {
-  my ($self, $status) = @_;
-
-  if ($self->_checkSteadyState($status)) {
-    $self->{'ramp-start-time'} = $status->{now};
-    $self->{'ramp-start-temp'} = $status->{temperature};
-
-    # Ensure that we don't have a maximum temperature set, yet.
-    delete $self->{'maximum-temperature'};
-
-    return $self->_advanceStage('slowRamp', $status);
-  }
-
-  $self->{interface}->setPower($self->{config}->{'calibration-power'});
-
-  return $self;
-}
-
-sub _advanceStage {
-  my ($self, $stage, $status) = @_;
-
-  $self->beep;
-  $self->{stage} = $stage;
-  return $self->$stage($status);
-}
-
-sub _slowRamp {
-  my ($self, $status) = @_;
-
-  if (exists $self->{'maximum-temperature'}) {
-    if ($status->{temperature} >= $self->{'maximum-temperature'}) {
-      $self->{'hold-end-time'} = $status->{now} + $self->{config}->{'hold-time'};
-      return $self->_advanceStage('shortHold', $status);
+  if ($clean_now >= $self->{'step-end'}) {
+    if ($self->{final}) {
+      return;
     }
-  } elsif (@{$self->{'calibration-points'}} >= @{$self->{config}->{'temperatures'}}) {
-    $self->{'maximum-temperature'} = $status->{temperature} + 5;
+    $self->_nextStep;
   }
 
-  my $rate = $self->{config}->{'ramp-rate'};
-  my $nextTemp = $self->{'ramp-start-temp'} + $rate * ($status->{now} - $self->{'ramp-start-time'});
+  $status->{stage} = $self->{'step-name'};
+  $status->{step} = $self->{step};
+  $status->{'step-end'} = $self->{'step-end'};
+  $status->{'step-power'} = $self->{power};
 
-  $self->{controller}->setTemperature($nextTemp);
+  $self->{interface}->setPower($self->{power});
 
   return $self;
 }
 
-sub _shortHold {
-  my ($self, $status) = @_;
-
-  if ($status->{now} >= $self->{'hold-end-time'}) {
-    return $self->_advanceStage('coolDown', $status);
-  }
-
-  $self->{controller}->setTemperature($self->{'maximum-temperature'});
-
-  return $self;
-}
-
-sub _coolDown {
-  my ($self, $status) = @_;
-
-  if ($self->_checkSteadyState($status)) {
-    return;
-  }
-
-  $self->{interface}->setPower($self->{config}->{'calibration-power'});
-
-  return $self;
-}
-
-sub postProcess {
+sub _doPowerSegmentation {
   my ($self, $status, $history) = @_;
+  my $buckets = {};
 
-  # Make sure the hotplate is off.
-  $self->{interface}->off;
+  foreach my $sample (@$history) {
+    if ($sample->{event} eq 'timerEvent') {
+      my $direction = $sample->{stage};
 
-  $self->_calculateResistanceTemperatureMapping;
-  $self->_preProcessHistory($history);
-  $self->_calculateThermalResistance;
-  $self->_calculateHeatCapacity;
-  $self->_writeCalibrationData;
+      next unless $direction =~ /^(rising|falling)-(\d+)$/;
+      my $key = $2;
+      $direction = $1;
 
-  return;
-}
+      if (!exists $buckets->{$key}->{$direction}) {
+        $buckets->{$key}->{$direction} = [];
+      } 
 
-sub _preProcessHistory {
-  my ($self, $history) = @_;
-
-  my $rt_mapping = $self->{'resistance-temperature-mapping'};
-  my $warmUp = [];
-  my $coolDown = [];
-
-  foreach my $sts (@$history) {
-    if (exists $sts->{resistance}) {
-      # Recalculate temperature based on out more accurate resistance to temperature mapping.
-      $sts->{temperature} = $rt_mapping->estimate($sts->{resistance});
-    }
-
-    # Collect the warm up and cool down sections of the history.
-    if ($sts->{stage} eq 'warmUp') {
-      push @$warmUp, $sts;
-    } elsif ($sts->{stage} eq 'coolDown') {
-      push @$coolDown, $sts;
+      push @{$buckets->{$key}->{$direction}}, $sample;
     }
   }
 
-  $self->{'warm-up-history'} = $warmUp;
-  $self->{'cool-down-history'} = $coolDown;
-
-  return;
+  return $buckets;
 }
 
-sub _verifyCalibrationPoints {
-  my ($self) = @_;
-
-  my $points = $self->{'calibration-points'};
-  my $temps = $self->{'temperatures'};
-
-  return;
-}
-
-sub _calculateResistanceTemperatureMapping {
-  my ($self) = @_;
-
-  my $pwl = $PowerSupplyControl::Math::PiecewiseLinear->new;
-  my $points = $self->{'calibration-points'};
-  my $mapping = PowerSupplyControl::Math::PiecewiseLinear->new;
-
-  # Get the resistance at the point before and after the keypress and use linear interpolation to estimate the resistance at the keypress.
-  foreach my $point (@$points) {
-    if (!exists $point->{'calibration-resistance'}) {
-      my $last = $point->{last};
-      my $next = $last->{next};
-      $pwl->addPoint($last->{now}, $last->{resistance});
-      $pwl->addPoint($next->{now}, $next->{resistance});
-
-      $point->{'calibration-resistance'} = $pwl->estimate($point->{time});
-    }
-
-    print "Calibration point now=$point->{now}, time=$point->{time}, resistance=$point->{'calibration-resistance'}, temperature=$point->{'calibration-temperature'}\n";
-
-    $mapping->addPoint($point->{'calibration-resistance'}, $point->{'calibration-temperature'});
-  }
-
-  $self->{'resistance-temperature-mapping'} = $mapping;
-
-  return;
-}
-
-sub _calculateThermalResistance {
-  my ($self) = @_;
-
-  my ($warmUpPower, $warmUpResistance) = $self->_averagePowerResistance($self->{'warm-up-history'});
-  my $warmUpTemperature = $self->{'resistance-temperature-mapping'}->estimate($warmUpResistance);
-  my $warmUpThermalResistance = ($warmUpTemperature - $self->{'ambient'}) / $warmUpPower;
-
-  my ($coolDownPower, $coolDownResistance) = $self->_averagePowerResistance($self->{'cool-down-history'});
-  my $coolDownTemperature = $self->{'resistance-temperature-mapping'}->estimate($coolDownResistance);
-  my $coolDownThermalResistance = ($coolDownTemperature - $self->{'ambient'}) / $coolDownPower;
-
-  my $thermalResistance = ($warmUpThermalResistance + $coolDownThermalResistance) / 2;
-
-  $self->{'thermal-resistance'} = $thermalResistance;
-  $self->{'thermal-resistance-error'} = ($warmUpPower - $coolDownPower) / ($warmUpResistance - $coolDownResistance) / 2;
-
-  print "Thermal resistance: $thermalResistance, error: +/-$self->{'thermal-resistance-error'}\n";
+sub _calculateRTCalibrationPoint {
+  my ($self, $bucket, $stats) = @_;
+  my $config = $self->{config};
+  my $samples = $config->{'tail-samples'} || $config->{'samples'} || 10;
   
+  # Get the last 10 sample points for each direction
+  my @rising = @{$bucket->{'rising'}}[-$samples..-1];
+  my @falling = @{$bucket->{'falling'}}[-$samples..-1];
+
+  # Don't discard samples here - that's only for curve fitting. We really need to consider the whole range, here.
+  my ($rising_min_temp, $rising_max_temp);
+  minimum($bucket->{rising}, 'device-temperature' => $rising_min_temp);
+  maximum($bucket->{rising}, 'device-temperature' => $rising_max_temp);
+  my $rising_range = $rising_max_temp - $rising_min_temp;
+
+  my $rising_mean = {};
+  mean(\@rising, 'device-temperature' => $rising_mean->{temperature}
+               , resistance           => $rising_mean->{resistance}
+               , power                => $rising_mean->{power}
+               );
+
+  $stats->{'rising-min-temp'} = $rising_min_temp;
+  $stats->{'rising-max-temp'} = $rising_max_temp;
+  $stats->{'rising-range'} = $rising_range;
+  $stats->{'rising-centre-temp'} = ($rising_max_temp + $rising_min_temp) / 2;
+
+  if ($bucket->{falling} && @{$bucket->{falling}} > 2*$samples) {
+    my ($falling_min_temp, $falling_max_temp);
+    minimum($bucket->{falling}, 'device-temperature' => $falling_min_temp);
+    maximum($bucket->{falling}, 'device-temperature' => $falling_max_temp);
+    my $falling_range = $falling_max_temp - $falling_min_temp;
+
+    my $falling_mean = {};
+    mean(\@falling, 'device-temperature' => $falling_mean->{temperature}
+                 , resistance            => $falling_mean->{resistance}
+                 , power                 => $falling_mean->{power}
+                 );
+
+    my $rising_falling_ratio = $rising_range / $falling_range;
+
+    my $temperature = ($rising_mean->{temperature} + $falling_mean->{temperature} * $rising_falling_ratio) / (1 + $rising_falling_ratio);
+    my $power       = ($rising_mean->{power}       + $falling_mean->{power}       * $rising_falling_ratio) / (1 + $rising_falling_ratio);
+    my $resistance  = ($rising_mean->{resistance}  + $falling_mean->{resistance}  * $rising_falling_ratio) / (1 + $rising_falling_ratio);
+    my $thermal_resistance = ($temperature - $self->{ambient}) / $power;
+
+    $stats->{'equilibrium-resistance'} = $resistance;
+    $stats->{'equilibrium-temperature'} = $temperature;
+    $stats->{'equilibrium-power'} = $power;
+    $stats->{'thermal-resistance'} = $thermal_resistance;
+    $stats->{'falling-min-temp'} = $falling_min_temp;
+    $stats->{'falling-max-temp'} = $falling_max_temp;
+    $stats->{'falling-range'} = $falling_range;
+    $stats->{'falling-centre-temp'} = ($falling_max_temp + $falling_min_temp) / 2;
+
+    return { resistance => $resistance
+           , temperature => $temperature
+           , 'thermal-resistance' => $thermal_resistance
+           };
+  }
+
   return;
 }
 
-# Calculate the average power and resistance over the steady state samples.
-# This is used for estimating the thermal resistance of the hotplate assembly.
-sub _averagePowerResistance {
-  my ($self, $history) = @_;
+sub _buildRTMapping {
+  my ($self, $buckets) = @_;
 
-  my $sumPower = 0;
-  my $sumResistance = 0;
-  my $countPower = 0;
-  my $countResistance = 0;
+  # Build a calibration point around the equilibrium point for each power level.
+  # Note that it won't be at exactly the equilibrium point because we don't know
+  # where that is yet, but that doesn't matter. We just need a resitance to temperature
+  # calibration point that we trust.
+  my @points;
 
-  for (my $i = -$self->{config}->{'steady-state-samples'}; $i < 0; $i++) {
-    if (exists $history->[$i]->{power}) {
-      $sumPower += $history->[$i]->{power};
-      $countPower++;
-    }
+  foreach my $power (keys %$buckets) {
+    if ($power =~ /^\d+$/) {
+      $buckets->{stats}->{$power} = { power => $power };
 
-    if (exists $history->[$i]->{resistance}) {
-      $sumResistance += $history->[$i]->{resistance};
+      my $point = $self->_calculateRTCalibrationPoint($buckets->{$power}, $buckets->{stats}->{$power});
+      push @points, $point;
     }
   }
 
-  return ($sumPower / $countPower, $sumResistance / $countResistance);
+  my $r_t = [ sort { $a->{resistance} <=> $b->{resistance} } @points ];
+  return $r_t;
+}
+
+sub _adjustTemperatures {
+  my ($self, $history, $est) = @_;
+
+  foreach my $sample (@$history) {
+    if (exists $sample->{resistance}) {
+      $sample->{temperature} = $est->estimate($sample->{resistance});
+    }
+  }
+}
+
+sub _calculateThermalResistancePoint {
+  my ($self, $bucket, $stats) = @_;
+  my $config = $self->{config};
+  my $samples = $config->{'tail-samples'} || $config->{'samples'} || 10;
+
+  my @falling = @{$bucket->{'falling'}}[-$samples..-1];
+  my @rising = @{$bucket->{'rising'}}[-$samples..-1];
+
+  # Don't discard samples here - that's only for curve fitting. We really need to consider the whole range, here.
+  my ($rising_min_temp, $rising_max_temp, $falling_min_temp, $falling_max_temp);
+  minimum($bucket->{falling}, 'device-temperature' => $falling_min_temp);
+  maximum($bucket->{falling}, 'device-temperature' => $falling_max_temp);
+  minimum($bucket->{rising}, 'device-temperature' => $rising_min_temp);
+  maximum($bucket->{rising}, 'device-temperature' => $rising_max_temp);
+
+  my $falling_range = $falling_max_temp - $falling_min_temp;
+  my $rising_range = $rising_max_temp - $rising_min_temp;
+
+  my $rising_falling_ratio = $rising_range / $falling_range;
+
+  my ($rising_temp, $rising_power, $falling_temp, $falling_power);
+  mean(\@falling, 'device-temperature' =>  $falling_temp, power => $falling_power);
+  mean(\@rising, 'device-temperature' =>  $rising_temp, power => $rising_power);
+
+  # Calculate a weighted average for the temperature and power values based on the ratio of the rising and falling ranges
+  my $temperature = ($rising_temp + $falling_temp * $rising_falling_ratio) / (1 + $rising_falling_ratio);
+  my $power = ($rising_power + $falling_power * $rising_falling_ratio) / (1 + $rising_falling_ratio);
+
+  my $thermal_resistance = ($temperature - $self->{ambient}) / $power;
+
+  $stats->{'thermal-resistance'} = $thermal_resistance;
+  $stats->{'equilibrium-temperature'} = $temperature;
+  $stats->{'equilibrium-power'} = $power;
+
+  return { temperature => $temperature
+         , 'thermal-resistance' => $thermal_resistance
+         , power => $power
+         , 'rising-min-temp' => $rising_min_temp
+         , 'rising-max-temp' => $rising_max_temp
+         , 'falling-min-temp' => $falling_min_temp
+         , 'falling-max-temp' => $falling_max_temp
+         };
+}
+
+sub _buildThermalResistanceMapping {
+  my ($self, $buckets) = @_;
+
+  my @points;
+  foreach my $power (keys %$buckets) {
+    if ($power =~ /^\d+$/) {
+      my $point = $self->_calculateThermalResistancePoint($buckets->{$power}, $buckets->{stats}->{$power});
+      push @points, $point;
+    }
+  }
+
+  # Use linear regression to extrapolate an RO,TO data point.
+  my $reg = PowerSupplyControl::Math::SimpleLinearRegression->new->addHashPoints('temperature', 'resistance', \@points);
+  my $r0 = 20 * $reg->gradient + $reg->intercept;
+  push @points, { temperature => 20, resistance => $r0 };
+
+  my $t_rth = [ sort { $a->{temperature} <=> $b->{temperature} } @points ];
+  return $t_rth;
+}
+
+sub _calculateHeatCapacityImpl {
+  my ($self, $est, $samples, $stats) = @_;
+
+  my $epsilon = $self->{config}->{curve-fitting-epsilon} || 0.0001;
+
+  # Need to provide shifted times to move t=0 to the start of the curve
+  foreach my $sample (@$samples) {
+    $sample->{'hc-now'} = $sample->{now} - $samples->[0]->{now};
+  }
+
+  my $final_temp = $stats->{'equilibrium-temperature'};
+
+  my $result = $est->fitCurve($samples, 'device-temperature', 'hc-now', final => $final_temp);
+  my $first_result = $result;
+
+  # Iteratively fit the curve until the final temperature is stable.
+  # Set a limit on the number of iterations
+  my $iterations = 50;
+
+  # Track the difference between iterations to make sure it's getting smaller, otherwise the
+  # result may be diverging wildly and we should stop!
+  my $last_delta = 10000;
+
+  while ($iterations--) {
+    my $delta = abs($result->{final} - $final_temp);
+
+    if ($delta < $epsilon) {
+      return $result;
+    }
+
+    if ($delta < $last_delta) {
+      $final_temp = $result->{final};
+      $last_delta = $delta;
+      $result = $est->fitCurve($samples, 'device-temperature', 'hc-now', final => $final_temp);
+    } else {
+      warn "Curve fitting diverged for power level $stats->{power}. Last delta: $last_delta, current delta: $delta\n";
+      return $first_result;
+    }
+  }
+
+  warn "Curve fitting did not converge for power level $stats->{power} after 50 iterations.\n";
+  return $first_result;
 }
 
 sub _calculateHeatCapacity {
-  my ($self) = @_;
+  my ($self, $bucket, $stats) = @_;
+  my $config = $self->{config};
+  my $power = $stats->{power};
+  my $samples = $config->{'discard-samples'} || 4;
+  my $knee_ratio = $config->{'knee-ratio'} || 0.75;
 
-  my $est = PowerSupplyControl::Math::FirstOrderStepEstimator->new(resistance => $self->{'thermal-resistance'});
-  my $warmUp = $est->fitCurve($self->{'warm-up-history'}, 'temp', 'now');
-  my $coolDown = $est->fitCurve($self->{'cool-down-history'}, 'temp', 'now');
+  # TODO: This is a bit of a hack. We should probably build a piecewise linear estimator and get
+  # the predicted thermal resistance at the centre rather than just using the value for the equilibrium
+  # temperature, but it should be pretty close, so maybe good enough for now. It's not like we're trying
+  # to land a rocket on a comet millions of miles away or something. We just need to make some solder
+  # paste hot enough to melt, right?
+  my $est = PowerSupplyControl::Math::FirstOrderStepEstimator->new(regressionThreshold => $knee_ratio
+                                                                 , resistance => $stats->{'thermal-resistance'}
+                                                                 );
 
-  $self->{'heat-capacity'} = ($warmUp->{capacitance} + $coolDown->{capacitance}) / 2;
-  $self->{'heat-capacity-error'} = ($warmUp->{capacitance} - $coolDown->{capacitance}) / 2;
+  # Rising and falling results usually don't align well, so we prefer the rising result
+  # due to better resolution, lower noise sensitivity and copper usually being better behaved
+  # in expansion (heating up) versus contraction (cooling down).
+  my @rising = @{$bucket->{rising}}[$samples..$#{$bucket->{rising}}];
+  my $rising_result = $self->_calculateHeatCapacityImpl($est, \@rising, $stats);
 
-  print "Heat capacity: $self->{'heat-capacity'}, error: +/-$self->{'heat-capacity-error'}\n";
+  my $result = { temperature => $stats->{'rising-centre-temperature'}
+               , 'heat-capacity' => $rising_result->{capacitance}
+               , tau => $rising_result->{tau}
+               };
 
-  return;
+  if ($bucket->{falling} && @{$bucket->{falling}} > 2*$samples) {
+    my @falling = @{$bucket->{falling}}[$samples..$#{$bucket->{falling}}];
+    my $falling_result = $self->_calculateHeatCapacityImpl($est, \@falling, $stats);
+
+    $result->{'falling-heat-capacity'} = $falling_result->{capacitance};
+    $result->{'falling-temperature'} = $stats->{'falling-centre-temperature'};
+    $result->{'falling-tau'} = $falling_result->{tau};
+  }
+
+  return $result;
 }
 
-sub _writeCalibrationData {
-  my ($self) = @_;
+sub _buildHeatCapacityMapping {
+  my ($self, $buckets) = @_;
 
-  my $file = $self->{config}->{'calibration-file'};
-  if (-f $file) {
-    rename $file, "$file.". $self->timestamp;
+  my @points;
+  foreach my $power (keys %$buckets) {
+    my $point = $self->_calculateHeatCapacityForPowerLevel($buckets->{$power}, $buckets->{stats}->{power});
+    push @points, $point;
   }
 
-  my $fh = IO::File->new($file, 'w') || croak "Failed to open $file for writing";
+  my $t_hc = [ sort { $a->{temperature} <=> $b->{temperature} } @points ];
+  return $t_hc;
+}
 
-  $fh->print("ambient: $self->{'ambient'}\n");
-  $fh->print("resistance: $self->{'thermal-resistance'}\n");
-  $fh->print("resistance-error: $self->{'thermal-resistance-error'}\n");
-  $fh->print("capacity: $self->{'heat-capacity'}\n");
-  $fh->print("capacity-error: $self->{'heat-capacity-error'}\n");
-  $fh->print("temperatures:\n");
-  my $points = $self->{'resistance-temperature-mapping'}->getPoints;
-  foreach my $point (@$points) {
-    $fh->print("  $point->[0]: $point->[1]\n");
-  }
+sub postprocess {
+  my ($self, $status, $history) = @_;
+
+  my $buckets = $self->_doPowerSegmentation($status, $history);
+  my $r_t = $self->_buildRTMapping($buckets);
+  my $r_t_est = PowerSupplyControl::Math::PiecewiseLinear->new->addHashPoints('resistance', 'temperature', @$r_t);
+  $self->_adjustTemperatures($history, $r_t_est);
+  #my $t_rth = $self->_buildThermalResistanceMapping($buckets);
+  my $t_hc = $self->_buildHeatCapacityMapping($buckets);
+
+  my $fh = $self->replaceFile($self->{config}->{filename});
+  $self->writeCalibrationHeader($fh, %{$self->{config}});
+
+  $self->writeCalibration($fh, temperatures => $r_t, qw(resistance temperature));
+  $self->writeCalibration($fh, 'thermal-resistance' => $r_t, qw(temperature thermal-resistance));
+  $self->writeCalibration($fh, 'heat-capacity' => $t_hc, qw(temperature heat-capacity));
 
   $fh->close;
 
-  return;
-} 
+  return 1;
+}
 
 1;

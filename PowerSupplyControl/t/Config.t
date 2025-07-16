@@ -135,6 +135,14 @@ is($cfg2->{command}->{test}->{list}->[1]->{name}, 'item2', 'list item 2 should b
 is($cfg2->{command}->{test}->{list}->[1]->{value}, 873, 'list item 2 should be overridden');
 is($cfg2->{command}->{test}->{list}->[1]->{'added-value'}, 'always', 'list item 2 should have added-value');
 
+# test merging at the root level
+$cfg2->merge('root_merge.yaml');
+is($cfg2->{test1}, 'value1', 'test1 should be preserved');
+is($cfg2->{test2}, 'changed', 'test2 should be changed');
+is($cfg2->{test3}->{color}, 'blue', 'test3->color should be blue');
+is($cfg2->{test3}->{age}, 10, 'test3->age should be 10');
+is($cfg2->{something}, 'here', 'something should be here');
+
 # Test file include functionality
 note("Testing file include functionality");
 

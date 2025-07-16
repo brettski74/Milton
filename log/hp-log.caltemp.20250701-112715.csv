@@ -1,4 +1,0 @@
-now,event,power,voltage,current,resistance,temperature,steady-state-count,filtered-delta
-0.000,preprocess,5.99,2.98,2.01,1.483,26.0,0,0.000000
-0.000,timerEvent,120.47,13.43,8.97,1.497,28.6,0,0.000000
-1.356,timerEvent,114.89,13.39,8.58,1.561,39.7,0,0.000000

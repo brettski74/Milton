@@ -19,7 +19,22 @@ sub new {
     my $self = $class->SUPER::new(@args);
     $self->setTemperaturePoint(0, 1);
     $self->setTemperaturePoint(100, 2);
+    
+    $self->{'required-power'} = 23.2;
+
     return $self;
+}
+sub setRequiredPower {
+  my ($self, $power) = @_;
+  my $old = $self->{'required-power'};
+  $self->{'required-power'} = $power;
+  return $old;
+}
+
+sub getRequiredPower {
+  my ($self, $status, $target_temperature) = @_;
+
+  return $self->{'required-power'};
 }
 
 1; 

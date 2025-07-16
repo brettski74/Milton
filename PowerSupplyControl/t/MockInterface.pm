@@ -48,6 +48,10 @@ sub new {
   return $self;
 }
 
+sub deviceName {
+  return 'MockInterface';
+}
+
 =head2 setMockData($data)
 
 Set the mock data for this interface. Replaces any existing mock data.

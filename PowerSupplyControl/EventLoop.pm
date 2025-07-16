@@ -110,6 +110,38 @@ sub poll {
   return $status;
 }
 
+=head2 setAmbient($temperature)
+
+Set the current ambient temperature. If supplied, this will be be populated in status
+objects passed to event handlers.
+
+=over
+
+=item $temperature
+
+The current ambient temperature in degrees Celsius. If undefined, the current ambient
+temperature will be cleared.
+
+=item Return Value
+
+Returns the previous value that was set, or undef if no previous value was set.
+
+=back
+
+=cut
+
+sub setAmbient {
+  my ($self, $temperature) = @_;
+  if (defined $temperature) {
+    my $old = $self->{ambient};
+    $self->{ambient} = $temperature;
+    return $old;
+  }
+
+  delete $self->{ambient};
+  return;
+}
+
 =head2 fanStart
 
 If configured, cool down the hot plate by turning on a fan.
@@ -329,6 +361,8 @@ sub _signalWatcher {
 
   $self->_eventsDone;
 
+  $self->{interface}->shutdown;
+
   # Trash our objects so they get destroyed.
   $self->{interface} = undef;
   $self->{controller} = undef;
@@ -409,6 +443,7 @@ sub _keyWatcher {
                , now => $self->_now
                , time => $self->_time
                , key => $self->_readKey
+               , ambient => $self->{ambient}
                };
 
   push(@{$self->{history}}, $status);
@@ -442,6 +477,7 @@ sub _timerWatcher {
 
   my $status = $self->poll('timerEvent'
                          , now => $self->_now
+                         , ambient => $self->{ambient}
                          );
   if (! $cmd->timerEvent($status)) {
     $self->{logger}->log($status);
@@ -454,12 +490,24 @@ sub run {
   my $self = shift;
   my $cmd = $self->{command};
   my $logger = $self->{logger};
-  $logger->writeHeader;
 
   if ($cmd->can('preprocess')) {
     my $status = $self->poll('preprocess');
     $cmd->preprocess($status);
+
+    if (!defined $self->{ambient}) {
+      if (defined $status->{ambient}) {
+        $self->setAmbient($status->{ambient});
+      } elsif (defined $status->{temperature}) {
+        $self->setAmbient($status->{temperature});
+        $status->{ambient} = $status->{temperature};
+      }
+    }
+
+    $logger->writeHeader;
     $logger->log($status);
+  } else {
+    $logger->writeHeader;
   }
 
   if ($cmd->can('timerEvent')) {
@@ -499,6 +547,10 @@ sub run {
     $cmd->postprocess($status, $self->{history});
     $logger->log($status);
   }
+
+  $self->{interface}->shutdown;
+  $self->{controller}->shutdown;
+  $self->{fan}->shutdown if $self->{fan};
 }
 
 =head2 getHistory

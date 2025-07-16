@@ -49,7 +49,7 @@ sub new {
   $self->{config} = $merge->merge($config, $self->defaults);
 
   my @options = $self->options;
-  push @options, 'ambient=f';
+  push @options, 'ambient=f', 'debug=i';
 
   GetOptionsFromArray(\@args, $self, @options);
 
@@ -57,7 +57,7 @@ sub new {
     $self->{controller}->setAmbient($self->{ambient});
   }
 
-  $self->initialize() if $self->can('initialize');
+  $self->initialize;
 
   return $self;
 }
@@ -65,7 +65,7 @@ sub new {
 =head1 STATUS OBJECT
 
 The status object is a hash reference that contains the current state of the system. It is passed to all methods processing
-methods for the command. The following keys are always present in the status object unless specified otherwise:
+methods for the command. The following keys are most commonly present in the status object, except as noted below.
 
 =over
 
@@ -75,19 +75,36 @@ The current time in seconds since the start of the command.
 
 =item voltage
 
-The current voltage applied to the hotplate in volts. This is not present during keyEvents.
+The current voltage applied to the hotplate in volts. It is always present in timer events.
 
 =item current
 
-The current current drawn by the hotplate in amps. This is not present during keyEvents.
+The current current drawn by the hotplate in amps. It is always present in timer events.
 
 =item power
 
-The current power output of the hotplate in watts. This is not present during keyEvents.
+The current power output of the hotplate in watts. It is the product of voltage and current and should
+generally be available whenever both of those are available.
+
+=item resistance
+
+The current resistance of the hotplate in ohms. It is the ratio of voltage over current and should
+generally be available when both of those are available and current is non-zero.
 
 =item temperature
 
-The current temperature of the hotplate in degrees Celsius. This is not present during keyEvents.
+The current temperature of the hotplate in degrees Celsius. This is derived from the resistance of the
+hotplate and a mapping that describes the relationship between resistance and temperature. It should
+usually be available whenever resistance is available, but may be inaccurate depending on the accuracy
+of the mapping data available.
+
+=item ambient
+
+The current temperature of the ambient environment surrounding the hotplace in degrees Celsius. It is 
+not always known with high accuracy and often drawn from static configuration data or possibly from user
+prompts or external temperature sensors in some commands. Whatever the source, it is usually close
+enough for most purpose at temperatures where solder reflow is concerned but its accuracy may present
+problems at lower temperatures below 100 celsius.
 
 =back
 
@@ -95,6 +112,9 @@ The current temperature of the hotplate in degrees Celsius. This is not present 
 
 
 =head1 METHODS
+
+Subclasses should only implement the methods that they need. If a particular feature or event type is
+not used by a command, leave it unimplemented.
 
 =head2 defaults
 
@@ -124,6 +144,8 @@ sub options {
 
 Open a file with a given filename. If a file with that name already exists, rename it first by appending a timestamp to the filename.
 
+TODO: This should probably be moved to some utility module.
+
 =over
 
 =item $filename
@@ -151,18 +173,22 @@ sub replaceFile {
   return $fh;
 }
 
-=head2 initialize
+=head2 initialize()
 
 Initialize the command.
 
 Implement this method in subclasses for commands that require any specific initialization logic during their creation.
 
+This method should be used for initializing any internal state that is required for the command to run but
+should not communicate with the power supply or any other external devices. Those should be done during the
+preprocess method. This is useful for setting up internal state for unit tests without requiring any external
+interactions during unit testing.
+
 =cut
 
-# Don't implement here. The framework will use ->can to determine if the command implements this method.
-#sub initialize {
-#  return;
-#}
+sub initialize {
+  return;
+}
 
 =head2 preprocess($status)
 
@@ -170,10 +196,13 @@ Implement this method in subclasses for commands that require any specific pre-p
 
 This method should be used for any non-timer related pre-processing. Unlike the initialize method, which is called during object
 creation, this method is called after all necessary initialization of the command and other object and system state is complete.
+It is also where any pre-event loop power supply or device communications should be done, such as ensuring that the power supply
+is on and some current is flowing - if that's what will be needed during the event loop execution.
 
 =cut
 
-# Don't implement here. The framework will use ->can to determine if the command implements this method.
+# Don't implement here. Implementing this method will cause data logging of preprocess events which is undesirable
+# if the command does not process preprocess events.
 #sub preprocess {
 #  return;
 #}
@@ -189,6 +218,9 @@ and updating the hotplate status.
 =cut
 
 # Don't implement here. The framework will use ->can to determine if the command implements this method.
+# Implementing this method will cause the creation of a timer watcher for this command, the data logging of
+# timer events and the starting of the event loop, which is undesirable if the command does not process timer
+# events.
 #sub timerEvent {
 #  return;
 #}
@@ -218,6 +250,8 @@ The key that was pressed.
 =cut
 
 # Don't implement here. The framework will use ->can to determine if the command implements this method.
+# Implementing this method will cause the creation of an io watcher for this command and data logging of
+# key events which is undesirable if the command does not process key events.
 #sub keyEvent {
 #  return;
 #}
@@ -260,7 +294,8 @@ status object passed to the postprocess method.
 
 =cut
 
-# Don't implement here. The framework will use ->can to determine if the command implements this method.
+# Don't implement here. Implementing this method will cause data logging of postprocess events which is undesirable
+# if the command does not process postprocess events.
 #sub postprocess {
 #  return;
 #}
@@ -274,6 +309,8 @@ Prompt the user for a value.
 =item $prompt
 
 The text prompt to display to the user.
+
+TODO: This should probably be moved to some utility module.
 
 =item $default
 
@@ -358,12 +395,101 @@ postprocess method, you can approximate this behaviour by calling:
 
 =cut
 
-# Don't implement here. The framework will use ->can to determine if the command implements this method.
-#sub quitEvent {
-#  return;
-#}
+sub quitEvent {
+  return;
+}
 
-=head1 AUTHOR
+=head2 setInfoChannel($channel)
+
+Set the channel to use for informational messages.
+
+=over
+
+=item $channel
+
+A reference to an object that implements a print method.
+This allows for pluggable output channels for information to allow for future developments
+like a GUI or web interface for these commands.
+
+=back
+
+=cut
+
+sub setMessageOutputChannel {
+  my ($self, $channel) = @_;
+  $self->{'output-channel'} = $channel;
+  return $self;
+}
+
+=head2 info($message)
+
+Output an informational message to the user.
+
+=over
+
+=item $message
+
+The message to be displayed to the user.
+
+=item Return Value
+
+Returns this command object to allow for method chaining.
+
+=back
+
+=cut
+
+sub info {
+  my ($self, $message) = @_;
+
+  if (defined $self->{'output-channel'}) {
+    $self->{'output-channel'}->print($message);
+  } else {
+    $message =~ s/\n/\nINFO: /g;
+    print "INFO: $message\n";
+  }
+
+  return $self;
+}
+
+=head2 debug($level, $message)
+
+Output a debug message to the user.
+
+=over
+
+=item $level
+
+A debug level number to indicate whether or not this message should be output.
+
+=item $message
+
+The message to be displayed to the user.
+
+=item Return Value
+
+Returns this command object to allow for method chaining.
+
+=back
+
+=cut
+
+sub debug {
+  my ($self, $level, $message) = @_;
+
+  if ($self->{debug} >= $level) {
+    if (defined $self->{'output-channel'}) {
+      $self->{'output-channel'}->print($message);
+    } else {
+      $message =~ s/\n/\nDEBUG: /g;
+      print "DEBUG: $message\n";
+    }
+  }
+
+  return $self;
+}
+
+=head1 AUTHOR Brett Gersekowski
 
 =cut
 

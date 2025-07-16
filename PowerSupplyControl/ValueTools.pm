@@ -5,7 +5,7 @@ use warnings qw(all -uninitialized -digit);
 use Carp qw(croak);
 use base qw(Exporter);
 
-our @EXPORT_OK = qw(boolify checkMinimum checkMaximum checkMinMax timestamp hexToNumber);
+our @EXPORT_OK = qw(boolify checkMinimum checkMaximum checkMinMax timestamp hexToNumber readCSVData);
 
 =head1 NAME
 
@@ -166,6 +166,44 @@ sub hexToNumber {
   for (my $i=0; $i<@_; $i++) {
     $_[$i] = hex($_[$i]);
   }
+}
+
+=head2 readCSVData($filename)
+
+Read a CSV file and return an array of hashes.
+
+=over
+
+=item $filename
+
+The name of the CSV file to read. The first line of the file must be a header line defining the
+key names associated with each column.
+
+=item Return Value
+
+An array of hashes, one for each line in the CSV file.
+
+=cut
+
+sub readCSVData {
+  my ($filename) = @_;
+  my $fh = IO::File->new($filename, 'r') || croak "Failed to open $filename: $!";
+  my $header = $fh->getline;
+  chomp $header;
+  my @columns = split /,/, $header;
+
+  my $data = [];
+  while (my $line = $fh->getline) {
+    chomp $line;
+    my @values = split /,/, $line;
+    my $record = {};
+    for (my $i = 0; $i < @values; $i++) {
+      $record->{$columns[$i]} = $values[$i];
+    }
+    push @$data, $record;
+  }
+  $fh->close;
+  return $data;
 }
 
 =head1 AUTHOR

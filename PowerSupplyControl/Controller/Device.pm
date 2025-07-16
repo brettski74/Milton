@@ -107,4 +107,14 @@ sub stopListening {
   croak ref(shift) .'->stopListening not implemented.';
 }
 
+=head2 shutdown
+
+Shutdown the device.
+
+=cut
+
+sub shutdown {
+  croak ref(shift) .'->shutdown not implemented.';
+}
+
 1;

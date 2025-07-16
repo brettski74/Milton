@@ -238,4 +238,16 @@ sub n {
   return $self->{n};
 }
 
+=head2 predict($xvalue)
+
+Predict the y value for a given x value.
+
+=cut
+
+sub predict {
+  my ($self, $xvalue) = @_;
+
+  return $self->{gradient} * $xvalue + $self->{intercept};
+}
+
 1;

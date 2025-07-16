@@ -28,26 +28,19 @@ sub new {
   my $self = $class->SUPER::new($config, $interface);
 
   # Verify mandatory parameters
-  croak "PowerSupplyControl::resistance not specified." unless $config->{resistance};
-  croak "capacity not specified." unless $config->{capacity};
+  croak "controller.calibration.thermal-resistance not specified." unless $config->{calibration}->{'thermal-resistance'};
+  croak "controller.calibration.heat-capacity not specified." unless $config->{calibration}->{'heat-capacity'};
 
-  # Set defaults if required
-  $self->{ambient} = $config->{ambient} || 20.0;
+  $self->{'ttr-estimator'} = PowerSupplyControl::Math::PiecewiseLinear->new->addHashPoints(temperature => 'thermal-resistance', @{$config->{calibration}->{'thermal-resistance'}});
+  $self->{'tch-estimator'} = PowerSupplyControl::Math::PiecewiseLinear->new->addHashPoints(temperature => 'heat-capacity', @{$config->{calibration}->{'heat-capacity'}});
 
-  # Create the regression model
-  $self->{regression} = Statistics::Regression->new('Feed-forward Regression', [ 'power', 'rel_temp' ]);
+  if (!exists $self->{power}->{maximum}) {
+    my ($pmin, $pmax) = $interface->getPowerLimits();
+    $self->{power}->{maximum} = $pmax;
+  }
 
-  # Create the thermal model
-  $self->{model} = PowerSupplyControl::Math::ThermalModel->new($self);
-
-  # How many samples until we re-evaluate kp and kt?
-  $self->{countdown} = $self->{'initial-regression-samples'} || $self->{'regression-samples'} || 10;
-
-  # IIR filter coefficient for smoothing the power output
-  $self->{alpha} = $self->{alpha} || 0.3;
-
-  # Keep a log of the status every sample period
-  $self->{log} = [];
+  $self->{'min-error'} //= 10;
+  $self->{'predict-time-constant'} //= 20;
 
   return $self;
 }
@@ -59,11 +52,84 @@ Calculate the power required to achieve a certain hotplate temperature by the ne
 =cut
 
 sub getRequiredPower {
-  my ($self, $status, $target_temp) = @_;
+  my ($self, $status) = @_;
+  my $period = $status->{period};
 
-  # Set the power to achieve the target temperature
-  my $power = $self->{model}->estimatePower($status, $target_temp);
-  $power = $self->_filterOutputPower($power);
+  my ($temperature, $predict_alpha);
+  if (exists $self->{'predict-temperature'}) {
+    $temperature = $self->{'predict-temperature'};
+    $predict_alpha = $self->{'predict-alpha'};
+  } else {
+    $temperature = $status->{temperature};
+    $predict_alpha = $period / ($period + $self->{'predict-time-constant'});
+    $self->{'predict-alpha'} = $predict_alpha;
+  }
+  $status->{'predict-alpha'} = $predict_alpha;
+  $temperature = $predict_alpha * $temperature + (1 - $predict_alpha) * $status->{temperature};
+  #print "predict-alpha: $predict_alpha, predict-temperature: $temperature, temperature: $status->{temperature}\n";
+
+  my $delta_T = $status->{'then-temperature'} - $temperature;
+  my $offset_T = $status->{'then-temperature'} - $status->{ambient};
+
+  my $R = $self->getThermalResistance($status->{'then-temperature'});
+  my $C = $self->getHeatCapacity($status->{'then-temperature'});
+  $status->{rth} = $R;
+  $status->{ch} = $C;
+  
+  my $error = $status->{'now-temperature'} - $temperature;
+  $status->{error} = $error;
+
+  $self->{'predict-temperature'} = $temperature;
+  $status->{'predict-temperature'} = $temperature;
+
+  my $pid_factor = $self->{'pid-factor'} // 0.3;
+  my $kp = 1 / $R * $pid_factor;
+  my $ki = $period * $kp / $R / $C * $pid_factor;
+
+  my $anti_windup_factor = $status->{'anti-windup-factor'} // 0.15;
+  my $pmax = $self->{power}->{maximum};
+  my $max_error;
+  if ($ki > 0) {
+    $max_error = $pmax / $ki * $anti_windup_factor;
+  } else {
+    $max_error = 0;
+  }
+
+  my $err_sum = $self->{'error-sum'} // 0;
+  if (abs($err_sum) < $max_error) {
+    $err_sum += $error;
+  }
+
+  $self->{'error-sum'} = $err_sum;
+  $status->{'error-sum'} = $err_sum;
+
+  my $ff_power = $C*$delta_T/$period + $R*$offset_T;
+  # Unfortunately we can't make the heat flow back out of the hotplate as electricity, so...
+  if ($ff_power < 0) {
+    $ff_power = 0;
+  }
+  my $p_power = $kp*$error;
+  my $i_power = $ki*$err_sum;
+  my $pid_power = $p_power + $i_power;
+  my $power = $ff_power + $pid_power;
+  $status->{'ff-power'} = $ff_power;
+  $status->{'pid-power'} = $pid_power;
+  $status->{'p-power'} = $p_power;
+  $status->{'i-power'} = $i_power;
+  $status->{'uf-power'} = $power;
+
+  # Use the time-constant of the smoothing-time if that was what was provided
+  if (!exists $self->{'smoothing'} && exists $self->{'smoothing-time'}) {
+    $self->{'smoothing'} = 1 - ($period / ($period + $self->{'smoothing-time'}));
+  }
+  my $smoothing = $self->{'smoothing'} // 0.66;
+  $power = (1 - $smoothing) * $power + $smoothing * $self->{'power-iir'};
+
+  if ($error < $self->{'min-error'}) {
+    $power = 0.1;
+  } elsif ($power > $pmax) {
+    $power = $pmax;
+  }
 
   return $power;
 }
@@ -123,7 +189,7 @@ The effective thermal resistance at the given temperature.
 
 sub setThermalResistancePoint {
   my ($self, $temperature, $thermal_resistance) = @_;
-  $self->{ttr_estimator}->addPoint($temperature, $thermal_resistance);
+  $self->{'ttr-estimator'}->addPoint($temperature, $thermal_resistance);
 }
 
 =head2 thermalResistanceEstimatorLength()
@@ -134,7 +200,7 @@ Get the number of thermal resistance calibration points in the thermal resistanc
 
 sub thermalResistanceEstimatorLength {
   my ($self) = @_;
-  return $self->{ttr_estimator}->length();
+  return $self->{'ttr-estimator'}->length();
 }
 
 =head2 getThermalResistance($temperature)
@@ -151,7 +217,7 @@ The temperature at which to get the thermal resistance.
 
 sub getThermalResistance {
   my ($self, $temperature) = @_;
-  return $self->{ttr_estimator}->estimate($temperature);
+  return $self->{'ttr-estimator'}->estimate($temperature);
 }
 
 =head2 setHeatCapacityPoint($temperature, $heat_capacity)
@@ -174,7 +240,7 @@ The effective heat capacity at the given temperature.
 
 sub setHeatCapacityPoint {
   my ($self, $temperature, $heat_capacity) = @_;
-  $self->{tch_estimator}->addPoint($temperature, $heat_capacity);
+  $self->{'tch-estimator'}->addPoint($temperature, $heat_capacity);
 }
 
 =head2 heatCapacityEstimatorLength()
@@ -185,7 +251,7 @@ Get the number of heat capacity calibration points in the heat capacity estimato
 
 sub heatCapacityEstimatorLength {
   my ($self) = @_;
-  return $self->{tch_estimator}->length();
+  return $self->{'tch-estimator'}->length();
 }
 
 =head2 getHeatCapacity($temperature)
@@ -196,7 +262,7 @@ Get the effective heat capacity at the given temperature.
 
 sub getHeatCapacity {
   my ($self, $temperature) = @_;
-  return $self->{tch_estimator}->estimate($temperature);
+  return $self->{'tch-estimator'}->estimate($temperature);
 }
 
 =head2 getThermalTimeConstant($temperature)

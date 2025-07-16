@@ -65,6 +65,11 @@ The UUID of the indication characteristic. Defaults to "e7add780-b042-4876-ae1-1
 
 The service name of the indication characteristic. Defaults to "service0006/char0007".
 
+=item max-offset
+
+When defined, this is the maximum different between successive measurements that will be
+accepted. If the difference is greater than this value, then the measurement is rejected.
+
 =back
 
 =cut
@@ -87,6 +92,19 @@ sub new {
   $self->subscribe($uuid, $service)
     || croak "Failed to subscribe to indication characteristic $uuid";
   
+  return $self;
+}
+
+sub deviceName {
+  return 'EEVBlog 121GW';
+}
+
+sub shutdown {
+  my ($self) = @_;
+
+  $self->stopListening;
+
+
   return $self;
 }
 
@@ -139,6 +157,8 @@ sub listenNow {
 
 sub receiveData {
   my ($self) = @_;
+  return unless $self->{recv};
+
   my $line = $self->{recv}->getline;
   chomp $line;
   print "line: $line\n" if $self->{debug};
@@ -191,6 +211,12 @@ sub parseData {
   my $buf = $self->{'read-buffer'};
   print "parseData: ". scalar(@$buf). " bytes in buffer [ ". join(', ', @$buf). " ]\n" if $self->{debug};
   my $parseCount = 0;
+  my $max_offset = $self->{'max-offset'};
+  my $max_value = $self->{'max-value'};
+  my $min_value = $self->{'min-value'};
+
+  my $last_hot = $self->{'last-hot'};
+  my $last_cold = $self->{'last-cold'};
   
   while (@$buf) {
     
@@ -233,16 +259,62 @@ sub parseData {
         $sub_value = $sub_value / $RANGES{$rangekey};
       }
 
-      $self->{'display-value'} = $main_value;
-      $self->{'sub-value'} = $sub_value;
-      $self->{'mode'} = $mode;
-      $self->{'temp-scale'} = $temp_scale;
-      $self->{'sub-mode'} = $sub_mode;
-      $self->{'range'} = $range;
-      $self->{'sub-range'} = $sub_range;
+      # Sometimes we read wild data, so check against some sane limits if configured
+      my $legal = 1;
+      if ($max_offset) {
+        if (defined $last_hot) {
+          $legal = abs($main_value - $last_hot) <= $max_offset;
+          warn "parseData: rejected measurement: hot=$main_value, last_hot=$last_hot, max-offset=$max_offset\n" unless $legal;
+        }
+        if (defined $last_cold) {
+          $legal = abs($sub_value - $last_cold) <= $max_offset;
+          warn "parseData: rejected measurement: cold=$sub_value, last_cold=$last_cold, max-offset=$max_offset\n" unless $legal;
+        }
+      }
+      if ($legal && $max_value) {
+        if ($main_value > $max_value) {
+          warn "parseData: rejected measurement: main_value=$main_value, max_value=$max_value\n";
+          $legal = 0;
+        }
+        if ($sub_value > $max_value) {
+          warn "parseData: rejected measurement: sub_value=$sub_value, max_value=$max_value\n";
+          $legal = 0;
+        }
+      }
+      if ($legal && $min_value) {
+        if ($main_value < $min_value) {
+          warn "parseData: rejected measurement: main_value=$main_value, min_value=$min_value\n";
+          $legal = 0;
+        }
+        if ($sub_value < $min_value) {
+          warn "parseData: rejected measurement: sub_value=$sub_value, min_value=$min_value\n";
+          $legal = 0;
+        }
+      }
+      # Check the XOR checksum byte
+      my $checksum = 0;
+      for (my $i=0; $i<19; $i++) {
+        $checksum ^= $buf->[$i];
+      }
+      if ($checksum != 0) {
+        warn "parseData: rejected measurement: checksum=$checksum, expected=0\n";
+        $legal = 0;
+      }
+
+      if ($legal) {
+        $self->{'display-value'} = $main_value;
+        $self->{'sub-value'} = $sub_value;
+        $self->{'mode'} = $mode;
+        $self->{'temp-scale'} = $temp_scale;
+        $self->{'sub-mode'} = $sub_mode;
+        $self->{'range'} = $range;
+        $self->{'sub-range'} = $sub_range;
+        $last_hot = $main_value;
+        $last_cold = $sub_value;
+        $parseCount++;
+      }
 
       splice @$buf, 0, 19;
-      $parseCount++;
     } else {
       last;
     }
@@ -251,6 +323,9 @@ sub parseData {
   if ($parseCount > 0 && exists $self->{'cond-var'}) {
     $self->{'cond-var'}->send;
   }
+
+  $self->{'last-hot'} = $last_hot;
+  $self->{'last-cold'} = $last_cold;
 
   return $self;
 }

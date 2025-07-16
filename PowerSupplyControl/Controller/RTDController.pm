@@ -31,7 +31,7 @@ sub new {
   $self->{rt_estimator} = PowerSupplyControl::Math::PiecewiseLinear->new
           ->addHashPoints('resistance', 'temperature', @{$config->{calibration}->{temperatures}});
 
-  if (exists $config->{'device'}) {
+  if ($config->{'device'}) {
     $self->_initializeDevice($config->{'device'});
   }
 
@@ -53,8 +53,9 @@ sub _initializeDevice {
     $device = $package->new(%$config);
   };
   # Ignore errors. Device assistance is optional. Warn the user and continue.
-  if (!defined $device) {
+  if (!defined($device) || $@) {
     print "\a\a\aFailed to initialize device $package: $@\nContinuing without device assistance.\n";
+    delete $self->{device};
     return;
   }
 
@@ -209,6 +210,17 @@ sub setTemperaturePoint {
   $self->{rt_estimator}->addPoint($resistance, $temperature);
 }
 
+=head2 getTemperaturePoints
+
+Get the list of temperature calibration points.
+
+=cut
+
+sub getTemperaturePoints {
+  my ($self) = @_;
+  return $self->{rt_estimator}->points();
+}
+
 =head2 temperatureEstimatorLength()
 
 Get the number of calibration points in the RTD estimator.
@@ -248,6 +260,25 @@ sub startDeviceListening {
 
   if ($self->hasTemperatureDevice) {
     $self->{device}->startListening;
+  }
+
+  return;
+}
+
+sub shutdown {
+  my ($self) = @_;
+
+  if ($self->hasTemperatureDevice) {
+    $self->{device}->stopListening;
+    $self->{device}->shutdown;
+  }
+}
+
+sub getDeviceName {
+  my ($self) = @_;
+
+  if ($self->hasTemperatureDevice) {
+    return $self->{device}->deviceName;
   }
 
   return;

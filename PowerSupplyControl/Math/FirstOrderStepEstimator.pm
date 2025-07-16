@@ -242,6 +242,25 @@ sub new {
   return $self;
 }
 
+sub setResistance {
+  my ($self, $resistance) = @_;
+  my $old = $self->{resistance};
+  $self->{resistance} = $resistance;
+  return $old;
+}
+
+sub getResistance {
+  my $self = shift;
+  return $self->{resistance};
+}
+
+sub setRegressionThreshold {
+  my ($self, $threshold) = @_;
+  my $old = $self->{regressionThreshold};
+  $self->{regressionThreshold} = $threshold;
+  return $old;
+}
+
 sub getRegressionThreshold {
   my $self = shift;
   my $threshold = $self->{regressionThreshold};
@@ -285,6 +304,7 @@ sub fitCurve {
 
   my $slr = PowerSupplyControl::Math::SimpleLinearRegression->new;
   my @points = ();
+  my $xmin = $data->[0]->{$xlabel};
 
   # build up the regression sum variables
   for my $point (@$data) {
@@ -295,6 +315,14 @@ sub fitCurve {
     }
 
     push @points, $point->{$xlabel}, log($direction * ($final - $y));
+    if ($xmin > $point->{$xlabel}) {
+      $xmin = $point->{$xlabel};
+    }
+  }
+
+  # Shift the data back to t=0
+  for (my $i = 0; $i < @points; $i += 2) {
+    $points[$i] -= $xmin;
   }
 
   if (@points < 4) {

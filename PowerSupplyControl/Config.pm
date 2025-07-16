@@ -296,8 +296,8 @@ The name of the YAML file to merge.
 
 =item @path
 
-The path where the file contents should be merged. Merging at the root level is untested
-and probably does not work. Trying to merged at the root level is not recommended.
+The path where the file contents should be merged.
+An empty path will merge the contents of the file at the root level.
 
 =back
 
@@ -309,10 +309,18 @@ sub merge {
   my $data = _load_file($filename);
   return $self if !defined $data;
 
+  my $merge = Hash::Merge->new('LEFT_PRECEDENT');
+
+  # Merging at the root level requires special handling
+  if (!@path) {
+    foreach my $key (keys %$data) {
+      $self->{$key} = $merge->merge($data->{$key}, $self->{$key});
+    }
+    return $self;
+  }
+
   my $child = pop @path;
   my $parent = $self->_descend(1, @path);
-
-  my $merge = Hash::Merge->new('LEFT_PRECEDENT');
 
   if (reftype($parent) eq 'HASH') {
     if (exists $parent->{$child}) {

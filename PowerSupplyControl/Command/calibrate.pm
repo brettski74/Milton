@@ -6,6 +6,7 @@ use warnings qw(all -uninitialized);
 
 use base qw(PowerSupplyControl::Command::CalibrationCommand);
 use Math::Round qw(round);
+use List::Util qw(min max);
 use Readonly;
 use Carp qw(croak);
 use Time::HiRes qw(sleep);
@@ -333,6 +334,7 @@ sub _nextStep {
 
   $self->{'step-end'} += $config->{'step-duration'};
   $self->{step}++;
+  $self->beep;
 
   return $self;
 }
@@ -351,7 +353,14 @@ sub timerEvent {
   # Clean up any timer jitter
   my $clean_now = round($status->{now} / $status->{period}) * $status->{period};
 
-  if ( $status->{temperature} > $self->{'maximum-temperature'} && $self->{'step-name'} =~ /rising/) {
+  my $temperature = $status->{temperature};
+  if (exists $self->{'device-temperature'}) {
+    $temperature = $status->{'device-temperature'};
+    $self->{'temperature-key'} = 'device-temperature';
+  }
+
+  if ( $temperature > $self->{'maximum-temperature'} && $self->{'step-name'} =~ /rising/) {
+    $self->beep;
     $self->info('Maximum temperature reached. Starting final step.');
     $self->{step}++;
     $self->{power} -= $config->{'power-step'};
@@ -380,9 +389,14 @@ sub timerEvent {
 sub _doPowerSegmentation {
   my ($self, $status, $history) = @_;
   my $buckets = {};
+  my $temperature_key = undef;
 
   foreach my $sample (@$history) {
     if ($sample->{event} eq 'timerEvent') {
+      if (!defined $temperature_key && exists $sample->{'device-temperature'}) {
+        $temperature_key = 'device-temperature';
+      }
+
       my $direction = $sample->{stage};
 
       next unless $direction =~ /^(rising|falling)-(\d+)$/;
@@ -397,6 +411,12 @@ sub _doPowerSegmentation {
     }
   }
 
+  if (defined $temperature_key) {
+    $self->{'temperature-key'} = $temperature_key;
+  } else {
+    $self->{'temperature-key'} = 'temperature';
+  }
+
   return $buckets;
 }
 
@@ -404,38 +424,41 @@ sub _calculateRTCalibrationPoint {
   my ($self, $bucket, $stats) = @_;
   my $config = $self->{config};
   my $samples = $config->{'tail-samples'} || $config->{'samples'} || 10;
+  my $temperature_key = $self->{'temperature-key'};
   
   # Get the last 10 sample points for each direction
   my @rising = @{$bucket->{'rising'}}[-$samples..-1];
-  my @falling = @{$bucket->{'falling'}}[-$samples..-1];
 
   # Don't discard samples here - that's only for curve fitting. We really need to consider the whole range, here.
   my ($rising_min_temp, $rising_max_temp);
-  minimum($bucket->{rising}, 'device-temperature' => $rising_min_temp);
-  maximum($bucket->{rising}, 'device-temperature' => $rising_max_temp);
+  minimum($bucket->{rising}, $temperature_key => $rising_min_temp);
+  maximum($bucket->{rising}, $temperature_key => $rising_max_temp);
   my $rising_range = $rising_max_temp - $rising_min_temp;
 
   my $rising_mean = {};
-  mean(\@rising, 'device-temperature' => $rising_mean->{temperature}
-               , resistance           => $rising_mean->{resistance}
-               , power                => $rising_mean->{power}
+  mean(\@rising, $temperature_key => $rising_mean->{temperature}
+               , resistance       => $rising_mean->{resistance}
+               , power            => $rising_mean->{power}
                );
 
-  $stats->{'rising-min-temp'} = $rising_min_temp;
-  $stats->{'rising-max-temp'} = $rising_max_temp;
+  $stats->{'rising-min-temperature'} = $rising_min_temp;
+  $stats->{'rising-max-temperature'} = $rising_max_temp;
   $stats->{'rising-range'} = $rising_range;
-  $stats->{'rising-centre-temp'} = ($rising_max_temp + $rising_min_temp) / 2;
+  $stats->{'rising-centre-temperature'} = ($rising_max_temp + $rising_min_temp) / 2;
 
+  # We may not have a falling step, since the last rising step won't have one.
   if ($bucket->{falling} && @{$bucket->{falling}} > 2*$samples) {
+    my @falling = @{$bucket->{'falling'}}[-$samples..-1];
+
     my ($falling_min_temp, $falling_max_temp);
-    minimum($bucket->{falling}, 'device-temperature' => $falling_min_temp);
-    maximum($bucket->{falling}, 'device-temperature' => $falling_max_temp);
+    minimum($bucket->{falling}, $temperature_key => $falling_min_temp);
+    maximum($bucket->{falling}, $temperature_key => $falling_max_temp);
     my $falling_range = $falling_max_temp - $falling_min_temp;
 
     my $falling_mean = {};
-    mean(\@falling, 'device-temperature' => $falling_mean->{temperature}
-                 , resistance            => $falling_mean->{resistance}
-                 , power                 => $falling_mean->{power}
+    mean(\@falling, $temperature_key => $falling_mean->{temperature}
+                 , resistance        => $falling_mean->{resistance}
+                 , power             => $falling_mean->{power}
                  );
 
     my $rising_falling_ratio = $rising_range / $falling_range;
@@ -449,15 +472,21 @@ sub _calculateRTCalibrationPoint {
     $stats->{'equilibrium-temperature'} = $temperature;
     $stats->{'equilibrium-power'} = $power;
     $stats->{'thermal-resistance'} = $thermal_resistance;
-    $stats->{'falling-min-temp'} = $falling_min_temp;
-    $stats->{'falling-max-temp'} = $falling_max_temp;
+    $stats->{'falling-min-temperature'} = $falling_min_temp;
+    $stats->{'falling-max-temperature'} = $falling_max_temp;
     $stats->{'falling-range'} = $falling_range;
-    $stats->{'falling-centre-temp'} = ($falling_max_temp + $falling_min_temp) / 2;
+    $stats->{'falling-centre-temperature'} = ($falling_max_temp + $falling_min_temp) / 2;
 
-    return { resistance => $resistance
-           , temperature => $temperature
-           , 'thermal-resistance' => $thermal_resistance
-           };
+    my $result = { temperature => $temperature
+                 , 'thermal-resistance' => $thermal_resistance
+                 };
+
+    # Only return resistance if we have device temperatures, otherwise we don't want to overwrite the existing R-T mapping.
+    if ($temperature_key eq 'device-temperature') {
+      $result->{resistance} = $resistance;
+    }
+
+    return $result;
   }
 
   return;
@@ -471,108 +500,59 @@ sub _buildRTMapping {
   # where that is yet, but that doesn't matter. We just need a resitance to temperature
   # calibration point that we trust.
   my @points;
+  my $temperature_key = undef;
 
   foreach my $power (keys %$buckets) {
     if ($power =~ /^\d+$/) {
       $buckets->{stats}->{$power} = { power => $power };
 
       my $point = $self->_calculateRTCalibrationPoint($buckets->{$power}, $buckets->{stats}->{$power});
-      push @points, $point;
+      push @points, $point if $point;
     }
   }
 
-  my $r_t = [ sort { $a->{resistance} <=> $b->{resistance} } @points ];
-  return $r_t;
-}
+  @points = sort { $a->{resistance} <=> $b->{resistance} } @points;
 
-sub _adjustTemperatures {
-  my ($self, $history, $est) = @_;
+  # Extrapolate the resistance line to 20C for a cold resistance estimate
+  my $slr = PowerSupplyControl::Math::SimpleLinearRegression->new->addHashData(temperature => resistance => @points);
 
-  foreach my $sample (@$history) {
-    if (exists $sample->{resistance}) {
-      $sample->{temperature} = $est->estimate($sample->{resistance});
-    }
-  }
-}
+  # Flatten the thermal resistance curve at each end so we don't go off into wildly unrealistic numbers
+  unshift @points, { temperature => 20
+                   , resistance => $slr->predict(20)
+                   , 'thermal-resistance' => $points[0]->{'thermal-resistance'}
+                   };
+  push @points, { temperature => max(220, $points[-1]->{temperature}+1)
+                , 'thermal-resistance' => $points[-1]->{'thermal-resistance'}
+                };
 
-sub _calculateThermalResistancePoint {
-  my ($self, $bucket, $stats) = @_;
-  my $config = $self->{config};
-  my $samples = $config->{'tail-samples'} || $config->{'samples'} || 10;
-
-  my @falling = @{$bucket->{'falling'}}[-$samples..-1];
-  my @rising = @{$bucket->{'rising'}}[-$samples..-1];
-
-  # Don't discard samples here - that's only for curve fitting. We really need to consider the whole range, here.
-  my ($rising_min_temp, $rising_max_temp, $falling_min_temp, $falling_max_temp);
-  minimum($bucket->{falling}, 'device-temperature' => $falling_min_temp);
-  maximum($bucket->{falling}, 'device-temperature' => $falling_max_temp);
-  minimum($bucket->{rising}, 'device-temperature' => $rising_min_temp);
-  maximum($bucket->{rising}, 'device-temperature' => $rising_max_temp);
-
-  my $falling_range = $falling_max_temp - $falling_min_temp;
-  my $rising_range = $rising_max_temp - $rising_min_temp;
-
-  my $rising_falling_ratio = $rising_range / $falling_range;
-
-  my ($rising_temp, $rising_power, $falling_temp, $falling_power);
-  mean(\@falling, 'device-temperature' =>  $falling_temp, power => $falling_power);
-  mean(\@rising, 'device-temperature' =>  $rising_temp, power => $rising_power);
-
-  # Calculate a weighted average for the temperature and power values based on the ratio of the rising and falling ranges
-  my $temperature = ($rising_temp + $falling_temp * $rising_falling_ratio) / (1 + $rising_falling_ratio);
-  my $power = ($rising_power + $falling_power * $rising_falling_ratio) / (1 + $rising_falling_ratio);
-
-  my $thermal_resistance = ($temperature - $self->{ambient}) / $power;
-
-  $stats->{'thermal-resistance'} = $thermal_resistance;
-  $stats->{'equilibrium-temperature'} = $temperature;
-  $stats->{'equilibrium-power'} = $power;
-
-  return { temperature => $temperature
-         , 'thermal-resistance' => $thermal_resistance
-         , power => $power
-         , 'rising-min-temp' => $rising_min_temp
-         , 'rising-max-temp' => $rising_max_temp
-         , 'falling-min-temp' => $falling_min_temp
-         , 'falling-max-temp' => $falling_max_temp
-         };
-}
-
-sub _buildThermalResistanceMapping {
-  my ($self, $buckets) = @_;
-
-  my @points;
-  foreach my $power (keys %$buckets) {
-    if ($power =~ /^\d+$/) {
-      my $point = $self->_calculateThermalResistancePoint($buckets->{$power}, $buckets->{stats}->{$power});
-      push @points, $point;
-    }
-  }
-
-  # Use linear regression to extrapolate an RO,TO data point.
-  my $reg = PowerSupplyControl::Math::SimpleLinearRegression->new->addHashPoints('temperature', 'resistance', \@points);
-  my $r0 = 20 * $reg->gradient + $reg->intercept;
-  push @points, { temperature => 20, resistance => $r0 };
-
-  my $t_rth = [ sort { $a->{temperature} <=> $b->{temperature} } @points ];
-  return $t_rth;
+  return \@points;
 }
 
 sub _calculateHeatCapacityImpl {
   my ($self, $est, $samples, $stats) = @_;
+  my $temperature_key = $self->{'temperature-key'};
 
-  my $epsilon = $self->{config}->{curve-fitting-epsilon} || 0.0001;
+  my $epsilon = $self->{config}->{'curve-fitting-epsilon'} || 0.05;
 
   # Need to provide shifted times to move t=0 to the start of the curve
   foreach my $sample (@$samples) {
     $sample->{'hc-now'} = $sample->{now} - $samples->[0]->{now};
   }
 
-  my $final_temp = $stats->{'equilibrium-temperature'};
+  my $final_temp;
+  if (exists $stats->{'equilibrium-temperature'}) {
+    $final_temp = $stats->{'equilibrium-temperature'};
+  } else {
+    # If we don't have an equilibrium temperature, start with the temperature of the last sample as our first guess.
+    $final_temp = $samples->[-1]->{$temperature_key};
+  }
 
-  my $result = $est->fitCurve($samples, 'device-temperature', 'hc-now', final => $final_temp);
-  my $first_result = $result;
+  my $result = $est->fitCurve($samples, $temperature_key, 'hc-now', final => $final_temp);
+  # Don't trust the first result if we didn't have a real equilibrium temperature to start with.
+  my $first_result = undef;
+  if (exists $stats->{'equilibrium-temperature'}) {
+    $first_result = $result;
+  }
 
   # Iteratively fit the curve until the final temperature is stable.
   # Set a limit on the number of iterations
@@ -586,13 +566,21 @@ sub _calculateHeatCapacityImpl {
     my $delta = abs($result->{final} - $final_temp);
 
     if ($delta < $epsilon) {
+      if (!exists $result->{capacitance}) {
+        # If we don't have capacitance, it's because we didn't have thermal resistance, so
+        # calculate thermal resistance from our converged final temperature and the power.
+        # Then calculate capacitance.
+        my $thermal_resistance = ($result->{final} - $self->{ambient}) / $stats->{power};
+        $result->{'thermal-resistance'} = $thermal_resistance;
+        $result->{capacitance} = $result->{tau} / $thermal_resistance;
+      }
       return $result;
     }
 
     if ($delta < $last_delta) {
       $final_temp = $result->{final};
       $last_delta = $delta;
-      $result = $est->fitCurve($samples, 'device-temperature', 'hc-now', final => $final_temp);
+      $result = $est->fitCurve($samples, $temperature_key, 'hc-now', final => $final_temp);
     } else {
       warn "Curve fitting diverged for power level $stats->{power}. Last delta: $last_delta, current delta: $delta\n";
       return $first_result;
@@ -609,6 +597,7 @@ sub _calculateHeatCapacity {
   my $power = $stats->{power};
   my $samples = $config->{'discard-samples'} || 4;
   my $knee_ratio = $config->{'knee-ratio'} || 0.75;
+  my $result = undef;
 
   # TODO: This is a bit of a hack. We should probably build a piecewise linear estimator and get
   # the predicted thermal resistance at the centre rather than just using the value for the equilibrium
@@ -624,19 +613,21 @@ sub _calculateHeatCapacity {
   # in expansion (heating up) versus contraction (cooling down).
   my @rising = @{$bucket->{rising}}[$samples..$#{$bucket->{rising}}];
   my $rising_result = $self->_calculateHeatCapacityImpl($est, \@rising, $stats);
-
-  my $result = { temperature => $stats->{'rising-centre-temperature'}
-               , 'heat-capacity' => $rising_result->{capacitance}
-               , tau => $rising_result->{tau}
-               };
+  if ($rising_result) {
+    $result->{temperature}     = $stats->{'rising-centre-temperature'};
+    $result->{'heat-capacity'} = $rising_result->{capacitance};
+    $result->{tau}             = $rising_result->{tau};
+  }
 
   if ($bucket->{falling} && @{$bucket->{falling}} > 2*$samples) {
     my @falling = @{$bucket->{falling}}[$samples..$#{$bucket->{falling}}];
     my $falling_result = $self->_calculateHeatCapacityImpl($est, \@falling, $stats);
 
-    $result->{'falling-heat-capacity'} = $falling_result->{capacitance};
-    $result->{'falling-temperature'} = $stats->{'falling-centre-temperature'};
-    $result->{'falling-tau'} = $falling_result->{tau};
+    if ($falling_result) {
+      $result->{'falling-heat-capacity'} = $falling_result->{capacitance};
+      $result->{'falling-temperature'}   = $stats->{'falling-centre-temperature'};
+      $result->{'falling-tau'}           = $falling_result->{tau};
+    }
   }
 
   return $result;
@@ -647,28 +638,42 @@ sub _buildHeatCapacityMapping {
 
   my @points;
   foreach my $power (keys %$buckets) {
-    my $point = $self->_calculateHeatCapacityForPowerLevel($buckets->{$power}, $buckets->{stats}->{power});
-    push @points, $point;
+    if ($power =~ /^\d+$/) {
+      my $point = $self->_calculateHeatCapacity($buckets->{$power}, $buckets->{stats}->{$power});
+      push @points, $point if $point;
+    }
   }
 
-  my $t_hc = [ sort { $a->{temperature} <=> $b->{temperature} } @points ];
-  return $t_hc;
+  @points = sort { $a->{temperature} <=> $b->{temperature} } @points;
+
+  # Add a point to flatten the curve at each end so we don't go off into wildly unrealistic numbers
+  unshift @points, { temperature => min(20, $points[0]->{temperature}-1), 'heat-capacity' => $points[0]->{'heat-capacity'} };
+  push @points, { temperature => max(220, $points[-1]->{temperature}+1), 'heat-capacity' => $points[-1]->{'heat-capacity'} };
+
+  return \@points;
 }
 
 sub postprocess {
   my ($self, $status, $history) = @_;
+  my ($buckets, $r_t, $t_hc);
 
-  my $buckets = $self->_doPowerSegmentation($status, $history);
-  my $r_t = $self->_buildRTMapping($buckets);
-  my $r_t_est = PowerSupplyControl::Math::PiecewiseLinear->new->addHashPoints('resistance', 'temperature', @$r_t);
-  $self->_adjustTemperatures($history, $r_t_est);
-  #my $t_rth = $self->_buildThermalResistanceMapping($buckets);
-  my $t_hc = $self->_buildHeatCapacityMapping($buckets);
+  $buckets = $self->_doPowerSegmentation($status, $history);
+
+  $r_t = $self->_buildRTMapping($buckets);
+
+  $t_hc = $self->_buildHeatCapacityMapping($buckets);
 
   my $fh = $self->replaceFile($self->{config}->{filename});
   $self->writeCalibrationHeader($fh, %{$self->{config}});
 
-  $self->writeCalibration($fh, temperatures => $r_t, qw(resistance temperature));
+  if ($self->{'temperature-key'} eq 'device-temperature') {
+    $self->writeCalibration($fh, temperatures => $r_t, qw(resistance temperature));
+  } else {
+    # Re-write the existing controller R-T mapping so we don't lose that in the new configuration file
+    my $points = [ $self->{controller}->getTemperaturePoints ];
+    $self->writeArrayCalibration($fh, temperatures => $points, qw(resistance temperature));
+  }
+
   $self->writeCalibration($fh, 'thermal-resistance' => $r_t, qw(temperature thermal-resistance));
   $self->writeCalibration($fh, 'heat-capacity' => $t_hc, qw(temperature heat-capacity));
 

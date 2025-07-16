@@ -47,6 +47,9 @@ sub new {
                                                                       , samples => $self->{samples}
                                                                       , reset => $self->{reset}
                                                                       );
+      $self->info("looking for steady state: $self->{samples} samples, $self->{threshold} threshold, $self->{smoothing} smoothing, $self->{reset} reset");
+    } else {
+      $self->info("Running until you tell me to stop!");
     }
 
     croak "Power level not specified." unless $self->{power};

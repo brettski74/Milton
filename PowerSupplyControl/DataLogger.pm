@@ -71,6 +71,8 @@ sub rebuild {
 sub writeHeader {
   my ($self) = @_;
 
+  return unless $self->{fh};
+
   $self->{fh}->print($self->{header});
   print $self->{header} if $self->{tee};
 }
@@ -159,6 +161,8 @@ A hash reference containing the status data to log.
 
 sub log {
   my ($self, $status) = @_;
+
+  return unless $self->{fh};
 
   my @values = ();
 

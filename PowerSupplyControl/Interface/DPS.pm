@@ -193,14 +193,6 @@ sub deviceName {
   return 'RD '. $DPS_MODELS{$self->model}->{name};
 }
 
-sub currentPrecision {
-  my ($self) = @_;
-
-  return $self->{iPrecision};
-}
-
-sub voltagePrecision {
-
 sub _connect {
   my ($self) = @_;
 
@@ -222,10 +214,16 @@ sub _connect {
     if (substr($self->model, 2, 2) > 10) {
       $self->{factor}->[1] = 100;
       $self->{factor}->[3] = 100;
-      $self->{iPrecision} = 0.01;
+      
+      if (!defined($self->{current}->{precision})) {
+        $self->{current}->{precision} = 0.01;
+      }
+
       $self->fetch;
     } else {
-      $self->{iPrecision} = 0.001;
+      if (!defined($self->{current}->{precision})) {
+        $self->{current}->{precision} = 0.001;
+      }
     }
   }
 

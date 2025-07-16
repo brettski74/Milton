@@ -240,7 +240,9 @@ sub new {
 }
 
 sub getRequiredPower {
-  my ($self, $status, $target_temp) = @_;
+  my ($self, $status) = @_;
+
+  my $target_temp = $status->{'then-temperature'};
 
   if ($status->{temperature} < $target_temp) {
     return $self->{'on-power'}->estimate($target_temp);

@@ -57,6 +57,8 @@ sub new {
 
   $self->{command}->setLogger($self->{logger});
 
+  $self->{console} = 1;
+
   return $self;
 }
 
@@ -287,6 +289,8 @@ sub isLineBuffering {
 sub startLineBuffering {
   my ($self, $prompt, $validChars) = @_;
 
+  croak "Line buffering is not supported when console is disabled" if !$self->hasConsole;
+
   $self->{'line-buffer'} = '';
   $self->{'line-buffer-valid-chars'} = $validChars;
   $| = 1;
@@ -300,6 +304,9 @@ Readonly my $DELETE => "\x7f";
 
 sub lineBufferInput {
   my ($self, $status) = @_;
+
+  croak "Line buffering is not supported when console is disabled" if !$self->hasConsole;
+
   my $char = $status->{key};
 
   if ($char eq $BACKSPACE || $char eq $DELETE) {
@@ -612,6 +619,17 @@ sub _initializeCommand {
                                                  , $self->{controller}
                                                  , @args
                                                  );
+}
+
+sub hasConsole {
+  my $self = shift;
+  my $rc = $self->{console};
+
+  if (@_) {
+    $self->{console} = shift;
+  }
+
+  return $rc;
 }
 
 1;

@@ -39,6 +39,7 @@ A hash reference containing the configuration for the data logger.
 
 sub new {
   my ($class, $config, @extra) = @_;
+  $config //= {};
 
   my $self = { %$config, @extra };
 
@@ -185,9 +186,51 @@ sub log {
       push @{$self->{buffer}}, $logOutput;
     }
     else {
-      print $logOutput;
+      $self->consoleOutput('DATA', $logOutput);
     }
   }
+}
+
+sub info {
+  my ($self, $message) = @_;
+
+  $self->consoleOutput('INFO', $message);
+}
+
+sub warning {
+  my ($self, $message) = @_;
+
+  $self->consoleOutput('WARN', $message);
+}
+
+sub debug {
+  my ($self, $level, $message) = @_;
+  
+  if ($level <= $self->{'debug-level'}) {
+    $self->consoleOutput('DEBUG', $message);
+  }
+}
+
+sub debugLevel {
+  my $self = shift;
+
+  my $rc = $self->{'debug-level'};
+
+  if (@_) {
+    $self->{'debug-level'} = shift;
+  }
+
+  return $rc;
+}
+
+sub consoleProcess {
+  return;
+}
+
+sub consoleOutput {
+  my ($self, $type, $output) = @_;
+
+  print $self->consoleProcess($type, $output);
 }
 
 =head2 logFilename

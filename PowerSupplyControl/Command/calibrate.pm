@@ -801,34 +801,6 @@ sub _calculateDelaySquaredError {
   return $sum_err2;
 }
 
-# Search a range of values for the likely best fit alpha and return a new range for a more refined search
-sub _searchDelayLeastSquaredError {
-  my ($self, $samples, $tmin, $tmax,$threshold) = @_;
-  my $step = ($tmax - $tmin) / 100;
-  
-  my $seleast = $self->_calculateDelaySquaredError($samples, $threshold, $tmin);
-  my $idx = 0;
-
-  for (my $i = 100; $i > 0; $i--) {
-    my $tau = $tmin + $i * $step;
-    my $se = $self->_calculateDelaySquaredError($samples, $threshold, $tau);
-    if ($se < $seleast) {
-      $seleast = $se;
-      $idx = $i;
-    }
-  }
-
-  if ($idx == 0) {
-    return $tmin, $tmin + $step;
-  }
-
-  if ($idx == 100) {
-    return $tmax - $step, $tmax + 99*$step;
-  }
-
-  return $tmin + ($idx-1) * $step, $tmin + ($idx+1) * $step;
-}
-
 sub _calculateDelayFilter {
   my ($self, $status, $samples) = @_;
   my $threshold = $self->{config}->{reflow}->{'profile-threshold'} // 160;

@@ -2,7 +2,7 @@
 
 use lib '.';
 use Test2::V0;
-use PowerSupplyControl::Math::Util qw(mean_squared_error);
+use PowerSupplyControl::Math::Util qw(meanSquaredError);
 
 my $EPS = 0.00000001;
 
@@ -12,19 +12,19 @@ subtest 'basic linear function' => sub {
     my $linear_fn = sub { my $x = shift; return 2 * $x + 1; };  # Return predicted value
     
     # Test with single sample: [input, expected_output]
-    my $mse = mean_squared_error($linear_fn, [5, 11]);
+    my $mse = meanSquaredError($linear_fn, [5, 11]);
     # f(5) = 11, expected = 11, error = 11 - 11 = 0, MSE = 0² = 0
     is($mse, 0, 'single sample perfect fit');
 
-    $mse = mean_squared_error($linear_fn, [5, 13]);
+    $mse = meanSquaredError($linear_fn, [5, 13]);
     is($mse, 4, 'single sample imperfect fit');
     
     # Test with multiple samples
-    $mse = mean_squared_error($linear_fn, [1, 3], [2, 5], [4, 9], [7, 15]);
+    $mse = meanSquaredError($linear_fn, [1, 3], [2, 5], [4, 9], [7, 15]);
     # All samples are perfect fits, so MSE = 0
     is($mse, 0, 'multiple samples perfect fit');
 
-    $mse = mean_squared_error($linear_fn, [1, 3.2], [2, 4.8], [4, 9.3], [7, 14.6]);
+    $mse = meanSquaredError($linear_fn, [1, 3.2], [2, 4.8], [4, 9.3], [7, 14.6]);
     is($mse, float(0.0825, tolerance => $EPS), 'imperfect fit MSE calculation');
 };
 
@@ -33,10 +33,10 @@ subtest 'multivariate function' => sub {
     # Function: f(x) = x² + 2x + 1
     my $sum = sub { my ($x, $y) = @_; return $x + $y; };
     
-    my $mse = mean_squared_error($sum, [1, 3, 4], [1, 2, 3], [2, 5, 7], [5, 7, 12]);
+    my $mse = meanSquaredError($sum, [1, 3, 4], [1, 2, 3], [2, 5, 7], [5, 7, 12]);
     is($mse, 0, 'multivariate function perfect fit');
     
-    $mse = mean_squared_error($sum, [1, 3, 4.2], [1, 2, 3.5], [2, 5, 7.2], [5, 7, 11.9]);
+    $mse = meanSquaredError($sum, [1, 3, 4.2], [1, 2, 3.5], [2, 5, 7.2], [5, 7, 11.9]);
     is($mse, float(0.085, tolerance => $EPS), 'imperfect multivariate fit MSE');
 };
 
@@ -47,7 +47,7 @@ subtest 'error handling' => sub {
     
     # No samples provided
     eval {
-        my $mse = mean_squared_error($fn);
+        my $mse = meanSquaredError($fn);
         fail('should have thrown error for empty samples');
     };
 
@@ -55,14 +55,14 @@ subtest 'error handling' => sub {
 
     # Test with undefined function
     eval {
-        my $mse = mean_squared_error(undef, [1, 2], [2, 3], [3, 4]);
+        my $mse = meanSquaredError(undef, [1, 2], [2, 3], [3, 4]);
         fail('should have thrown error for undefined function');
     };
     like($@, qr/expected.*not.*code reference/i, 'undefined function causes error');
     
     # Test with non-function reference
     eval {
-        my $mse = mean_squared_error("not a function", [1, 2], [2, 3], [3, 4]);
+        my $mse = meanSquaredError("not a function", [1, 2], [2, 3], [3, 4]);
         fail('should have thrown error for non-function reference');
     };
     like($@, qr/expected.*not.*code reference/i, 'non-function reference causes error');
@@ -70,7 +70,7 @@ subtest 'error handling' => sub {
     # Test with malformed sample (not array reference)
     eval {
         my $fn = sub { return 1; };
-        my $mse = mean_squared_error($fn, 1, 2, 3);
+        my $mse = meanSquaredError($fn, 1, 2, 3);
         fail('should have thrown error for non-array sample');
     };
     like($@, qr/sample 0.*not.*array reference/i, 'non-array sample causes error');
@@ -78,7 +78,7 @@ subtest 'error handling' => sub {
     # Test with malformed sample (not array reference)
     eval {
         my $fn = sub { my @sample = @_; return 1; };
-        my $mse = mean_squared_error($fn, [ 1, 1 ], 2, 3);
+        my $mse = meanSquaredError($fn, [ 1, 1 ], 2, 3);
         fail('should have thrown error for non-array sample');
     };
     like($@, qr/sample 1.*not.*array reference/i, 'non-array sample causes error');
@@ -86,7 +86,7 @@ subtest 'error handling' => sub {
     # Test with a malformed sample (single element array)
     eval {
         my $fn = sub { my @sample = @_; return 1; };
-        my $mse = mean_squared_error($fn, [ 1 ]);
+        my $mse = meanSquaredError($fn, [ 1 ]);
         fail('should have thrown error for single element sample');
     };
     like($@, qr/sample 0.*element/i, 'single element sample causes error');
@@ -94,7 +94,7 @@ subtest 'error handling' => sub {
     # Test with a malformed sample (single element array)
     eval {
         my $fn = sub { my @sample = @_; return 1; };
-        my $mse = mean_squared_error($fn, [ 1, 2 ], [ 1 ]);
+        my $mse = meanSquaredError($fn, [ 1, 2 ], [ 1 ]);
         fail('should have thrown error for single element sample');
     };
     like($@, qr/sample 1.*element/i, 'single element sample causes error');

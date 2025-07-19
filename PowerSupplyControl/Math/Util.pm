@@ -9,7 +9,8 @@ use Exporter 'import';
 our @EXPORT_OK = qw(
   maximum
   mean
-  mean_squared_error
+  meanSquaredError
+  minimumSearch
   minimum
 );
 
@@ -19,10 +20,10 @@ PowerSupplyControl::Math::Util - Mathematical utility functions for the HP Contr
 
 =head1 SYNOPSIS
 
-    use PowerSupplyControl::Math::Util qw(mean_squared_error);
+    use PowerSupplyControl::Math::Util qw(meanSquaredError);
     
     # Calculate MSE between a function and sample data
-    my $mse = mean_squared_error($function, @samples);
+    my $mse = meanSquaredError($function, @samples);
 
 =head1 DESCRIPTION
 
@@ -31,9 +32,9 @@ system for data analysis and signal processing.
 
 =head1 FUNCTIONS
 
-=head2 mean_squared_error($fn, @samples)
+=head2 meanSquaredError($fn, @samples)
 
-    my $mse = mean_squared_error($function, @samples);
+    my $mse = meanSquaredError($function, @samples);
 
 Calculates the Mean Squared Error (MSE) between a function and a set of sample data points.
 
@@ -83,7 +84,7 @@ and the sample data.
 
 =head4 Basic Usage
 
-    use PowerSupplyControl::Math::Util qw(mean_squared_error);
+    use PowerSupplyControl::Math::Util qw(meanSquaredError);
     
     # Define a simple linear function: f(x) = 2x + 1
     my $linear_fn = sub { my $x = shift; return 2 * $x + 1; };
@@ -92,7 +93,7 @@ and the sample data.
     my @samples = ([1, 3], [2, 5], [3, 7], [4, 9], [5, 11]);
     
     # Calculate MSE
-    my $mse = mean_squared_error($linear_fn, @samples);
+    my $mse = meanSquaredError($linear_fn, @samples);
     # For perfect fit, MSE would be 0
     # For this example, MSE = (1/5) * Σ((2x+1 - sampled)²)
 
@@ -102,7 +103,7 @@ and the sample data.
     my $constant_fn = sub { return 3.5; } # Always returns 3.5
     my @data = ([1, 3.1], [2, 3.4], [3, 3.8], [4, 3.2], [5, 3.9]);
     
-    my $mse = mean_squared_error($constant_fn, @data);
+    my $mse = meanSquaredError($constant_fn, @data);
     # This will give the MSE of using 3.5 as a constant approximation
 
 =head4 Model Validation
@@ -116,7 +117,7 @@ and the sample data.
     # Sample data: [celsius_input, expected_fahrenheit_output]
     my @samples = ([0, 32], [10, 50], [20, 68], [30, 86], [40, 104]);
     
-    my $mse = mean_squared_error($temp_convert, @samples);
+    my $mse = meanSquaredError($temp_convert, @samples);
     # Perfect conversion should give MSE = 0
 
 =head4 Multi-parameter Function
@@ -132,12 +133,12 @@ and the sample data.
     # Sample data: [x, y, expected_output]
     my @samples = ([1, 2, 5], [3, 1, 5], [0, 3, 6], [2, 2, 6]);
     
-    my $mse = mean_squared_error($multi_param_fn, @samples);
+    my $mse = meanSquaredError($multi_param_fn, @samples);
     # Tests how well the function predicts the expected outputs
 
 =cut
 
-sub mean_squared_error {
+sub meanSquaredError {
   my ($fn, @samples) = @_;
 
   croak 'No samples provided.' unless @samples;
@@ -279,6 +280,140 @@ sub maximum {
   }
 
   return;
+}
+
+=head2 minimumSearch($fn, $lo, $hi, $steps, $threshold, %options)
+
+Search for the minimum value of a univariate function. The search will continue
+recursively on smaller and smaller sub-ranges until the difference between $lo
+and $hi is less than or equal to a $threshold.
+
+=over
+
+=item $fn
+
+A code reference representing the function to be searched. The function must take a
+single scalar argument and return a scalar value.
+
+=item $lo
+
+The minimum value of the search space.
+
+=item $hi
+
+The maximum value of the search space.
+
+=item %options
+
+Additional optional named parameters that may be supplied.
+
+=over
+
+=item steps
+
+the number of steps into which the search space will be divided. If not specified, defaults to 100.
+
+=item $threshold
+
+The maximum value allowed between $lo and $hi. If the difference between $lo and $hi is less than this value,
+the search will stop and return the average of $lo and $hi. If not specified, defaults to 0.01.
+
+=item $lower_constrained
+
+If true, the search will never search below $lo. Defaults to false.
+
+=item $upper_constrained
+
+If true, the search will never search above $hi. Defaults to false.
+
+=back
+
+=item Return Value
+
+Returns the value of the independent variable that produces the minimum value of the
+provided function.
+
+=back
+
+=cut
+
+sub minimumSearch {
+  my ($fn, $lo, $hi, %options) = @_;
+
+  if ($hi < $lo) {
+    croak 'High end of search space is less than the low end.';
+  }
+
+  my $threshold = $options{threshold} // 0.01;
+
+  # Met threshold - return best of lo, mid, hi values
+  if ($hi - $lo <= $threshold) {
+    my $mid = ($lo + $hi) / 2;
+    my $fnlo = $fn->($lo);
+    my $fnmid = $fn->($mid);
+    my $fnhi = $fn->($hi);
+    
+    if ($fnlo < $fnmid) {
+      if ($fnlo < $fnhi) {
+        return $lo;
+      }
+      return $hi;
+    } elsif ($fnmid < $fnhi) {
+      return $mid;
+    }
+    return $hi;
+  }
+
+  # Check search depth to prevent infinite recursion
+  my $depth = $options{depth} // 100;
+  if ($depth <= 0) {
+    croak 'Search depth exceeded.';
+  }
+  $options{depth} = $depth - 1;
+
+  my $steps = $options{steps} // 100;
+  if ($steps < 4) {
+    croak 'Number of steps must be greater than 4.';
+  }
+
+  my $step = ($hi - $lo) / $steps;
+
+  my $best_x = $lo;
+  my $best_y = $fn->($lo);
+  my @data = ( [ $best_x, $best_y] );
+
+  for (my $i=1-$steps; $i <= 0; $i++) {
+    my $x = $hi + $step * $i;
+    my $y = $fn->($x);
+    push @data, [ $x, $y ];
+    if ($y < $best_y) {
+      $best_y = $y;
+      $best_x = $x;
+    }
+  }
+
+  # If minimum is at the lower boundary
+  if ($best_x == $lo) {
+    if ($options{lower_constrained}) {
+      return minimumSearch($fn, $lo, $lo+$step, %options);
+    }
+
+    # Extend the search below the low end since the minimum may be below $lo
+    return minimumSearch($fn, $lo+(1-$steps)*$step, $lo+$step, %options);
+  }
+
+  # If minimum is at the upper boundary
+  if ($best_x == $hi) {
+    if ($options{upper_constrained}) {
+      return minimumSearch($fn, $hi-$step, $hi, %options);
+    }
+
+    # Extend the search above the high end since the minimum may be above $hi
+    return minimumSearch($fn, $hi-$step, $hi+($steps-1)*$step, %options);
+  }
+
+  # We don't know which side of $idx the minimum is on, so search between -1 and +1 step around it.
+  return minimumSearch($fn, $best_x - $step, $best_x + $step, %options);
 }
 
 1;

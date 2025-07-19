@@ -15,8 +15,9 @@ A mock controller that provides a simple two-point calibration by default.
 =cut
 
 sub new {
-    my ($class, @args) = @_;
-    my $self = $class->SUPER::new(@args);
+    my ($class, $config, $interface, @args) = @_;
+    my $self = $class->SUPER::new($config, $interface, @args);
+    $self->{interface} = $interface // PowerSupplyControl::t::MockInterface->getLastMockInterface;
     $self->setTemperaturePoint(0, 1);
     $self->setTemperaturePoint(100, 2);
     

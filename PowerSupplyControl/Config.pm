@@ -258,6 +258,17 @@ sub configFileExists {
   return;
 }
 
+sub findConfigFile {
+  my ($class, $filename) = @_;
+
+  eval {
+    my $path = _resolve_file_path($filename);
+    return $path->stringify if $path->is_file;
+  };
+
+  return;
+}
+
 =head1 INSTANCE METHODS
 
 =head2 clone(@keys)

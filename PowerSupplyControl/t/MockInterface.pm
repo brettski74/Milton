@@ -17,6 +17,11 @@ Can be initialized with default data and updated via setMockData.
 
 =cut
 
+my $last_mock_interface;
+sub getLastMockInterface {
+  return $last_mock_interface;
+}
+
 sub new {
   my ($class, $config) = @_;
   
@@ -40,11 +45,12 @@ sub new {
   my $self = $class->SUPER::new($config);
   
   # Initialize with default data
-  $self->setMockData([
-    ['id', 'voltage', 'current', 'power', 'temperature'],
-    [1, 12.5, 2.1, 26.25, 85.2]
-  ]) unless $self->{rows};
+  $self->setMockData( [ qw(now voltage current power resistance) ]
+                    , [ 0, 12.5, 2.1, 12.5*2.1, 12.5/2.1 ]
+                    ) unless $self->{rows};
   
+  $last_mock_interface = $self;
+
   return $self;
 }
 
@@ -68,16 +74,16 @@ and subsequent elements are arrays of values.
 =cut
 
 sub setMockData {
-  my ($self, $data) = @_;
+  my ($self, $keys, @data) = @_;
   
-  croak "Mock data must be an array reference" unless ref($data) eq 'ARRAY';
-  croak "Mock data must have at least column names and one data row" unless @$data >= 2;
+  croak "Mock data keys must be an array reference" unless ref($keys) eq 'ARRAY';
+  croak "Mock data must have at least one data row" unless @data >= 1;
   
-  my $keys = shift @$data;
   my $rows = [];
   
   # Convert data rows to hashes
-  foreach my $vals (@$data) {
+  foreach my $vals (@data) {
+    croak "Mock data row must have the same number of values as there are keys" unless @$vals == @$keys;
     my $row = {};
     @$row{@$keys} = @$vals;
       

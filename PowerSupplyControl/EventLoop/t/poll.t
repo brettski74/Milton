@@ -91,12 +91,11 @@ subtest 'custom mock data' => sub {
   my $ev = PowerSupplyControl::t::MockEventLoop->new();
   
   # Set custom mock data
-  my $custom_data = [ ['when', 'voltage', 'current', 'power', 'resistance']
-                    , [0, 10.0, 1.5, 15.0, 10.0/1.5]
-                    , [1, 11.0, 1.6, 17.6, 11.0/1.6]
-                    , [2, 12.0, 1.7, 20.4, 12.0/1.7]
-                    ];
-  $ev->{interface}->setMockData($custom_data);
+  $ev->{interface}->setMockData( ['when', 'voltage', 'current', 'power', 'resistance']
+                               , [0, 10.0, 1.5, 15.0, 10.0/1.5]
+                               , [1, 11.0, 1.6, 17.6, 11.0/1.6]
+                               , [2, 12.0, 1.7, 20.4, 12.0/1.7]
+                               );
     
   # Test first row
   my $s1 = $ev->poll('timerEvent');

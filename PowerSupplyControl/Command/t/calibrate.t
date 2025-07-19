@@ -16,6 +16,7 @@ subtest '_nextStep method' => sub {
 
   note('Testing command defaults');
   my $command = PowerSupplyControl::Command::calibrate->new($config, $interface, $controller);
+  $command->nobeep;
 
   is ($command->{step}, 0, 'step number');
   is($command->{power}, 10, 'step 0 power');
@@ -71,6 +72,7 @@ subtest '_nextStep method' => sub {
              };
 
   $command = PowerSupplyControl::Command::calibrate->new($config, $interface, $controller);
+  $command->nobeep;
 
   is ($command->{step}, 0, 'step number');
   is($command->{power}, 7.5, 'step 0 power');

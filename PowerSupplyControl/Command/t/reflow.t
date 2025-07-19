@@ -28,6 +28,7 @@ subtest 'timerEvent' => sub {
                          );
 
   my $cmd = PowerSupplyControl::Command::reflow->new($config, $interface, $controller);
+  $cmd->nobeep;
 
   my $status = { temperature => 25 };
   $cmd->preprocess($status);
@@ -67,6 +68,5 @@ subtest 'timerEvent' => sub {
   $rc = $cmd->timerEvent($status);
   is($rc, F(), 'cmd returns false for final timerEvent');
 };
-
 
 done_testing;

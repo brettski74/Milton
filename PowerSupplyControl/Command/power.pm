@@ -34,7 +34,7 @@ sub new {
 
     my $self = $class->SUPER::new($config, $interface, $controller, @args);
 
-    $self->{power} = $args[0] || $config->{power}->{default};
+    $self->{power} = $self->{args}->[0] || $config->{power}->{default};
 
     $self->{samples} //= $config->{'steady-state'}->{samples};
     $self->{threshold} //= $config->{'steady-state'}->{threshold};

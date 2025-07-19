@@ -51,6 +51,9 @@ sub new {
   my @options = $self->options;
   push @options, 'ambient=f', 'debug=i';
 
+  # psc.pl sets the require_order option to stop parsing options after the command name
+  # We need to turn that off not so the comman can parse all of its options
+  Getopt::Long::Configure('no_require_order');
   GetOptionsFromArray(\@args, $self, @options);
 
   if (defined $self->{ambient}) {
@@ -355,6 +358,16 @@ sub setLogger {
   $self->{logger}->addColumns(@{$self->{config}->{logging}->{columns}});
 }
 
+sub nobeep {
+  my $self = shift;
+
+  if (@_) {
+    $self->{'no-beep'} = shift;
+  } else {
+    $self->{'no-beep'} = 1;
+  }
+}
+
 =head2 beep
 
 Beep the terminal.
@@ -362,6 +375,10 @@ Beep the terminal.
 =cut
 
 sub beep {
+  my ($self) = @_;
+
+  return if $self->{'no-beep'};
+
   print "\a";
 }
 

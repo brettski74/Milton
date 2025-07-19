@@ -5,7 +5,7 @@ use warnings qw(all -uninitialized -digit);
 use Carp qw(croak);
 use base qw(Exporter);
 
-our @EXPORT_OK = qw(boolify checkMinimum checkMaximum checkMinMax timestamp hexToNumber readCSVData);
+our @EXPORT_OK = qw(boolify checkMinimum checkMaximum checkMinMax dirname hexToNumber readCSVData timestamp);
 
 =head1 NAME
 
@@ -204,6 +204,14 @@ sub readCSVData {
   }
   $fh->close;
   return $data;
+}
+
+sub dirname {
+  my $path = shift;
+
+  $path =~ s/\/[^\/]+$//;
+
+  return $path;
 }
 
 =head1 AUTHOR

@@ -446,6 +446,10 @@ sub _keyWatcher {
                , ambient => $self->{ambient}
                };
 
+  if ($self->{'last-timer-status'}) {
+    $status->{last} = $self->{'last-timer-status'};
+  }
+
   push(@{$self->{history}}, $status);
 
   if ($self->isLineBuffering) {

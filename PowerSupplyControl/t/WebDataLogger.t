@@ -168,4 +168,17 @@ subtest 'edge cases' => sub {
   is(join('', @output), "INFO: \nINFO: Message with\nINFO: \nINFO: multiple\nINFO: \nINFO: \nINFO: newlines\nINFO: Message with\nINFO: Windows\nINFO: line endings\n", 'edge cases');
 };
 
+subtest 'logger data header' => sub {
+  $config->{tee} = 1;
+  my $logger = PowerSupplyControl::WebDataLogger->new($config);
+
+  my $capture = IO::Capture::Stdout->new();
+  $capture->start();
+  $logger->writeHeader;
+  $capture->stop();
+  my @output = $capture->read();
+
+  is(join('', @output), "HEAD: now,stage,temp,power,last.power\n", 'logger data header');
+};
+
 done_testing;

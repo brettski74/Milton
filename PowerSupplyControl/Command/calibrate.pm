@@ -14,7 +14,7 @@ use Time::HiRes qw(sleep);
 use PowerSupplyControl::Math::FirstOrderStepEstimator;
 use PowerSupplyControl::Math::PiecewiseLinear;
 use PowerSupplyControl::Math::SimpleLinearRegression;
-use PowerSupplyControl::Math::Util qw(mean minimum maximum);
+use PowerSupplyControl::Math::Util qw(mean minimum maximum minimumSearch);
 
 =head1 NAME
 
@@ -278,6 +278,26 @@ sub defaults {
          };
 }
 
+sub infoMessage {
+  my $self = shift;
+  
+  $self->info(<<'EOS');
+You are about to begin a calibration cycle for your hotplate.
+
+   - This may take a while - up to 90 minutes or so.
+
+   - You will need to have an external temperature sensor connected for the calibration.
+
+   - Your hotplate should be at ambient temperature.
+
+   - Turn off any unnecessary HVAC system.
+
+   - Avoid any rapid movements near the hotplate. The resulting air movement may affect the calibration.
+
+   - Don't leave the hotplate unattended during the calibration. It will probably be fine, but on the off chance that it's not you will probably enjoy having a house more than not having a house.
+EOS
+}
+
 =head2 options
 
 Return a hash of options for Getopt::Long parsing of the command line arguments.
@@ -314,6 +334,8 @@ sub initialize {
 
   # Give the step a name
   $self->{'step-name'} = 'rising-'. $self->{power};
+
+  $self->{stage} = 'steps';
 }
 
 sub _nextStep {
@@ -339,14 +361,14 @@ sub _nextStep {
   return $self;
 }
 
-=head2 timerEvent($status)
+=head2 _steps($status)
 
 Handle a timer event. This command doesn't really need the state-machine implementation, so it
 overrides the timerEvent method to do what's needed.
 
 =cut
 
-sub timerEvent { 
+sub _steps { 
   my ($self, $status) = @_;
   my $config = $self->{config};
   
@@ -371,7 +393,8 @@ sub timerEvent {
 
   if ($clean_now >= $self->{'step-end'}) {
     if ($self->{final}) {
-      return;
+      # Set minimum power because we need to cool down to ambient temperature.
+      return $self->_setupCoolDown($status);
     }
     $self->_nextStep;
   }
@@ -382,6 +405,77 @@ sub timerEvent {
   $status->{'step-power'} = $self->{power};
 
   $self->{interface}->setPower($self->{power});
+
+  return $self;
+}
+
+sub _setupCoolDown {
+  my ($self, $status) = @_;
+
+  my ($vmin, $vmax) = $self->{interface}->getVoltageLimits;
+  $self->{interface}->setVoltage($vmin);
+
+  $self->_doThermalCalibrations($status, $status->{'event-loop'}->getHistory);
+
+  # Create a Bang-Bang controller that we will use for the calibration reflow cycle
+  my $config = { hysteresis => 3
+               , temperatures => $self->{'rt-mapping'}
+               , 'thermal-resistance' => $self->{'thermal-resistance'}
+               , 'heat-capacity' => $self->{'heat-capacity'}
+               , 'predict-time-constant' => 0
+               , 'predict-alpha' => 1
+               };
+  my $controller = PowerSupplyControl::Controller::BangBang->new($config, $self->{interface});
+
+  # Don't lose our device!
+  $controller->setDevice($self->{controller}->getDevice);
+  $self->{'controller'} = $controller;
+
+  return $self->advanceStage('cooldown');
+}
+
+sub _coolDown {
+  my ($self, $status) = @_;
+  my $config = $self->{config};
+
+  if ($status->{'device-temperature'} <= $self->{ambient} + $self->{'ambient-tolerance'}) {
+    $self->info('Hotplate is at ambient temperature. Starting delay filter calibration.');
+    $self->{'reflow-stages'} = PowerSupplyControl::Math::PiecewiseLinear->new->addPoint(0,0);
+    my $end = $status->{now};
+    foreach my $stage (@{$config->{profile}}) {
+      $end += $stage->{seconds};
+      $self->{'reflow-stages'}->addPoint($end, $stage->{temperature});
+    }
+    $self->{'reflow-end'} = $end;
+
+    return $self->advanceStage('reflow');
+  }
+
+  my ($vmin, $vmax) = $self->{interface}->getVoltageLimits;
+  $self->{interface}->setVoltage($vmin);
+
+  return $self;
+}
+
+sub _reflow {
+  my ($self, $status) = @_;
+  
+  if ($status->{now} >= $self->{'reflow-end'}) {
+    $self->info('Reflow cycle complete.');
+    $self->{interface}->on(0);
+    $self->beep;
+
+    return;
+  }
+
+  $status->{'now-temperature'} = $self->{'reflow-stages'}->estimate($status->{now});
+  $status->{'then-temperature'} = $self->{'reflow-stages'}->estimate($status->{now} + $status->{period});
+  my $power = $self->{'controller'}->getRequiredPower($status);
+  $status->{'set-power'} = $power;
+  
+  $self->{interface}->setPower($power);
+
+  
 
   return $self;
 }
@@ -653,7 +747,7 @@ sub _buildHeatCapacityMapping {
   return \@points;
 }
 
-sub postprocess {
+sub _doThermalCalibrations {
   my ($self, $status, $history) = @_;
   my ($buckets, $r_t, $t_hc);
 
@@ -677,9 +771,120 @@ sub postprocess {
   $self->writeCalibration($fh, 'thermal-resistance' => $r_t, qw(temperature thermal-resistance));
   $self->writeCalibration($fh, 'heat-capacity' => $t_hc, qw(temperature heat-capacity));
 
+  $fh->flush;
+  $self->{filehandle} = $fh;
+  $self->{'rt_mapping'} = $r_t;
+  $self->{'hc_mapping'} = $t_hc;
+
+  return $fh;
+}
+
+# Calculate the sum of squared error for a given delay filter alpha
+sub _calculateDelaySquaredError {
+  my ($self, $samples, $threshold, $tau) = @_;
+
+  my $sum_err2 = 0;
+  my $iir = $samples->[0]->{temperature};
+  my $period = $samples->[0]->{period};
+  my $alpha = $period / ($period + $tau);
+  my $alpha2 = 1 - $alpha;
+
+  foreach my $sample (@$samples) {
+    $iir = $alpha * $sample->{temperature} + $alpha2 * $iir;
+
+    if ($threshold->($sample->{temperature})) {
+      my $err = $iir - $sample->{'device-temperature'};
+      $sum_err2 += $err * $err;
+    }
+  }
+
+  return $sum_err2;
+}
+
+# Search a range of values for the likely best fit alpha and return a new range for a more refined search
+sub _searchDelayLeastSquaredError {
+  my ($self, $samples, $tmin, $tmax,$threshold) = @_;
+  my $step = ($tmax - $tmin) / 100;
+  
+  my $seleast = $self->_calculateDelaySquaredError($samples, $threshold, $tmin);
+  my $idx = 0;
+
+  for (my $i = 100; $i > 0; $i--) {
+    my $tau = $tmin + $i * $step;
+    my $se = $self->_calculateDelaySquaredError($samples, $threshold, $tau);
+    if ($se < $seleast) {
+      $seleast = $se;
+      $idx = $i;
+    }
+  }
+
+  if ($idx == 0) {
+    return $tmin, $tmin + $step;
+  }
+
+  if ($idx == 100) {
+    return $tmax - $step, $tmax + 99*$step;
+  }
+
+  return $tmin + ($idx-1) * $step, $tmin + ($idx+1) * $step;
+}
+
+sub _calculateDelayFilter {
+  my ($self, $status, $samples) = @_;
+  my $threshold = $self->{config}->{reflow}->{'profile-threshold'} // 160;
+
+  my $above_threshold = sub { return $self->_calculateDelaySquaredError($samples, sub { return shift() > $threshold }, shift()); };
+  my $below_threshold = sub { return $self->_calculateDelaySquaredError($samples, sub { return shift() <= $threshold }, shift()); };
+
+  return ( minimumSearch($above_threshold, 0, 100, threshold => 0.001)
+         , minimumSearch($below_threshold, 0, 100, threshold => 0.001)
+         );
+}
+
+sub postprocess {
+  my ($self, $status, $history) = @_;
+
+  my $fh = $self->{filehandle};
+  if (!$fh) {
+    $fh = $self->_doThermalCalibrations($status, $history);
+  }
+
+  my @samples = ();
+  foreach my $sample (@$history) {
+    if ($sample->{event} eq 'timerEvent' &&  $sample->{stage} eq 'reflow' && exists $sample->{'device-temperature'}) {
+      push @samples, $sample;
+    }
+  }
+  my ($tau, $tau_low) = $self->calculateDelayFilter($status, \@samples);
+
+  $fh->print("predict-time-constant: $tau\n\n");
+  $fh->print("predict-time-constant-low: $tau_low\n\n");
   $fh->close;
 
+  $self->_catFile($self->{config}->{filename});
+
+  $self->beep;
+
   return 1;
+}
+
+sub _catFile {
+  my ($self, $filename) = @_;
+
+  if (! -f $filename) {
+    $filename = PowerSupplyControl::Config->findConfigFile($filename);
+  }
+
+  if ($filename && -f $filename && -r $filename) {
+    my $fh = IO::File->new($filename, 'r');
+    if ($fh) {
+      while (my $line = $fh->getline) {
+        print $line;
+      }
+    }
+  }
+
+  return;
 }
 
 1;

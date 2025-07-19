@@ -115,6 +115,19 @@ sub predictTemperature {
   return $rc;
 }
 
+=head2 setPredictedTemperature($temperature)
+
+Set the current temperature prediction. This is primarily used for testing to give the internal
+IIR filter a known state.
+
+=cut
+
+sub setPredictedTemperature {
+  my ($self, $temperature) = @_;
+
+  $self->{'predict-temperature'} = $temperature;
+}
+
 =head2 getRequiredPower($status)
 
 Calculate the power required to achieve a certain hotplate temperature by the next sample period.

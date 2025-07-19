@@ -3,7 +3,6 @@ package PowerSupplyControl::Controller::FeedForward;
 use strict;
 use Carp qw(croak);
 use base qw(PowerSupplyControl::Controller::RTDController);
-use Statistics::Regression;
 use PowerSupplyControl::Math::ThermalModel;
 
 =head1 NAME
@@ -28,11 +27,8 @@ sub new {
   my $self = $class->SUPER::new($config, $interface);
 
   # Verify mandatory parameters
-  croak "controller.calibration.thermal-resistance not specified." unless $config->{calibration}->{'thermal-resistance'};
-  croak "controller.calibration.heat-capacity not specified." unless $config->{calibration}->{'heat-capacity'};
-
-  $self->{'ttr-estimator'} = PowerSupplyControl::Math::PiecewiseLinear->new->addHashPoints(temperature => 'thermal-resistance', @{$config->{calibration}->{'thermal-resistance'}});
-  $self->{'tch-estimator'} = PowerSupplyControl::Math::PiecewiseLinear->new->addHashPoints(temperature => 'heat-capacity', @{$config->{calibration}->{'heat-capacity'}});
+  croak "controller.calibration.thermal-resistance not specified." unless $config->{'ttr-estimator'};
+  croak "controller.calibration.heat-capacity not specified." unless $config->{'tch-estimator'};
 
   if (!exists $self->{power}->{maximum}) {
     my ($pmin, $pmax) = $interface->getPowerLimits();
@@ -40,7 +36,6 @@ sub new {
   }
 
   $self->{'min-error'} //= 10;
-  $self->{'predict-time-constant'} //= 20;
 
   return $self;
 }
@@ -167,102 +162,6 @@ sub _logStatus {
   push @{$self->{log}}, $status;
 
 
-}
-
-=head2 setThermalResistancePoint($temperature, $thermal_resistance)
-
-Set a thermal resistance calibration point for the RTD estimator.
-
-=over
-
-=item $temperature
-
-The temperature at which the thermal resistance was measured.
-
-=item $thermal_resistance
-
-The effective thermal resistance at the given temperature.
-
-=back
-
-=cut
-
-sub setThermalResistancePoint {
-  my ($self, $temperature, $thermal_resistance) = @_;
-  $self->{'ttr-estimator'}->addPoint($temperature, $thermal_resistance);
-}
-
-=head2 thermalResistanceEstimatorLength()
-
-Get the number of thermal resistance calibration points in the thermal resistance estimator.
-
-=cut
-
-sub thermalResistanceEstimatorLength {
-  my ($self) = @_;
-  return $self->{'ttr-estimator'}->length();
-}
-
-=head2 getThermalResistance($temperature)
-
-Get the thermal resistance at the given temperature.
-
-=over
-
-=item $temperature
-
-The temperature at which to get the thermal resistance.
-
-=cut
-
-sub getThermalResistance {
-  my ($self, $temperature) = @_;
-  return $self->{'ttr-estimator'}->estimate($temperature);
-}
-
-=head2 setHeatCapacityPoint($temperature, $heat_capacity)
-
-Set a heat capacity calibration point for the RTD estimator.
-
-=over
-
-=item $temperature
-
-The temperature at which the heat capacity was measured.
-
-=item $heat_capacity
-
-The effective heat capacity at the given temperature.
-
-=back
-
-=cut
-
-sub setHeatCapacityPoint {
-  my ($self, $temperature, $heat_capacity) = @_;
-  $self->{'tch-estimator'}->addPoint($temperature, $heat_capacity);
-}
-
-=head2 heatCapacityEstimatorLength()
-
-Get the number of heat capacity calibration points in the heat capacity estimator.
-
-=cut
-
-sub heatCapacityEstimatorLength {
-  my ($self) = @_;
-  return $self->{'tch-estimator'}->length();
-}
-
-=head2 getHeatCapacity($temperature)
-
-Get the effective heat capacity at the given temperature.
-
-=cut
-
-sub getHeatCapacity {
-  my ($self, $temperature) = @_;
-  return $self->{'tch-estimator'}->estimate($temperature);
 }
 
 =head2 getThermalTimeConstant($temperature)

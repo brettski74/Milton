@@ -21,8 +21,11 @@ sub _buildProfile {
   my $stages = PowerSupplyControl::Math::PiecewiseLinear->new;
   my $seconds = 0;
   
-  $stages->addNamedPoint(0, $self->{ambient}, $profile->[0]->{name});
-  $self->debug(10, "Adding point 0: $self->{ambient} $profile->[0]->{name}");
+  # Add a zero-time point if not explicitly specified in the configuraton
+  if ($profile->[0]->{seconds} > 0) {
+    $stages->addNamedPoint(0, $self->{ambient}, $profile->[0]->{name});
+    $self->debug(10, "Adding point 0: $self->{ambient} $profile->[0]->{name}");
+  }
 
   for(my $i=0; $i<@$profile; $i++) {
     my $stage = $profile->[$i];

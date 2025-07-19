@@ -59,6 +59,18 @@ sub getTemperature {
   return;
 }
 
+=head2 setLogger($logger)
+
+Set the logger for the controller.
+
+=cut
+
+sub setLogger {
+  my ($self, $logger) = @_;
+
+  $self->{logger} = $logger;
+}
+
 =head2 predictTemperature($status)
 
 Provide a prediction of the hotplate temperature based on the current status data. This usually
@@ -330,6 +342,27 @@ sub getDeviceName {
 
 sub shutdown {
   return;
+}
+
+sub info {
+  my ($self, $message) = @_;
+  if ($self->{logger}) {
+    $self->{logger}->info($message);
+  }
+}
+
+sub warning {
+  my ($self, $message) = @_;
+  if ($self->{logger}) {
+    $self->{logger}->warning($message);
+  }
+}
+
+sub debug {
+  my ($self, $level, $message) = @_;
+  if ($self->{logger}) {
+    $self->{logger}->debug($level, $message);
+  }
 }
 
 1;

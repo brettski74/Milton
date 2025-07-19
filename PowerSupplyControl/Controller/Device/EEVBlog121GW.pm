@@ -99,6 +99,11 @@ sub deviceName {
   return 'EEVBlog 121GW';
 }
 
+sub setLogger {
+  my ($self, $logger) = @_;
+  $self->{logger} = $logger;
+}
+
 sub shutdown {
   my ($self) = @_;
 

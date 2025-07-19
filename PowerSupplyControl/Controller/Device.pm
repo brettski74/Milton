@@ -49,6 +49,17 @@ sub new {
 
 =head1 METHODS
 
+=head2 setLogger($logger)
+
+Set the logger for the device.
+
+=cut
+
+sub setLogger {
+  my ($self, $logger) = @_;
+  $self->{logger} = $logger;
+}
+
 =head2 getTemperature
 
 Get the latest temperature reading from the device.

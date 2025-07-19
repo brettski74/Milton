@@ -61,9 +61,9 @@ sub _initializeDevice {
 
   print "Connected to device $package\n";
 
-  $device->listenNow();
+  $self->setDevice($device);
 
-  $self->{device} = $device;
+  $device->listenNow();
 
   return $device;
 }
@@ -294,6 +294,17 @@ sub setDevice {
   my ($self, $device) = @_;
 
   $self->{device} = $device;
+  if ($self->{logger}) {
+    $device->setLogger($self->{logger});
+  }
+}
+
+sub setLogger {
+  my ($self, $logger) = @_;
+  $self->{logger} = $logger;
+  if ($self->{device}) {
+    $self->{device}->setLogger($logger);
+  }
 }
 
 1;

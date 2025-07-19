@@ -7,7 +7,7 @@ use PowerSupplyControl::Config;
 use PowerSupplyControl::EventLoop;
 
 my $args = { config => 'psc.yaml' };
-GetOptions($args, 'config=s', 'override=s@', 'library=s@', 'device=s', 'log=s@', 'ambient=f');
+GetOptions($args, 'config=s', 'override=s@', 'library=s@', 'device=s', 'log=s@', 'logger=s', 'ambient=f');
 
 my $command = shift;
 PowerSupplyControl::Config->addSearchDir(@{$args->{library}}
@@ -19,6 +19,11 @@ PowerSupplyControl::Config->addSearchDir(@{$args->{library}}
                        );
 
 my $config = PowerSupplyControl::Config->new($args->{config});
+
+if ($args->{logger}) {
+   $config->{logger}->{package} = $args->{logger};
+}
+
 if (PowerSupplyControl::Config->configFileExists('command/defaults.yaml')) {
   $config->merge('command/defaults.yaml', 'command', $command);
 }

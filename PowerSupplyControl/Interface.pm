@@ -761,6 +761,18 @@ sub on {
   return;
 }
 
+=head2 setLogger($logger)
+
+Set the logger for the interface.
+
+=cut
+
+sub setLogger {
+  my ($self, $logger) = @_;
+
+  $self->{logger} = $logger;
+}
+
 =head2 resetCalibration
 
 Reset the calibration of the power supply. This is mostly useful when recalibrating the
@@ -1077,5 +1089,27 @@ sub _buildCalibration {
 
   return;
 }
+
+sub info {
+  my ($self, $message) = @_;
+  if ($self->{logger}) {
+    $self->{logger}->info($message);
+  }
+}
+
+sub warning {
+  my ($self, $message) = @_;
+  if ($self->{logger}) {
+    $self->{logger}->warning($message);
+  }
+}
+
+sub debug {
+  my ($self, $level, $message) = @_;
+  if ($self->{logger}) {
+    $self->{logger}->debug($level, $message);
+  }
+}
+
 
 1;

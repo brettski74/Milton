@@ -53,9 +53,18 @@ sub new {
 
   $self->_initializeCommand($command, @args);
 
-  $self->{logger} = PowerSupplyControl::DataLogger->new($self->{config}->clone('logging'), command => $command);
+  my $loggerPackage = 'PowerSupplyControl::DataLogger';
+  if (exists $self->{config}->{logger}->{package}) {
+    $loggerPackage = $self->{config}->{logger}->{package};
+  }
+
+  eval "use $loggerPackage";
+
+  $self->{logger} = $self->_initializeNamedObject($loggerPackage, $self->{config}->clone('logging'), command => $command);
 
   $self->{command}->setLogger($self->{logger});
+  $self->{interface}->setLogger($self->{logger});
+  $self->{controller}->setLogger($self->{logger});
 
   $self->{console} = 1;
 

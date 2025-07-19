@@ -54,14 +54,13 @@ sub _initializeDevice {
   };
   # Ignore errors. Device assistance is optional. Warn the user and continue.
   if (!defined($device) || $@) {
-    print "\a\a\aFailed to initialize device $package: $@\nContinuing without device assistance.\n";
+    $self->warning("Failed to initialize device $package: $@\nContinuing without device assistance.");
     delete $self->{device};
     return;
   }
 
-  print "Connected to device $package\n";
-
   $self->setDevice($device);
+  $self->info('Connected to device '. $device->deviceName);
 
   $device->listenNow();
 

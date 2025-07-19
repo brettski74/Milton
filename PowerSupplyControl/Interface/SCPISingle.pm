@@ -162,7 +162,7 @@ sub _connect {
   $self->{serial} = $serial;
   ($self->{make}, $self->{model}, $self->{'serial-number'}, $self->{firmware}) = $self->_sendCommand('*IDN?');
 
-  print "Connected to $self->{make} $self->{model} $self->{'serial-number'} $self->{firmware} on $port\n";
+  $self->info("Connected to $self->{make} $self->{model} $self->{'serial-number'} $self->{firmware} on $port");
 
   my ($vset) = $self->_sendCommand('SOUR:VOLT?');
   my ($iset) = $self->_sendCommand('SOUR:CURR?');

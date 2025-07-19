@@ -166,7 +166,7 @@ sub receiveData {
 
   my $line = $self->{recv}->getline;
   chomp $line;
-  print "line: $line\n" if $self->{debug};
+  $self->debug(50, "line: $line");
 
   $line =~ s/^\s*//;
   $line =~ s/\s*$//;
@@ -214,7 +214,7 @@ sub parseData {
   my ($self) = @_;
 
   my $buf = $self->{'read-buffer'};
-  print "parseData: ". scalar(@$buf). " bytes in buffer [ ". join(', ', @$buf). " ]\n" if $self->{debug};
+  $self->debug(50, "parseData: ". scalar(@$buf). " bytes in buffer [ ". join(', ', @$buf). " ]");
   my $parseCount = 0;
   my $max_offset = $self->{'max-offset'};
   my $max_value = $self->{'max-value'};

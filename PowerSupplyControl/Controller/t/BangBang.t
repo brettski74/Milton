@@ -132,4 +132,33 @@ subtest 'Flat with Hysteresis' => sub {
 
 };
 
+subtest 'Cut-off Temperature' => sub {
+  my $config = { 'cut-off-temperature' => 225
+               , hysteresis => { low => 0, high => 0 }
+               , calibration => { 'predict-time-constant' => 28 }
+               };
+  my $interface = PowerSupplyControl::t::MockInterface->new();
+  $interface->setPowerLimits(2, 100);
+  my $controller = PowerSupplyControl::Controller::BangBang->new($config, $interface);
+
+  $controller->setPredictedTemperature(210);
+
+  my $status = { period => 1.5, temperature => 222, 'then-temperature' => 215.0 };
+  is($controller->getRequiredPower($status), 100.0, 'Still below cut-off');
+  is ($status->{'predict-temperature'}, float(210.6101695, tolerance => 0.0001), 'predict-temperature');
+  $status->{temperature} = 224.9;
+  is($controller->getRequiredPower($status), 100.0, 'Just below cut-off');
+  is ($status->{'predict-temperature'}, float(211.336771, tolerance => 0.0001), 'predict-temperature');
+  $status->{temperature} = 225;
+  is($controller->getRequiredPower($status), 2.0, 'At cut-off');
+  is ($status->{'predict-temperature'}, float(212.0315115, tolerance => 0.0001), 'predict-temperature');
+  $status->{temperature} = 224.9;
+  is($controller->getRequiredPower($status), 100.0, 'Back below cut-off');
+  is ($status->{'predict-temperature'}, float(212.6858414, tolerance => 0.0001), 'predict-temperature');
+  $status->{temperature} = 225.1;
+  is($controller->getRequiredPower($status), 2.0, 'Above cut-off');
+  is ($status->{'predict-temperature'}, float(213.3170698, tolerance => 0.0001), 'predict-temperature');
+
+};
+
 done_testing(); 

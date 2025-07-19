@@ -262,12 +262,16 @@ sub getRequiredPower {
   my $hyst_lo = -$self->{hysteresis}->{low};
   my $hyst_hi = $self->{hysteresis}->{high};
 
-  my $error = $temperature - $target_temp;
-
-  if ($error < $hyst_lo) {
-    $self->{on} = 1;
-  } elsif ($error >= $hyst_hi) {
+  if (exists $self->{'cut-off-temperature'} && $status->{temperature} >= $self->{'cut-off-temperature'}) {
     $self->{on} = 0;
+  } else {
+    my $error = $temperature - $target_temp;
+
+    if ($error < $hyst_lo) {
+      $self->{on} = 1;
+    } elsif ($error >= $hyst_hi) {
+      $self->{on} = 0;
+    }
   }
 
   return $self->{'on-power'}->estimate($target_temp) if $self->{on};

@@ -225,16 +225,30 @@ sub new {
 
   my $self = $class->SUPER::new($config, $interface);
 
-  my ($minPower, $maxPower) = $interface->getPowerLimits();
+  my ($pmin, $pmax) = $interface->getPowerLimits();
 
   if (defined $config->{'power-levels'}) {
     $self->{'on-power'} = PowerSupplyControl::Math::PiecewiseLinear->new
             ->addHashPoints('temperature', 'power', @{$config->{'power-levels'}});
   } else {
-    $self->{'on-power'} = PowerSupplyControl::Math::PiecewiseLinear->new(20, $maxPower);
+    $self->{'on-power'} = PowerSupplyControl::Math::PiecewiseLinear->new(20, $pmax);
   }
 
-  $self->{'min-power'} = $minPower;
+  # Set some defaults for the hysteresis if not specified in the configuration.
+  if (!defined $self->{hysteresis}->{low}) {
+    $self->{hysteresis}->{low} = 1;
+  } elsif ($self->{hysteresis}->{low} < 0) {
+    $self->{hysteresis}->{low} = 0;
+  }
+  if (!defined $self->{hysteresis}->{high}) {
+    $self->{hysteresis}->{high} = 2;
+  } elsif ($self->{hysteresis}->{high} < 0) {
+    $self->{hysteresis}->{high} = 0;
+  }
+
+  $self->{'min-power'} = $pmin;
+
+  $self->{on} = 0;
 
   return $self;
 }
@@ -242,12 +256,21 @@ sub new {
 sub getRequiredPower {
   my ($self, $status) = @_;
 
+  my $on = $self->{on};
   my $target_temp = $status->{'then-temperature'};
+  my $temperature = $self->predictTemperature($status);
+  my $hyst_lo = -$self->{hysteresis}->{low};
+  my $hyst_hi = $self->{hysteresis}->{high};
 
-  if ($status->{temperature} < $target_temp) {
-    return $self->{'on-power'}->estimate($target_temp);
+  my $error = $temperature - $target_temp;
+
+  if ($error < $hyst_lo) {
+    $self->{on} = 1;
+  } elsif ($error >= $hyst_hi) {
+    $self->{on} = 0;
   }
 
+  return $self->{'on-power'}->estimate($target_temp) if $self->{on};
   return $self->{'min-power'};
 }
 

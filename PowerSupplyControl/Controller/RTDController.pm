@@ -284,4 +284,16 @@ sub getDeviceName {
   return;
 }
 
+sub getDevice {
+  my ($self) = @_;
+
+  return $self->{device};
+}
+
+sub setDevice {
+  my ($self, $device) = @_;
+
+  $self->{device} = $device;
+}
+
 1;

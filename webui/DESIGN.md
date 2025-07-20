@@ -21,7 +21,7 @@ This document outlines the design for a web-based interface to the hotplate cont
 webui/
 ├── DESIGN.md                   # This design document
 ├── lib/
-│   ├── WebInterface.pm         # Main web application
+│   ├── PSCWebUI.pm             # Main web application
 │   ├── Controller/
 │   │   ├── API.pm              # REST API endpoints
 │   │   ├── WebSocket.pm        # Real-time data streaming
@@ -39,7 +39,7 @@ webui/
 
 ### Core Components
 
-#### 1. WebInterface.pm
+#### 1. PSCWebUI.pm
 - Main Mojolicious application
 - Routes configuration
 - WebSocket setup

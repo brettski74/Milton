@@ -90,7 +90,7 @@ group {
                                         my $device_name = $params->{parameters}->{device};
                                         
                                         eval {
-                                          $command_executor->execute_reflow($device_name);
+                                          $command_executor->executeReflow($device_name);
                                           start_command_timers_for_all();
                                           $c->render(json => { status => 'success'
                                                              , message => "Reflow command started"
@@ -106,7 +106,7 @@ group {
                                         my $file_name = $params->{parameters}->{file};
                                         
                                         eval {
-                                          $command_executor->execute_replay($file_name);
+                                          $command_executor->executeReplay($file_name);
                                           start_command_timers_for_all();
                                           $c->render(json => { status => 'success'
                                                              , message => "Replay command started"
@@ -129,7 +129,7 @@ group {
   # Stop current command
   del '/api/commands/current' => sub { my $c = shift;
                                         eval {
-                                          $command_executor->stop_command();
+                                          $command_executor->stopCommand();
                                           stop_command_timers_for_all();
                                           $c->render(json => { status => 'success'
                                                              , message => 'Command stopped'
@@ -145,19 +145,19 @@ group {
  
   # Get system status
   get '/api/status' => sub { my $c = shift;
-                             my $status = $command_executor->get_status();
+                             my $status = $command_executor->getStatus();
                              $c->render(json => $status);
                            };
   
   # Get available devices
   get '/api/devices' => sub { my $c = shift;
-                              my @devices = $command_executor->discover_devices();
+                              my @devices = $command_executor->discoverDevices();
                               $c->render(json => { devices => \@devices });
                             };
   
   # Get available log files for replay
   get '/api/logfiles' => sub { my $c = shift;
-                               my @logfiles = $command_executor->get_log_files();
+                               my @logfiles = $command_executor->getLogFiles();
                                $c->render(json => { logfiles => \@logfiles });
                              };
 
@@ -167,7 +167,7 @@ websocket '/ws/data' => sub { my $c = shift;
                               $c->app->log->info('WebSocket data connection established');
   
                                                             # Send initial status
-                              my $status = $command_executor->get_status();
+                              my $status = $command_executor->getStatus();
                               my $status_msg = { type => 'status'
                                               , data => $status
                                               };
@@ -267,7 +267,7 @@ sub start_command_timers {
   # Start data timer
   $c->stash->{data_timer} = Mojo::IOLoop->recurring(0.1 => sub {
     $c->app->log->debug("Data WebSocket timer tick - checking for output");
-    my $output = $command_executor->read_output();
+    my $output = $command_executor->readOutput();
     if ($output) {
       $c->app->log->debug("Data WebSocket received output: " . $output->{type});
       
@@ -280,7 +280,7 @@ sub start_command_timers {
       
       # Also send status updates when we get new data
       if ($output->{type} eq 'data') {
-        my $status = $command_executor->get_status();
+        my $status = $command_executor->getStatus();
         my $status_msg = { type => 'status'
                         , data => $status
                         };
@@ -290,7 +290,7 @@ sub start_command_timers {
       }
     } else {
       # Check if command has finished
-      my $status = $command_executor->get_status();
+      my $status = $command_executor->getStatus();
       if ($status->{status} eq 'idle' && $status->{current_command} eq undef && !$c->stash->{command_finished_sent}) {
         $c->app->log->info("Command finished, sending final status update and stopping timer");
         # Command finished, send final status update
@@ -313,7 +313,7 @@ sub start_command_timers {
   # Start console timer
   $c->stash->{console_timer} = Mojo::IOLoop->recurring(0.1 => sub {
     $c->app->log->debug("Console WebSocket timer tick - checking for output");
-    my $output = $command_executor->read_output();
+    my $output = $command_executor->readOutput();
     if ($output && $output->{type} eq 'console') {
       $c->app->log->debug("Console WebSocket received: " . $output->{data}->{message});
       my $json = Mojo::JSON::encode_json($output);
@@ -321,7 +321,7 @@ sub start_command_timers {
       $c->send($json);
     } else {
       # Check if command has finished
-      my $status = $command_executor->get_status();
+      my $status = $command_executor->getStatus();
       if ($status->{status} eq 'idle' && $status->{current_command} eq undef && !$c->stash->{command_finished_sent}) {
         $c->app->log->info("Command finished, sending console message and stopping timer");
         # Command finished, send console message

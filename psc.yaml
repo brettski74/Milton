@@ -1,4 +1,6 @@
 period: 1.5
+#period: 0.8
+#period: 0.6
 logging:
   enabled: true
   tee: true
@@ -18,38 +20,14 @@ logging:
     - key: temperature
       format: .1f
     - key: stage
-    - key: raw-voltage
-      format: .2f
-    - key: raw-current
-      format: .2f
 
-controller:
-  package: PowerSupplyControl::Controller::FeedForward
-  resistance: 2.4
-  capacity: 24
-  ambient: 26
-  temperatures:
-    - resistance: 1.897
-      temperature: 106
-    - resistance: 2.068
-      temperature: 135
+controller: !include controller/bangbang.yaml
+#controller: !include controller/feed-forward.yaml
 
-interface:
-  package: PowerSupplyControl::Interface::DPS
-  baudrate: 19200
-  address: 1
-  current:
-    maximum: 8
-    minimum: 1.2
-    measurable: 0.1
-  voltage:
-    maximum: 30
-    minimum: 2
-  power:
-    maximum: 110
-    minimum: 1
-  calibration:
-    !include power_supply_calibration.yaml
+interface: !include interface/udp6721.yaml
+#  package: PowerSupplyControl::Interface::DPS
+#  baudrate: 19200
+#  address: 1
 
 fan:
   interface:
@@ -60,21 +38,3 @@ fan:
   current: 1.0
   timeout: 600
   enabled: false
-
-command:
-  calibrate:
-    temperatures:
-      - 100
-      - 140
-      - 180
-      - 200
-    initial-current: 1.5
-    power: 29
-    temperature-rate: 0.5
-    log-columns:
-      - now
-      - power
-      - voltage
-      - current
-      - resistance
-      - temperature

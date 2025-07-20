@@ -10,19 +10,20 @@ use POSIX qw(:sys_wait_h);
 sub new {
   my ($class) = @_;
   
-  my $self = {
-    current_command => undef,
-    command_pid => undef,
-    command_output => undef,
-    status => 'idle',
-    column_names => undef,
-    latest_data => {}
-  };
+  my $self = { 'current-command' => undef
+             , 'command-pid' => undef
+             , 'command-output' => undef
+             , status => 'idle'
+             , 'column-names' => undef
+             , 'latest-data' => {}
+             };
+
+  
   
   return bless $self, $class;
 }
 
-sub discover_devices {
+sub discoverDevices {
   my ($self) = @_;
   
   my @devices = ();
@@ -35,11 +36,10 @@ sub discover_devices {
       if ($file =~ /\.yaml$/) {
         my $device_name = $file;
         $device_name =~ s/\.yaml$//;
-        push @devices, {
-          name => $device_name,
-          filename => $file,
-          description => "Device: $device_name"
-        };
+        push @devices, { name => $device_name
+                       , filename => $file
+                       , description => "Device: $device_name"
+                       };
       }
     }
     
@@ -49,7 +49,7 @@ sub discover_devices {
   return @devices;
 }
 
-sub execute_reflow {
+sub executeReflow {
   my ($self, $device_name) = @_;
   
   # Check if command is already running
@@ -72,81 +72,58 @@ sub execute_reflow {
   # Add reflow command
   push @cmd, 'reflow';
   
-  # Create pipes for communication
-  pipe(my $output_reader, my $output_writer) or croak "Failed to create pipe: $!";
-  
-  # Fork process
-  my $pid = fork();
-  if ($pid == 0) {
-    # Child process
-    close $output_reader;
-    
-    # Redirect stdout and stderr to pipe
-    open(STDOUT, '>&', $output_writer) or die "Failed to redirect stdout: $!";
-    open(STDERR, '>&', $output_writer) or die "Failed to redirect stderr: $!";
-    
-    # Execute command
-    exec(@cmd) or die "Failed to exec: $!";
-  } elsif ($pid > 0) {
-    # Parent process
-    close $output_writer;
-    
-    # Update state
-    $self->{current_command} = 'reflow';
-    $self->{command_pid} = $pid;
-    $self->{command_output} = $output_reader;
-    $self->{status} = 'running';
-    
-    return $pid;
-  } else {
-    croak "Failed to fork: $!";
-  }
+  return $self->executeCommand('reflow', @cmd);
 }
 
-sub stop_command {
+sub stopCommand {
   my ($self) = @_;
   
-  my $pid = $self->{command_pid};
+  my $pid = $self->{'command-pid'};
   return unless $pid;
-  
-  # Send TERM signal
-  kill 'TERM', $pid;
   
   # Update state
   $self->{status} = 'stopping';
   
+  # Send TERM signal
+  kill 'TERM', $pid;
+  
   return $pid;
 }
 
-sub get_status {
+sub toJSName {
+  my ($self, $name) = @_;
+  $name =~ s/[-_]+(\w)/uc($1)/eg;
+  return $name;
+}
+
+sub getStatus {
   my ($self) = @_;
   
-  my $status = {
-    status => $self->{status},
-    current_command => $self->{current_command},
-    command_pid => $self->{command_pid},
-    uptime => time()
-  };
+  my $status = { status => $self->{status}
+               , 'currentCommand' => $self->{'current-command'}
+               , 'commandPid' => $self->{'command-pid'}
+               , uptime => time()
+               };
   
   # Add latest data if available and command is running
-  if ($self->{latest_data} && $self->{status} eq 'running') {
+  if ($self->{'latest-data'} && $self->{status} eq 'running') {
     # Use flat structure with original data names
-    foreach my $key (keys %{$self->{latest_data}}) {
-      $status->{$key} = $self->{latest_data}->{$key};
+    foreach my $key (keys %{$self->{'latest-data'}}) {
+      $status->{$self->toJSName($key)} = $self->{'latest-data'}->{$key};
     }
     
-    warn "CommandExecutor: Status data - " . join(', ', map { "$_: $status->{$_}" } keys %$status) . "\n";  # Debug output
+#    warn "CommandExecutor: Status data - " . join(', ', map { "$_: $status->{$_}" } keys %$status) . "\n";  # Debug output
   } else {
-    $self->{latest_data} = {};
+    $self->{'latest-data'} = {};
   }
   
   return $status;
 }
 
-sub read_output {
+sub readOutput {
   my ($self) = @_;
   
-  my $output_fh = $self->{command_output};
+  my $output_fh = $self->{'command-output'};
   unless ($output_fh) {
     warn "CommandExecutor: No output filehandle available\n";  # Debug output
     return undef;
@@ -159,23 +136,23 @@ sub read_output {
     my $line = <$output_fh>;
     if (defined $line) {
       chomp $line;
-      warn "CommandExecutor: Raw line: '$line'\n";  # Debug output
-      return $self->parse_output_line($line);
+#      warn "CommandExecutor: Raw line: '$line'\n";  # Debug output
+      return $self->parseOutputLine($line);
     } else {
       # Process finished
-      warn "CommandExecutor: Process finished\n";  # Debug output
-      $self->command_finished();
-      return undef;
+#      warn "CommandExecutor: Process finished\n";  # Debug output
+      $self->commandFinished();
+      return;
     }
-  } else {
+#  } else {
     # No data ready to read
-    warn "CommandExecutor: No data ready to read\n";  # Debug output
+#    warn "CommandExecutor: No data ready to read\n";  # Debug output
   }
   
-  return undef;
+  return;
 }
 
-sub parse_output_line {
+sub parseOutputLine {
   my ($self, $line) = @_;
   
   # Check for HEAD: prefix (header row)
@@ -184,15 +161,17 @@ sub parse_output_line {
     my @columns = split(',', $header);
     
     # Store column names for future data parsing
-    $self->{column_names} = \@columns;
+    $self->{'column-names'} = \@columns;
+    my @jscolumns = ();
+    foreach my $column (@columns) {
+      push @jscolumns, $self->toJSName($column);
+    }
     
-    return {
-      type => 'header',
-      data => {
-        columns => \@columns,
-        timestamp => time()
-      }
-    };
+    return { type => 'header'
+           , data => { columns => \@jscolumns
+                     , timestamp => time()
+                     }
+           };
   }
   
   # Check for DATA: prefix (CSV data row)
@@ -201,103 +180,120 @@ sub parse_output_line {
     my @values = split(',', $csv_data);
     
     # Use stored column names or default if not available
-    if (!defined $self->{column_names}) {
-      return {
-        type => 'console',
-        data => {
-          level => 'error',
-          message => 'No column names available',
-          timestamp => time()
-        }
-      };
+    if (!defined $self->{'column-names'}) {
+      return { type => 'console'
+             , data => { level => 'error'
+                       , message => 'No column names available'
+                       , timestamp => time()
+                       }
+             };
     }
     
     # Create data hash using column names
     my $data = {};
-    for (my $i = 0; $i < @{$self->{column_names}} && $i < @values; $i++) {
-      my $key = $self->{column_names}->[$i];
+    for (my $i = 0; $i < @{$self->{'column-names'}} && $i < @values; $i++) {
+      my $key = $self->{'column-names'}->[$i];
       my $value = $values[$i];
       # Convert to numeric if possible
-      $data->{$key} = $value =~ /^\d+\.?\d*$/ ? $value + 0 : $value;
+      $data->{$self->toJSName($key)} = $value =~ /^\d+\.?\d*$/ ? $value + 0 : $value;
     }
     
     # Store latest data for status updates
-    $self->{latest_data} = $data;
+    $self->{'latest-data'} = $data;
     warn "CommandExecutor: Stored data: " . join(', ', map { "$_: $data->{$_}" } keys %$data) . "\n";  # Debug output
     
-    return {
-      type => 'data',
-      data => $data
-    };
+    return { type => 'data'
+           , data => $data
+           };
   }
   
   # Check for INFO: prefix
   if ($line =~ /^INFO: (.+)$/) {
-    return {
-      type => 'console',
-      data => {
-        level => 'info',
-        message => $1,
-        timestamp => time()
-      }
-    };
+    return { type => 'console'
+           , data => { level => 'info'
+                     , message => $1
+                     , timestamp => time()
+                     }
+           };
   }
   
   # Check for WARN: prefix
   if ($line =~ /^WARN: (.+)$/) {
-    return {
-      type => 'console',
-      data => {
-        level => 'warning',
-        message => $1,
-        timestamp => time()
-      }
-    };
+    return { type => 'console'
+           , data => { level => 'warning'
+                     , message => $1
+                     , timestamp => time()
+                     }
+           };
   }
   
   # Check for DEBUG: prefix
   if ($line =~ /^DEBUG: (.+)$/) {
-    return {
-      type => 'console',
-      data => {
-        level => 'debug',
-        message => $1,
-        timestamp => time()
-      }
-    };
+    return { type => 'console'
+           , data => { level => 'debug'
+                     , message => $1
+                     , timestamp => time()
+                     }
+           };
   }
   
   # Non-prefixed lines are treated as errors
-  return {
-    type => 'console',
-    data => {
-      level => 'error',
-      message => $line,
-      timestamp => time()
-    }
-  };
+  return { type => 'console'
+           , data => { level => 'error'
+                     , message => $line
+                     , timestamp => time()
+                     }
+         };
 }
 
-sub command_finished {
+sub commandFinished {
   my ($self) = @_;
   
   # Wait for process to finish
-  if ($self->{command_pid}) {
-    waitpid($self->{command_pid}, 0);
+  if ($self->{'command-pid'}) {
+    waitpid($self->{'command-pid'}, 0);
   }
   
   # Reset state
-  $self->{current_command} = undef;
-  $self->{command_pid} = undef;
-  $self->{command_output} = undef;
+  $self->{'current-command'} = undef;
+  $self->{'command-pid'} = undef;
+  $self->{'command-output'} = undef;
   $self->{status} = 'idle';
-  $self->{column_names} = undef;
-  $self->{latest_data} = {};
+  $self->{'column-names'} = undef;
+  $self->{'latest-data'} = {};
 }
 
-sub execute
+sub executeCommand {
+  my ($self, $command, @cmd) = @_;
+  
+  # Check if command is already running
+  if ($self->{status} eq 'running') {
+    croak 'Command already running';
+  }
 
-sub execute_replay {
+  my $pipe = IO::Pipe->new() || croak "Failed to create pipe: $!";
+  my $pid = fork();
+  if ($pid) {
+    # Parent process
+    $pipe->reader();
+    $self->{'command-pid'} = $pid;
+    $self->{'command-output'} = $pipe;
+    $self->{status} = 'running';
+    $self->{'current-command'} = $command;
+    return $pid;
+  } elsif ($pid == 0) {
+    # Child process
+    $pipe->writer();
+    open(STDOUT, '>&', $pipe) || die "Failed to redirect stdout: $!";
+    open(STDERR, '>&', $pipe) || die "Failed to redirect stderr: $!";
+
+    exec(@cmd) || die "Failed to exec: $!";
+  }
+
+  croak "fork failed: $!"; 
+}
+
+sub executeReplay {
   my ($self, $file_name) = @_;
   
   # Check if command is already running
@@ -321,40 +317,10 @@ sub execute_replay {
   # Add replay command and file
   push @cmd, 'replay', $file_path;
   
-  # Create pipes for communication
-  my $pipe = IO::Pipe->new() || croak "Failed to create pipe: $!";
-  warn "CommandExecutor: Created pipe for replay command output\n";  # Debug output
-  
-  # Fork process
-  my $pid = fork();
-  if ($pid == 0) {
-    # Child process
-    close $output_reader;
-    
-    # Redirect stdout and stderr to pipe
-    open(STDOUT, '>&', $output_writer) or die "Failed to redirect stdout: $!";
-    open(STDERR, '>&', $output_writer) or die "Failed to redirect stderr: $!";
-    
-    # Execute command
-    exec(@cmd) or die "Failed to exec: $!";
-  } elsif ($pid > 0) {
-    # Parent process
-    close $output_writer;
-    warn "CommandExecutor: Replay command started with PID $pid\n";  # Debug output
-    
-    # Update state
-    $self->{current_command} = 'replay';
-    $self->{command_pid} = $pid;
-    $self->{command_output} = $output_reader;
-    $self->{status} = 'running';
-    
-    return $pid;
-  } else {
-    croak "Failed to fork: $!";
-  }
+  return $self->executeCommand('replay', @cmd);
 }
 
-sub get_log_files {
+sub getLogFiles {
   my ($self) = @_;
   
   my @log_files = ();
@@ -378,12 +344,11 @@ sub get_log_files {
     my $file_path = "$log_dir/$file";
     my @stat = stat($file_path);
     if (@stat && $stat[7] > 1024) {  # Size > 1024 bytes
-      push @valid_files, {
-        name => $file,
-        size => $stat[7],
-        mtime => $stat[9],
-        readable_size => $self->format_file_size($stat[7])
-      };
+      push @valid_files, { name => $file
+                         , size => $stat[7]
+                         , mtime => $stat[9]
+                         , readable_size => $self->formatFileSize($stat[7])
+                         };
     }
   }
   
@@ -397,7 +362,7 @@ sub get_log_files {
   return @log_files;
 }
 
-sub format_file_size {
+sub formatFileSize {
   my ($self, $bytes) = @_;
   
   if ($bytes < 1024) {

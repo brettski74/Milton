@@ -75,7 +75,7 @@ sub writeHeader {
   return unless $self->{fh};
 
   $self->{fh}->print($self->{header});
-  print $self->{header} if $self->{tee};
+  $self->consoleOutput('HEAD', $self->{header}) if $self->{tee};
 }
 
 sub includesColumn {
@@ -224,7 +224,9 @@ sub debugLevel {
 }
 
 sub consoleProcess {
-  return;
+  my ($self, $type, $output) = @_;
+
+  return $output;
 }
 
 sub consoleOutput {

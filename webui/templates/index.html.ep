@@ -81,6 +81,10 @@
                 <label class="block text-sm font-medium text-gray-700">Power Output</label>
                 <span id="powerOutput" class="text-lg font-semibold text-orange-600">0.0 W</span>
               </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-700">Stage</label>
+                <span id="currentStage" class="text-lg font-semibold text-purple-600">N/A</span>
+              </div>
             </div>
           </div>
         </div>
@@ -121,6 +125,12 @@
                                                              connectWebSockets();
                                                              setupEventListeners();
                                                              updateStatus();
+                                                             // Start periodic status updates (only when no command is running)
+                                                             setInterval(() => {
+                                                               if (!currentCommand) {
+                                                                 updateStatusFromAPI();
+                                                               }
+                                                             }, 5000);
                                                            }
                            );
 
@@ -185,27 +195,39 @@
                           );
   }
 
-  // Load available commands
-  async function loadCommands() {
-    try {
-      const response = await fetch('/api/commands');
-      const data = await response.json();
-      commands = data.commands;
+          // Load available commands
+        async function loadCommands() {
+            try {
+                const response = await fetch('/api/commands');
+                const data = await response.json();
+                commands = data.commands;
                 
-      const select = document.getElementById('commandSelect');
-      select.innerHTML = '<option value="">Choose a command...</option>';
+                const select = document.getElementById('commandSelect');
+                select.innerHTML = '<option value="">Choose a command...</option>';
                 
-      commands.forEach(cmd => {
-        const option = document.createElement('option');
-        option.value = cmd.name;
-        option.textContent = cmd.description;
-        select.appendChild(option);
-      });
-    } catch (error) {
-      console.error('Failed to load commands:', error);
-      addConsoleMessage('Error loading commands', 'error');
-    }
-  }
+                commands.forEach(cmd => {
+                    const option = document.createElement('option');
+                    option.value = cmd.name;
+                    option.textContent = cmd.description;
+                    select.appendChild(option);
+                });
+            } catch (error) {
+                console.error('Failed to load commands:', error);
+                addConsoleMessage('Error loading commands', 'error');
+            }
+        }
+
+        // Load available devices
+        async function loadDevices() {
+            try {
+                const response = await fetch('/api/devices');
+                const data = await response.json();
+                return data.devices || [];
+            } catch (error) {
+                console.error('Failed to load devices:', error);
+                return [];
+            }
+        }
 
   // Connect to WebSocket endpoints
   function connectWebSockets() {
@@ -213,22 +235,60 @@
     dataSocket = new WebSocket(`ws://${window.location.host}/ws/data`);
     dataSocket.onopen = () => addConsoleMessage('Data connection established', 'info');
     dataSocket.onmessage = (event) => handleDataMessage(JSON.parse(event.data));
-    dataSocket.onclose = () => addConsoleMessage('Data connection closed', 'warn');
+    dataSocket.onclose = () => {
+      addConsoleMessage('Data connection closed, attempting to reconnect...', 'warn');
+      setTimeout(() => {
+        if (dataSocket.readyState === WebSocket.CLOSED) {
+          connectWebSockets();
+        }
+      }, 2000);
+    };
     dataSocket.onerror = () => addConsoleMessage('Data connection error', 'error');
+
+    // Keep-alive for data WebSocket
+    setInterval(() => {
+      if (dataSocket && dataSocket.readyState === WebSocket.OPEN) {
+        dataSocket.send(JSON.stringify({ type: 'ping' }));
+      }
+    }, 25000); // Send ping every 25 seconds
 
     // Console WebSocket
     consoleSocket = new WebSocket(`ws://${window.location.host}/ws/console`);
     consoleSocket.onopen = () => addConsoleMessage('Console connection established', 'info');
     consoleSocket.onmessage = (event) => handleConsoleMessage(JSON.parse(event.data));
-    consoleSocket.onclose = () => addConsoleMessage('Console connection closed', 'warn');
+    consoleSocket.onclose = () => {
+      addConsoleMessage('Console connection closed, attempting to reconnect...', 'warn');
+      setTimeout(() => {
+        if (consoleSocket.readyState === WebSocket.CLOSED) {
+          connectWebSockets();
+        }
+      }, 2000);
+    };
     consoleSocket.onerror = () => addConsoleMessage('Console connection error', 'error');
+
+    // Keep-alive for console WebSocket
+    setInterval(() => {
+      if (consoleSocket && consoleSocket.readyState === WebSocket.OPEN) {
+        consoleSocket.send(JSON.stringify({ type: 'ping' }));
+      }
+    }, 25000); // Send ping every 25 seconds
   }
 
   // Handle data messages from WebSocket
   function handleDataMessage(message) {
-    if (message.type === 'data' && message.data) {
+    console.log('Data message received:', message);
+    
+    if (message.type === 'header' && message.data) {
+      handleHeaderMessage(message.data);
+    } else if (message.type === 'data' && message.data) {
+      console.log('Updating chart with data:', message.data);
       updateChart(message.data);
       updateStatus(message.data);
+    } else if (message.type === 'status' && message.data) {
+      // Only update status if we have real data or if command is not running
+      if (message.data.status === 'running' || !currentCommand) {
+        updateSystemStatus(message.data);
+      }
     }
   }
 
@@ -236,6 +296,16 @@
   function handleConsoleMessage(message) {
     if (message.type === 'console' && message.data) {
       addConsoleMessage(message.data.message, message.data.level);
+      
+      // If command finished, update UI state
+      if (message.data.message === 'Command finished') {
+        currentCommand = null;
+        document.getElementById('executeBtn').disabled = false;
+        document.getElementById('stopBtn').disabled = true;
+        document.getElementById('systemStatus').textContent = 'Idle';
+        document.getElementById('systemStatus').className = 'text-lg font-semibold text-green-600';
+        document.getElementById('currentCommand').textContent = 'None';
+      }
     }
   }
 
@@ -244,10 +314,35 @@
     const now = new Date().toLocaleTimeString();
             
     dataChart.data.labels.push(now);
-    dataChart.data.datasets[0].data.push(data.heating_element_temp || null);
-    dataChart.data.datasets[1].data.push(data.hotplate_temp || null);
-    dataChart.data.datasets[2].data.push(data.power_output || 0);
-    dataChart.data.datasets[3].data.push(data.device_temp || null);
+    
+    console.log('updateChart called with data:', data);
+    console.log('Current datasets:', dataChart.data.datasets.map(d => ({ label: d.label, dataLength: d.data.length })));
+    
+    // Add data to each dataset based on available columns
+    dataChart.data.datasets.forEach((dataset, index) => {
+      // Map display labels back to original data keys
+      const displayToDataKey = {
+        'Heating Element': 'temperature',
+        'External': 'device-temperature',
+        'Hotplate': 'predict-temperature',
+        'Power': 'power'
+      };
+      
+      const dataKey = displayToDataKey[dataset.label];
+      let value = null;
+      
+      console.log(`Dataset "${dataset.label}" -> dataKey "${dataKey}"`);
+      
+      // Try to get value from data using original key names
+      if (dataKey && data[dataKey] !== undefined) {
+        value = data[dataKey];
+        console.log(`  Found value: ${value}`);
+      } else {
+        console.log(`  No value found for dataKey "${dataKey}"`);
+      }
+      
+      dataset.data.push(value);
+    });
 
     // Keep only last 50 data points
     if (dataChart.data.labels.length > 50) {
@@ -258,15 +353,134 @@
     dataChart.update('none');
   }
 
+  // Handle header message to set up chart datasets
+  function handleHeaderMessage(data) {
+    console.log('Header message received:', data);
+    
+    if (data.columns && data.columns.length > 0) {
+      // Clear existing datasets
+      dataChart.data.datasets = [];
+      
+      // Define which columns we want to graph (most relevant ones)
+      const columnsToGraph = [
+        'temperature',           // Heating element temperature
+        'device-temperature',    // Device temperature
+        'predict-temperature',   // Predicted hotplate temperature
+        'power'                 // Power output
+      ];
+      
+      // Mapping from column names to display labels
+      const columnLabels = {
+        'temperature': 'Heating Element',
+        'device-temperature': 'External',
+        'predict-temperature': 'Hotplate',
+        'power': 'Power'
+      };
+      
+      // Create datasets based on available columns (filtered)
+      const colors = [
+        { border: 'rgb(59, 130, 246)', background: 'rgba(59, 130, 246, 0.1)' },  // Blue
+        { border: 'rgb(16, 185, 129)', background: 'rgba(16, 185, 129, 0.1)' },  // Green
+        { border: 'rgb(245, 158, 11)', background: 'rgba(245, 158, 11, 0.1)' },  // Orange
+        { border: 'rgb(139, 92, 246)', background: 'rgba(139, 92, 246, 0.1)' },  // Purple
+        { border: 'rgb(236, 72, 153)', background: 'rgba(236, 72, 153, 0.1)' },  // Pink
+        { border: 'rgb(34, 197, 94)', background: 'rgba(34, 197, 94, 0.1)' }     // Light green
+      ];
+      
+      let datasetIndex = 0;
+      data.columns.forEach((column, index) => {
+        // Only graph columns we're interested in
+        if (columnsToGraph.includes(column)) {
+          const color = colors[datasetIndex % colors.length];
+          const dataset = {
+            label: columnLabels[column] || column.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
+            data: [],
+            borderColor: color.border,
+            backgroundColor: color.background,
+            tension: 0.1
+          };
+          
+          // Set y-axis for power-related columns
+          if (column.includes('power')) {
+            dataset.yAxisID = 'y1';
+          }
+          
+          dataChart.data.datasets.push(dataset);
+          datasetIndex++;
+        }
+      });
+      
+      dataChart.update();
+      addConsoleMessage(`Chart configured for relevant columns: ${data.columns.filter(col => columnsToGraph.includes(col)).join(', ')}`, 'info');
+    }
+  }
+
+  // Update system status display
+  function updateSystemStatus(status) {
+    document.getElementById('systemStatus').textContent = status.status || 'Unknown';
+    document.getElementById('currentCommand').textContent = status.current_command || 'None';
+    
+    // Update status color
+    const statusElement = document.getElementById('systemStatus');
+    if (status.status === 'running') {
+      statusElement.className = 'text-lg font-semibold text-blue-600';
+    } else if (status.status === 'idle') {
+      statusElement.className = 'text-lg font-semibold text-green-600';
+    } else {
+      statusElement.className = 'text-lg font-semibold text-gray-600';
+    }
+
+    console.log('status: temperature: ' + status.temperature
+              + ', predict-temperature: ' + status['predict-temperature']
+              + ', device-temperature: ' + status['device-temperature']
+              + ', power: ' + status.power
+              + ', status: ' + status.status
+              );
+    
+    // Update temperature and power displays using flat structure
+    const formatTemp = (temp) => temp !== null && temp !== undefined ? `${temp.toFixed(1)}°C` : 'N/A';
+    const formatPower = (power) => power !== null && power !== undefined ? `${power.toFixed(1)} W` : '0.0 W';
+    
+    // Only update displays when command is running or when no command is active
+    if (status.status === 'running' || !currentCommand) {
+      document.getElementById('heatingElementTemp').textContent = formatTemp(status.temperature);
+      document.getElementById('hotplateTemp').textContent = formatTemp(status['predict-temperature']);
+      document.getElementById('deviceTemp').textContent = formatTemp(status['device-temperature']);
+      document.getElementById('powerOutput').textContent = formatPower(status.power);
+    }
+    
+    if (status.stage !== undefined && status.stage !== null) {
+      document.getElementById('currentStage').textContent = status.stage;
+    } else {
+      document.getElementById('currentStage').textContent = 'N/A';
+    }
+  }
+
+  // Update status from API (fallback)
+  async function updateStatusFromAPI() {
+    try {
+      const response = await fetch('/api/status');
+      const status = await response.json();
+      updateSystemStatus(status);
+    } catch (error) {
+      console.error('Failed to update status from API:', error);
+    }
+  }
+
   // Update status display
   function updateStatus(data = {}) {
+    // Only update if we have real data or if no command is running
+    if (Object.keys(data).length === 0 && currentCommand) {
+      return; // Don't update with empty data when command is running
+    }
+    
     const formatTemp = (temp) => temp !== null && temp !== undefined ? `${temp.toFixed(1)}°C` : 'N/A';
     const formatPower = (power) => `${(power || 0.0).toFixed(1)} W`;
             
-    document.getElementById('heatingElementTemp').textContent = formatTemp(data.heating_element_temp);
-    document.getElementById('hotplateTemp').textContent = formatTemp(data.hotplate_temp);
-    document.getElementById('deviceTemp').textContent = formatTemp(data.device_temp);
-    document.getElementById('powerOutput').textContent = formatPower(data.power_output);
+    document.getElementById('heatingElementTemp').textContent = formatTemp(data.temperature);
+    document.getElementById('hotplateTemp').textContent = formatTemp(data['predict-temperature']);
+    document.getElementById('deviceTemp').textContent = formatTemp(data['device-temperature']);
+    document.getElementById('powerOutput').textContent = formatPower(data.power);
   }
 
   // Add message to console
@@ -298,56 +512,111 @@
     document.getElementById('stopBtn').addEventListener('click', stopCommand);
   }
 
-  // Show command parameters
-  function showCommandParams(commandName) {
-    const command = commands.find(cmd => cmd.name === commandName);
-    if (!command) return;
+          // Show command parameters
+        function showCommandParams(commandName) {
+            const command = commands.find(cmd => cmd.name === commandName);
+            if (!command) return;
 
-    const paramFields = document.getElementById('paramFields');
-    paramFields.innerHTML = '';
+            const paramFields = document.getElementById('paramFields');
+            paramFields.innerHTML = '';
 
-    Object.entries(command.parameters).forEach(([name, param]) => {
-      const div = document.createElement('div');
-      div.className = 'mb-3';
+            Object.entries(command.parameters).forEach(([name, param]) => {
+                const div = document.createElement('div');
+                div.className = 'mb-3';
                 
-      const label = document.createElement('label');
-      label.className = 'block text-sm font-medium text-gray-700 mb-1';
-      label.textContent = param.description || name;
-      div.appendChild(label);
+                const label = document.createElement('label');
+                label.className = 'block text-sm font-medium text-gray-700 mb-1';
+                label.textContent = param.description || name;
+                div.appendChild(label);
 
-      const input = document.createElement('input');
-      input.type = param.type === 'number' ? 'number' : 'text';
-      input.name = name;
-      input.className = 'w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500';
-      input.required = param.required;
-      if (param.default !== undefined) {
-        input.value = param.default;
-      }
-      div.appendChild(input);
+                if (name === 'device') {
+                    // Create device dropdown
+                    const select = document.createElement('select');
+                    select.name = name;
+                    select.className = 'w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500';
+                    select.required = param.required;
+                    
+                    // Add empty option
+                    const emptyOption = document.createElement('option');
+                    emptyOption.value = '';
+                    emptyOption.textContent = 'No device (use default)';
+                    select.appendChild(emptyOption);
+                    
+                    // Load devices
+                    loadDevices().then(devices => {
+                        devices.forEach(device => {
+                            const option = document.createElement('option');
+                            option.value = device.name;
+                            option.textContent = device.description;
+                            select.appendChild(option);
+                        });
+                    });
+                    
+                    div.appendChild(select);
+                } else if (name === 'file') {
+                    // Create file dropdown for replay command
+                    const select = document.createElement('select');
+                    select.name = name;
+                    select.className = 'w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500';
+                    select.required = param.required;
+                    
+                    // Add empty option
+                    const emptyOption = document.createElement('option');
+                    emptyOption.value = '';
+                    emptyOption.textContent = 'Choose a log file...';
+                    select.appendChild(emptyOption);
+                    
+                    // Load log files
+                    fetch('/api/logfiles')
+                        .then(response => response.json())
+                        .then(data => {
+                            data.logfiles.forEach(file => {
+                                const option = document.createElement('option');
+                                option.value = file;
+                                option.textContent = file;
+                                select.appendChild(option);
+                            });
+                        })
+                        .catch(error => {
+                            console.error('Failed to load log files:', error);
+                        });
+                    
+                    div.appendChild(select);
+                } else {
+                    const input = document.createElement('input');
+                    input.type = param.type === 'number' ? 'number' : 'text';
+                    input.name = name;
+                    input.className = 'w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500';
+                    input.required = param.required;
+                    if (param.default !== undefined) {
+                        input.value = param.default;
+                    }
+                    div.appendChild(input);
+                }
 
-      paramFields.appendChild(div);
-    });
+                paramFields.appendChild(div);
+            });
 
-    document.getElementById('commandParams').classList.remove('hidden');
-  }
+            document.getElementById('commandParams').classList.remove('hidden');
+        }
 
   // Hide command parameters
   function hideCommandParams() {
     document.getElementById('commandParams').classList.add('hidden');
   }
 
-  // Execute command
-  async function executeCommand() {
-    const commandName = document.getElementById('commandSelect').value;
-    if (!commandName) return;
+          // Execute command
+        async function executeCommand() {
+            const commandName = document.getElementById('commandSelect').value;
+            if (!commandName) return;
 
-    const params = {};
-    const inputs = document.querySelectorAll('#paramFields input');
-    inputs.forEach(input => {
-      if (input.value) {
-        params[input.name] = input.type === 'number' ? parseFloat(input.value) : input.value;
-      }
-    });
+            const params = {};
+            const inputs = document.querySelectorAll('#paramFields input, #paramFields select');
+            inputs.forEach(input => {
+                if (input.value) {
+                    params[input.name] = input.type === 'number' ? parseFloat(input.value) : input.value;
+                }
+            });
 
     try {
       const response = await fetch(`/api/commands/${commandName}`, { method: 'POST'

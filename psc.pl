@@ -7,7 +7,7 @@ use PowerSupplyControl::Config;
 use PowerSupplyControl::EventLoop;
 
 my $args = { config => 'psc.yaml' };
-GetOptions($args, 'config=s', 'override=s@', 'library=s@', 'device=s', 'log=s@', 'logger=s', 'ambient=f');
+GetOptions($args, 'config=s', 'override=s@', 'library=s@', 'device=s', 'log=s@', 'logger=s', 'ambient=f', 'profile=s', 'reset', 'r0=s');
 
 my $command = shift;
 PowerSupplyControl::Config->addSearchDir(@{$args->{library}}
@@ -60,6 +60,20 @@ if ($args->{device}) {
   $config->merge($filename, qw(controller device));
 }
 
+# Check for a profile specifier
+if ($args->{profile}) {
+  my $filename = $args->{profile};
+  if ($filename !~ /\.yaml$/) {
+    $filename .= '.yaml';
+  }
+
+  if (PowerSupplyControl::Config->configFileExists("command/profile/$filename")) {
+    $filename = "command/profile/$filename";
+  }
+
+  $config->merge($filename, 'command', $command, 'profile');
+}
+
 # Add any extra logging columns
 if ($args->{log}) {
   foreach my $log (@{$args->{log}}) {
@@ -78,6 +92,23 @@ if ($args->{ambient}) {
   $evl->setAmbient($args->{ambient});
 }
 
-$evl->run;
+if ($args->{reset}) {
+  $evl->getController->resetTemperatureCalibration(0);
+}
 
+if ($args->{r0}) {
+  my ($r, $t) = split(/:/, $args->{r0}, 2);
+  $t //= $args->{ambient} || 25;
+
+  if ($r > 500) {
+    # Assume that this is milliohms
+    $r = $r / 1000;
+  }
+
+  $evl->getController->resetTemperatureCalibration(0);
+  $evl->getController->setTemperaturePoint($t, $r);
+}
+
+$evl->run;
+  
 exit(0);

@@ -78,6 +78,7 @@ sub new {
   my ($class, %options) = @_;
   my $self = $class->SUPER::new(%options);
 
+  $self->info('Connecting to 121GW');
   if ($options{'device-address'}) {
     $self->connect(qr/$options{'device-address'}/);
   } else {
@@ -85,6 +86,7 @@ sub new {
   }
 
   croak 'Failed to connect to 121GW' unless $self->isConnected();
+  $self->info('Connected to 121GW');
 
   my $uuid = $options{'indication-uuid'} || $INDICATION_UUID;
   my $service = $options{'indication-service'} || $INDICATION_SERVICE;
@@ -102,6 +104,24 @@ sub deviceName {
 sub setLogger {
   my ($self, $logger) = @_;
   $self->{logger} = $logger;
+}
+
+sub info {
+  my ($self, $message) = @_;
+  if ($self->{logger}) {
+    $self->{logger}->info($message);
+  } else {
+    print $message, "\n";
+  }
+}
+
+sub warning {
+  my ($self, $message) = @_;
+  if ($self->{logger}) {
+    $self->{logger}->warning($message);
+  } else {
+    warn $message;
+  }
 }
 
 sub shutdown {
@@ -231,7 +251,7 @@ sub parseData {
       shift @$buf;
       $count++;
     }
-    warn "parseData: cleared $count bytes from buffer\n" if $count;
+    $self->warning("parseData: cleared $count bytes from buffer") if $count;
 
     if (@$buf >= 19) {
       my $mode = $buf->[5] & 0x3f;
@@ -269,30 +289,30 @@ sub parseData {
       if ($max_offset) {
         if (defined $last_hot) {
           $legal = abs($main_value - $last_hot) <= $max_offset;
-          warn "parseData: rejected measurement: hot=$main_value, last_hot=$last_hot, max-offset=$max_offset\n" unless $legal;
+          $self->warning("parseData: rejected measurement: hot=$main_value, last_hot=$last_hot, max-offset=$max_offset") unless $legal;
         }
         if (defined $last_cold) {
           $legal = abs($sub_value - $last_cold) <= $max_offset;
-          warn "parseData: rejected measurement: cold=$sub_value, last_cold=$last_cold, max-offset=$max_offset\n" unless $legal;
+          $self->warning("parseData: rejected measurement: cold=$sub_value, last_cold=$last_cold, max-offset=$max_offset") unless $legal;
         }
       }
       if ($legal && $max_value) {
         if ($main_value > $max_value) {
-          warn "parseData: rejected measurement: main_value=$main_value, max_value=$max_value\n";
+          $self->warning("parseData: rejected measurement: main_value=$main_value, max_value=$max_value");
           $legal = 0;
         }
         if ($sub_value > $max_value) {
-          warn "parseData: rejected measurement: sub_value=$sub_value, max_value=$max_value\n";
+          $self->warning("parseData: rejected measurement: sub_value=$sub_value, max_value=$max_value");
           $legal = 0;
         }
       }
       if ($legal && $min_value) {
         if ($main_value < $min_value) {
-          warn "parseData: rejected measurement: main_value=$main_value, min_value=$min_value\n";
+          $self->warning("parseData: rejected measurement: main_value=$main_value, min_value=$min_value");
           $legal = 0;
         }
         if ($sub_value < $min_value) {
-          warn "parseData: rejected measurement: sub_value=$sub_value, min_value=$min_value\n";
+          $self->warning("parseData: rejected measurement: sub_value=$sub_value, min_value=$min_value");
           $legal = 0;
         }
       }
@@ -302,7 +322,7 @@ sub parseData {
         $checksum ^= $buf->[$i];
       }
       if ($checksum != 0) {
-        warn "parseData: rejected measurement: checksum=$checksum, expected=0\n";
+        $self->warning("parseData: rejected measurement: checksum=$checksum, expected=0");
         $legal = 0;
       }
 

@@ -1,4 +1,4 @@
-package PowerSupplyControl::Command::power;
+package PowerSupplyControl::Command::rework;
 
 use strict;
 use warnings qw(all -uninitialized);
@@ -6,7 +6,6 @@ use warnings qw(all -uninitialized);
 use Time::HiRes qw(sleep);
 
 use base qw(PowerSupplyControl::Command);
-use PowerSupplyControl::Math::SteadyStateDetector;
 use Carp;
 
 =head1 NAME
@@ -34,11 +33,11 @@ sub new {
 
     my $self = $class->SUPER::new($config, $interface, $controller, @args);
 
-    $self->{power} = $self->{args}->[0] || $config->{power}->{default};
+    $self->{'rework-temperature'} = $self->{args}->[0] || $config->{'rework-temperature'};
 
-    croak "Power level not specified." unless $self->{power};
-    croak "Power level must be a positive number: $self->{power}" unless $self->{power} > 0;
-    croak "Power level is crazy high: $self->{power}" unless $self->{power} < $interface->{power}->{maximum};
+    croak "Temperature not specified." unless $self->{'rework-temperature'};
+    croak "Temperature must be a positive number: $self->{'rework-temperature'}" unless $self->{'rework-temperature'} > 0;
+    croak "Temperature is crazy high: $self->{'rework-temperature'}" unless $self->{'rework-temperature'} < 230;
 
     return $self;
 }
@@ -53,14 +52,6 @@ The following command line options are supported:
 
 =over
 
-=item power
-
-The power level in watts. This is equivalent to setting the power via an unqualified numeric argument on the command line, although if both are specified, the unqualified argument takes precedence.
-
-=item run
-
-If set, the command will run continuously until the process is terminated by the user. This is functionally equivalent to setting samples=0.
-
 =item duration
 
 The time to run for in seconds. It set, the command will shut off power and exit after running for the specified duration.
@@ -70,10 +61,7 @@ The time to run for in seconds. It set, the command will shut off power and exit
 =cut
 
 sub options {
-  return ( 'power=i'
-         , 'duration=i'
-         , 'run'
-         );
+  return ( 'duration=i' );
 }
 
 sub preprocess {
@@ -98,9 +86,9 @@ sub keyEvent {
       return;
     }
   } elsif ($status->{key} eq 'up') {
-    $self->{power} += 1;
+    $self->{'rework-temperature'} += 1;
   } elsif ($status->{key} eq 'down') {
-    $self->{power} -= 1;
+    $self->{'rework-temperature'} -= 1;
   } else {
     $self->{'quit-count'} = 0;
   }
@@ -120,18 +108,11 @@ sub timerEvent {
       return;
     }
 
-    if ($self->{detector}) {
-      $status->{'steady-state-count'} = $self->{detector}->{count};
-      $status->{'filtered-delta'} = $self->{detector}->{'filtered-delta'};
+    $status->{'then-temperature'} = $status->{'now-temperature'} = $self->{'rework-temperature'};
 
-      if ($self->{detector}->check($status->{resistance})) {
-        $self->{interface}->off;
-        $self->beep;
-        return;
-      }
-    }
-
-    $self->{interface}->setPower($self->{power});
+    my $power = $self->{controller}->getRequiredPower($status);
+    $status->{'set-power'} = $power;
+    $self->{interface}->setPower($power);
 
     return $status;
 }

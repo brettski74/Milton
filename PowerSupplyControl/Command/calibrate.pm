@@ -418,8 +418,7 @@ sub _setupCoolDown {
   $self->_doThermalCalibrations($status, $status->{'event-loop'}->getHistory);
 
   # Create a Bang-Bang controller that we will use for the calibration reflow cycle
-  my $config = { hysteresis => 3
-               , temperatures => $self->{'rt-mapping'}
+  my $config = { temperatures => $self->{'rt-mapping'}
                , 'thermal-resistance' => $self->{'thermal-resistance'}
                , 'heat-capacity' => $self->{'heat-capacity'}
                , 'predict-time-constant' => 0

@@ -7,20 +7,32 @@ use IO::Select;
 use IO::Pipe;
 use POSIX qw(:sys_wait_h);
 
-sub new {
-  my ($class) = @_;
-  
-  my $self = { 'current-command' => undef
-             , 'command-pid' => undef
-             , 'command-output' => undef
-             , status => 'idle'
-             , 'column-names' => undef
-             , 'latest-data' => {}
-             };
+use Mojo::IOLoop::ReadWriteFork;
 
+sub new {
+  my ($class, $logger) = @_;
   
+  my $self = { currentCommand => undef
+             , commandPID => undef
+             , status => 'idle'
+             , columnNames => undef
+             , latestData => {}
+             , logger => $logger
+             };
   
   return bless $self, $class;
+}
+
+sub info {
+  my ($self, $message) = @_;
+
+  if ($self->{logger}) {
+    $self->{logger}->info($message);
+  } else {
+    print $message, "\n";
+  }
+
+  return 1;
 }
 
 sub discoverDevices {
@@ -49,36 +61,127 @@ sub discoverDevices {
   return @devices;
 }
 
+sub initializeCommand {
+  my ($self, $params) = @_;
+
+  my @cmd = qw(perl psc.pl
+               --logger PowerSupplyControl::WebDataLogger
+               --log set-power:.1f
+               --log predict-temperature:.1f
+               --log device-temperature:.1f
+               --log now-temperature:.1f
+               );
+
+  if (defined $params->{ambient}) {
+    push @cmd, '--ambient', $params->{ambient};
+  }
+
+  if (defined $params->{profile}) {
+    push @cmd, '--profile', $params->{profile};
+  }
+
+  # --r0 already handles --reset, so don't specify both
+  if (defined $params->{r0}) {
+    push @cmd, '--r0', $params->{r0};
+  } elsif ($params->{reset}) {
+    push @cmd, '--reset';
+  }
+
+  if (defined $params->{device}) {
+    push @cmd, '--device', $params->{device}
+             , '--log', 'device-temperature:.1f';
+  }
+
+  return @cmd;
+}
+
+sub executeDelaycal {
+  my ($self, $params) = @_;
+
+  if (!defined $params->{device}) {
+    croak 'Device name is required';
+  }
+
+  my @cmd = $self->initializeCommand($params);
+
+  push @cmd, 'delaycal';
+
+  return $self->executeCommand('delaycal', @cmd);
+}
+
+sub executeCalibrate {
+  my ($self, $params) = @_;
+
+  if (!defined $params->{device}) {
+    croak 'Device name is required';
+  }
+
+  my @cmd = $self->initializeCommand($params);
+  
+  push @cmd, 'calibrate';
+
+  return $self->executeCommand('calibrate', @cmd);
+}
+
 sub executeReflow {
-  my ($self, $device_name) = @_;
+  my ($self, $params) = @_;
   
-  # Check if command is already running
-  if ($self->{status} eq 'running') {
-    croak 'Command already running';
-  }
+  my @cmd = $self->initializeCommand($params);
   
-  # Build command line
-  my @cmd = ('perl', 'psc.pl');
-  
-  # Add logger option for WebDataLogger
-  push @cmd, '--logger', 'PowerSupplyControl::WebDataLogger';
-  push @cmd, '--log', 'predict-temperature:.1f';
-  
-  # Add device if specified
-  if ($device_name) {
-    push @cmd, '--device', $device_name;
-  }
-  
-  # Add reflow command
   push @cmd, 'reflow';
   
   return $self->executeCommand('reflow', @cmd);
 }
 
+sub executeReplay {
+  my ($self, $params) = @_;
+  
+  my $log_dir = 'log';
+  my $file_path = "$log_dir/$params->{file}";
+  unless (-f $file_path) {
+    croak "Log file not found: $params->{file}";
+  }
+  
+  my @cmd = $self->initializeCommand($params);
+  
+  push @cmd, 'replay';
+  push @cmd, '--speed', $params->{speed} if defined $params->{speed};
+  push @cmd, $file_path;
+  
+  return $self->executeCommand('replay', @cmd);
+}
+
+sub executePower {
+  my ($self, $params) = @_;
+
+  # Build command line
+  my @cmd = $self->initializeCommand($params);
+  
+  # Add replay command and file
+  push @cmd, 'power';
+  push @cmd, '--duration', $params->{duration} if defined $params->{duration};
+  push @cmd, $params->{power};
+
+  return $self->executeCommand('power', @cmd);
+}
+
+sub executeRework {
+  my ($self, $params) = @_;
+  
+  # Build command line
+  my @cmd = $self->initializeCommand($params);
+
+  push @cmd, 'rework';
+  push @cmd, '--duration', $params->{duration} if defined $params->{duration};
+  push @cmd, $params->{temperature};
+
+  return $self->executeCommand('rework', @cmd);
+}
+
 sub stopCommand {
   my ($self) = @_;
   
-  my $pid = $self->{'command-pid'};
+  my $pid = $self->{commandPID};
   return unless $pid;
   
   # Update state
@@ -99,225 +202,214 @@ sub toJSName {
 sub getStatus {
   my ($self) = @_;
   
-  my $status = { status => $self->{status}
-               , 'currentCommand' => $self->{'current-command'}
-               , 'commandPid' => $self->{'command-pid'}
-               , uptime => time()
-               };
-  
-  # Add latest data if available and command is running
-  if ($self->{'latest-data'} && $self->{status} eq 'running') {
-    # Use flat structure with original data names
-    foreach my $key (keys %{$self->{'latest-data'}}) {
-      $status->{$self->toJSName($key)} = $self->{'latest-data'}->{$key};
-    }
-    
-#    warn "CommandExecutor: Status data - " . join(', ', map { "$_: $status->{$_}" } keys %$status) . "\n";  # Debug output
-  } else {
-    $self->{'latest-data'} = {};
-  }
-  
-  return $status;
+  return { status => $self->{status}
+         , currentCommand => $self->{currentCommand}
+         , time => time()
+         , data => $self->{latestData}
+         };
 }
 
-sub readOutput {
-  my ($self) = @_;
-  
-  my $output_fh = $self->{'command-output'};
-  unless ($output_fh) {
-    warn "CommandExecutor: No output filehandle available\n";  # Debug output
-    return undef;
-  }
-  
-  my $select = IO::Select->new($output_fh);
-  my @ready = $select->can_read(0); # Non-blocking read
-  
-  if (@ready) {
-    my $line = <$output_fh>;
-    if (defined $line) {
-      chomp $line;
-#      warn "CommandExecutor: Raw line: '$line'\n";  # Debug output
-      return $self->parseOutputLine($line);
-    } else {
-      # Process finished
-#      warn "CommandExecutor: Process finished\n";  # Debug output
-      $self->commandFinished();
-      return;
-    }
-#  } else {
-    # No data ready to read
-#    warn "CommandExecutor: No data ready to read\n";  # Debug output
-  }
-  
-  return;
+sub addWebSocket {
+  my ($self, $ws) = @_;
+
+  push @{$self->{websockets}}, $ws;
+
+  # Send them current status
+  $self->_wsSendMessageTo($ws, $self->_formatDataMessage(undef, addWebSocket => 1));
+
+  $self->_wsSendMessageTo($ws, $self->_formatConsoleMessage(info => 'Data connection confirmed by server'));
+
+  return 1;
+}
+
+sub removeWebSocket {
+  my ($self, $ws) = @_;
+
+  @{$self->{websockets}} = grep { $_ ne $ws } @{$self->{websockets}};
+
+  return 1;
 }
 
 sub parseOutputLine {
   my ($self, $line) = @_;
   
-  # Check for HEAD: prefix (header row)
-  if ($line =~ /^HEAD: (.+)$/) {
-    my $header = $1;
-    my @columns = split(',', $header);
-    
-    # Store column names for future data parsing
-    $self->{'column-names'} = \@columns;
-    my @jscolumns = ();
-    foreach my $column (@columns) {
-      push @jscolumns, $self->toJSName($column);
-    }
-    
-    return { type => 'header'
-           , data => { columns => \@jscolumns
-                     , timestamp => time()
-                     }
-           };
+  my ($type, $data) = $line =~ /^(\w+): (.*)$/;
+
+  if (!defined $type) {
+    return $self->_consoleMessage('error', $line);
   }
-  
-  # Check for DATA: prefix (CSV data row)
-  if ($line =~ /^DATA: (.+)$/) {
-    my $csv_data = $1;
-    my @values = split(',', $csv_data);
-    
-    # Use stored column names or default if not available
-    if (!defined $self->{'column-names'}) {
-      return { type => 'console'
-             , data => { level => 'error'
-                       , message => 'No column names available'
-                       , timestamp => time()
-                       }
-             };
-    }
-    
-    # Create data hash using column names
-    my $data = {};
-    for (my $i = 0; $i < @{$self->{'column-names'}} && $i < @values; $i++) {
-      my $key = $self->{'column-names'}->[$i];
-      my $value = $values[$i];
-      # Convert to numeric if possible
-      $data->{$self->toJSName($key)} = $value =~ /^\d+\.?\d*$/ ? $value + 0 : $value;
-    }
-    
-    # Store latest data for status updates
-    $self->{'latest-data'} = $data;
-    warn "CommandExecutor: Stored data: " . join(', ', map { "$_: $data->{$_}" } keys %$data) . "\n";  # Debug output
-    
-    return { type => 'data'
-           , data => $data
-           };
-  }
-  
-  # Check for INFO: prefix
-  if ($line =~ /^INFO: (.+)$/) {
-    return { type => 'console'
-           , data => { level => 'info'
-                     , message => $1
-                     , timestamp => time()
-                     }
-           };
-  }
-  
-  # Check for WARN: prefix
-  if ($line =~ /^WARN: (.+)$/) {
-    return { type => 'console'
-           , data => { level => 'warning'
-                     , message => $1
-                     , timestamp => time()
-                     }
-           };
-  }
-  
-  # Check for DEBUG: prefix
-  if ($line =~ /^DEBUG: (.+)$/) {
-    return { type => 'console'
-           , data => { level => 'debug'
-                     , message => $1
-                     , timestamp => time()
-                     }
-           };
-  }
-  
-  # Non-prefixed lines are treated as errors
-  return { type => 'console'
-           , data => { level => 'error'
-                     , message => $line
-                     , timestamp => time()
-                     }
+
+  $type = lc($type);
+  my $method = '_'. $type;
+  if ($self->can($method)) {
+    return $self->$method($data);
+  } 
+
+  return $self->_consoleMessage($type, $data);
+}
+
+sub _formatWSMessage {
+  my ($self, $type, $data, %extra) = @_;
+
+  return { type => $type
+         , data => $data
+         , time => time()
+         , %extra
          };
+}
+
+sub _wsSendMessageTo {
+  my ($self, $ws, $type, $data, %extra) = @_;
+
+  $ws->send(Mojo::JSON::encode_json($self->_formatWSMessage($type, $data, %extra)));
+
+  return 1;
+}
+
+sub _wsSendMessage {
+  my ($self, $type, $data, %extra) = @_;
+
+  my $msg = Mojo::JSON::encode_json($self->_formatWSMessage($type, $data, %extra));
+
+  foreach my $ws (@{$self->{websockets}}) {
+    $ws->send($msg);
+  }
+
+  return 1;
+}
+
+sub _head {
+  my ($self, $line) = @_;
+
+  my @columns = split(',', $line);
+  
+  foreach my $column (@columns) {
+    $column = $self->toJSName($column);
+  }
+
+  $self->{columnNames} = \@columns;
+
+  return 1;
+}
+
+sub _formatDataMessage {
+  my ($self, $data, %extra) = @_;
+
+  my $status;
+  if (defined $data) {
+    my @values = split(',', $data);
+
+    $status = {};
+    @{$status}{@{$self->{columnNames}}} = @values;
+
+    $self->{latestData} = $status;
+  } else {
+    $status = $self->{latestData};
+  }
+
+  return (data => $status
+        , currentCommand => $self->{currentCommand}
+        , status => $self->{status}
+        , %extra
+        );
+}
+sub _data {
+  my ($self, $data, %extra) = @_;
+
+  $self->_wsSendMessage($self->_formatDataMessage($data, %extra));
+
+  return 1;
+}
+
+sub _formatConsoleMessage {
+  my ($self, $severity, $message, %extra) = @_;
+  return ( console => { severity => $severity
+                      , text => $message
+                      }
+         , %extra
+         );
+}
+
+sub _consoleMessage {
+  my ($self, $severity, $message, %extra) = @_;
+
+  return $self->_wsSendMessage($self->_formatConsoleMessage($severity, $message, %extra));
 }
 
 sub commandFinished {
   my ($self) = @_;
   
   # Wait for process to finish
-  if ($self->{'command-pid'}) {
-    waitpid($self->{'command-pid'}, 0);
+  if ($self->{commandPID}) {
+    waitpid($self->{commandPID}, 0);
   }
+
+  $self->_wsSendMessage('finish', $self->getStatus);
   
   # Reset state
-  $self->{'current-command'} = undef;
-  $self->{'command-pid'} = undef;
-  $self->{'command-output'} = undef;
+  delete $self->{currentCommand};
+  delete $self->{commandPID};
+  delete $self->{rwf};
   $self->{status} = 'idle';
-  $self->{'column-names'} = undef;
-  $self->{'latest-data'} = {};
+  delete $self->{columnNames};
+  delete $self->{latestData};
 }
 
 sub executeCommand {
   my ($self, $command, @cmd) = @_;
   
   # Check if command is already running
-  if ($self->{status} eq 'running') {
-    croak 'Command already running';
+  if ($self->{status} ne 'idle') {
+    croak 'Server busy';
   }
 
-  my $pipe = IO::Pipe->new() || croak "Failed to create pipe: $!";
-  my $pid = fork();
-  if ($pid) {
-    # Parent process
-    $pipe->reader();
-    $self->{'command-pid'} = $pid;
-    $self->{'command-output'} = $pipe;
+  $self->{status} = 'starting';
+
+  my $rwf = Mojo::IOLoop::ReadWriteFork->new();
+
+  $rwf->on(read => sub {
+    my ($rwf, $data) = @_;
+
+    my @lines = split /\n/, $data;
+    foreach my $line (@lines) {
+      $self->parseOutputLine($line);
+    }
+  });
+
+  $rwf->on(finish => sub {
+    $self->commandFinished();
+  });
+
+  $rwf->on(error => sub {
+    my ($rwf, $error) = @_;
+    $self->_consoleMessage(error => "Error: $error");
+    $self->commandFinished();
+  });
+
+  $rwf->on(spawn => sub {
+    my ($rwf) = @_;
+    $self->{commandPID} = $rwf->pid;
+    $self->{currentCommand} = $command;
+    $self->{columnNames} = [];
     $self->{status} = 'running';
-    $self->{'current-command'} = $command;
-    return $pid;
-  } elsif ($pid == 0) {
-    # Child process
-    $pipe->writer();
-    open(STDOUT, '>&', $pipe) || die "Failed to redirect stdout: $!";
-    open(STDERR, '>&', $pipe) || die "Failed to redirect stderr: $!";
 
-    exec(@cmd) || die "Failed to exec: $!";
-  }
+    $self->_data(undef, onSpawn => 1);
+  });
 
-  croak "fork failed: $!"; 
+  $self->info('Executing command: '. join(' ', @cmd));
+  $rwf->run(@cmd);
+
+  $self->_wsSendMessage('start', undef, currentCommand => $command, status => 'starting');
+
+  $self->{rwf} = $rwf;
+
+  return 1;
 }
 
-sub executeReplay {
-  my ($self, $file_name) = @_;
+sub receiveMessage {
+  my ($self, $ws, $message) = @_;
   
-  # Check if command is already running
-  if ($self->{status} eq 'running') {
-    croak 'Command already running';
-  }
-  
-  # Validate file exists and is in log directory
-  my $log_dir = 'log';
-  my $file_path = "$log_dir/$file_name";
-  unless (-f $file_path) {
-    croak "Log file not found: $file_name";
-  }
-  
-  # Build command line
-  my @cmd = ('perl', 'psc.pl');
-  
-  # Add logger option for WebDataLogger
-  push @cmd, '--logger', 'PowerSupplyControl::WebDataLogger';
-  
-  # Add replay command and file
-  push @cmd, 'replay', $file_path;
-  
-  return $self->executeCommand('replay', @cmd);
+  return;
 }
 
 sub getLogFiles {

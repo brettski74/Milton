@@ -149,6 +149,7 @@ sub _connect {
   my ($self) = @_;
 
   my $port = $self->{port} || croak ref($self) .': port must be specified.';
+  $self->info("Connecting to $port");
   my $serial = Device::SerialPort->new($port) || croak ref($self) .': could not open serial port ' . $port . ': ' . $!;
 
   $serial->baudrate($self->{'baudrate'});
@@ -162,13 +163,13 @@ sub _connect {
   $self->{serial} = $serial;
   ($self->{make}, $self->{model}, $self->{'serial-number'}, $self->{firmware}) = $self->_sendCommand('*IDN?');
 
-  $self->info("Connected to $self->{make} $self->{model} $self->{'serial-number'} $self->{firmware} on $port");
-
   my ($vset) = $self->_sendCommand('SOUR:VOLT?');
   my ($iset) = $self->_sendCommand('SOUR:CURR?');
   my ($on) = $self->_sendCommand('OUTP?');
   $on = ($on eq 'ON') ? 1 : 0;
   my ($volts, $amps, $power) = $self->_sendCommand('MEAS:ALL?');
+
+  $self->info("Connected to $self->{make} $self->{model} $self->{'serial-number'} $self->{firmware} on $port");
 
   return ($vset, $iset, $on, $volts, $amps);
 }

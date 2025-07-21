@@ -235,13 +235,22 @@ sub new {
   }
 
   # Set some defaults for the hysteresis if not specified in the configuration.
+  # Handle legacy configuration if hysteresis is scalar - assume it's a number to be applied equally on both sides.
+  if (!ref $self->{hysteresis}) {
+    $self->{hysteresis} = {
+      low => $self->{hysteresis},
+      high => $self->{hysteresis},
+    };
+  }
+  
   if (!defined $self->{hysteresis}->{low}) {
-    $self->{hysteresis}->{low} = 1;
+    $self->{hysteresis}->{low} = 0.5;
   } elsif ($self->{hysteresis}->{low} < 0) {
     $self->{hysteresis}->{low} = 0;
   }
+
   if (!defined $self->{hysteresis}->{high}) {
-    $self->{hysteresis}->{high} = 2;
+    $self->{hysteresis}->{high} = 0;
   } elsif ($self->{hysteresis}->{high} < 0) {
     $self->{hysteresis}->{high} = 0;
   }

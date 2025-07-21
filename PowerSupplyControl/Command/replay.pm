@@ -13,9 +13,18 @@ sub new {
 
   my $self = $class->SUPER::new($config, $interface, $controller, @args);
   
-  $self->{file} = shift @args;
+  $self->{file} = $self->{args}->[0];
+
+  if (!defined($self->{speed}) || $self->{speed} < 1) {
+    $self->{speed} = 1;
+  }
+  $self->info("Set speed of replay to $self->{speed}");
 
   return $self;
+}
+
+sub options {
+  return ('speed=i');
 }
 
 sub preprocess {
@@ -38,7 +47,7 @@ sub preprocess {
     my $status = {};
     @{$status}{@$headers} = @values;
 
-    my $now = time - $start;
+    my $now = (time - $start) * $self->{speed};
     my $howlong = $status->{now} - $now;
     if ($howlong > 0) {
       sleep $howlong;

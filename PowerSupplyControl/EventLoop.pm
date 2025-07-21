@@ -641,4 +641,14 @@ sub hasConsole {
   return $rc;
 }
 
+sub getController {
+  my ($self) = @_;
+  return $self->{controller};
+}
+
+sub getInterface {
+  my ($self) = @_;
+  return $self->{interface};
+}
+
 1;

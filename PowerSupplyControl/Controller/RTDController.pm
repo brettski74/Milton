@@ -132,7 +132,7 @@ sub getTemperature {
       $t1 = 20;
       $r1 = ($r0 / (1 + $ALPHA_CU * ($t0 - $t1)));
     }
-    print "Auto-adding calibration point at T=$t1, R=$r1\n";
+    $self->warning("Auto-adding calibration point at T=$t1, R=$r1");
     $est->addPoint($r1, $t1);
   }
 

@@ -275,6 +275,7 @@ sub defaults {
          , 'discard-samples' => 4
          , filename => 'thermal-calibration.yaml'
          , samples => 10
+         , 'ambient-tolerance' => 3
          };
 }
 
@@ -348,6 +349,12 @@ sub _nextStep {
     $self->{'step-name'} = 'rising-'. $self->{power};
   } elsif ($step % 2 == 0) {
     $self->{power} += 2 * $config->{'power-step'};
+
+    # If we've exceed max power, then move on to the next stage.
+    if ($self->{power} > $config->{'maximum-power'}) {
+      return $self->_setupCoolDown($status);
+    }
+
     $self->{'step-name'} = 'rising-'. $self->{power};
   } else {
     $self->{power} -= $config->{'power-step'};
@@ -430,34 +437,48 @@ sub _setupCoolDown {
   $controller->setDevice($self->{controller}->getDevice);
   $self->{'controller'} = $controller;
 
-  return $self->advanceStage('cooldown');
+  return $self->advanceStage('coolDown');
 }
 
 sub _coolDown {
   my ($self, $status) = @_;
   my $config = $self->{config};
+  my $target = $self->{ambient} + $config->{'ambient-tolerance'};
+  if ($self->{'notify-count'} <= 0) {
+    $self->info("Cooling down to $target");
+    $self->{'notify-count'} = 10;
+  }
+  $self->{'notify-count'}--;
 
-  if ($status->{'device-temperature'} <= $self->{ambient} + $self->{'ambient-tolerance'}) {
+  if ($status->{'device-temperature'} <= $target) {
     $self->info('Hotplate is at ambient temperature. Starting delay filter calibration.');
     $self->{'reflow-stages'} = PowerSupplyControl::Math::PiecewiseLinear->new->addPoint(0,0);
-    my $end = $status->{now};
+    my $end = $status->{now} + 2*$status->{period};
     foreach my $stage (@{$config->{profile}}) {
       $end += $stage->{seconds};
       $self->{'reflow-stages'}->addPoint($end, $stage->{temperature});
+      $self->info("Adding profile point at $end seconds: $stage->{temperature}");
     }
+    $self->{'reflow-start'} = $status->{now};
     $self->{'reflow-end'} = $end;
+    $self->info("Reflow start at time = $self->{'reflow-start'}, end at time = $end");
+
+    # Set minimum voltage so that the power supply is turned on.
+    my ($vmin, $vmax) = $self->{interface}->getVoltageLimits;
+    $self->{interface}->setVoltage($vmin);
 
     return $self->advanceStage('reflow');
   }
 
-  my ($vmin, $vmax) = $self->{interface}->getVoltageLimits;
-  $self->{interface}->setVoltage($vmin);
+  # Need no power to cool down - even vmin is too much! Will never reach ambient!
+  $self->{interface}->on(0);
 
   return $self;
 }
 
 sub _reflow {
   my ($self, $status) = @_;
+  $self->info("Reflow cycle at time = $status->{now}");
   
   if ($status->{now} >= $self->{'reflow-end'}) {
     $self->info('Reflow cycle complete.');
@@ -473,8 +494,6 @@ sub _reflow {
   $status->{'set-power'} = $power;
   
   $self->{interface}->setPower($power);
-
-  
 
   return $self;
 }
@@ -782,6 +801,8 @@ sub _doThermalCalibrations {
 sub _calculateDelaySquaredError {
   my ($self, $samples, $threshold, $tau) = @_;
 
+  my $offset = $self->{'delay-calc-offset'} || 0;
+
   my $sum_err2 = 0;
   my $iir = $samples->[0]->{temperature};
   my $period = $samples->[0]->{period};
@@ -802,7 +823,7 @@ sub _calculateDelaySquaredError {
 
 sub _calculateDelayFilter {
   my ($self, $status, $samples) = @_;
-  my $threshold = $self->{config}->{reflow}->{'profile-threshold'} // 160;
+  my $threshold = $self->{config}->{'profile-threshold'} // 160;
 
   my $above_threshold = sub { return $self->_calculateDelaySquaredError($samples, sub { return shift() > $threshold }, shift()); };
   my $below_threshold = sub { return $self->_calculateDelaySquaredError($samples, sub { return shift() <= $threshold }, shift()); };
@@ -826,7 +847,7 @@ sub postprocess {
       push @samples, $sample;
     }
   }
-  my ($tau, $tau_low) = $self->calculateDelayFilter($status, \@samples);
+  my ($tau, $tau_low) = $self->_calculateDelayFilter($status, \@samples);
 
   $fh->print("predict-time-constant: $tau\n\n");
   $fh->print("predict-time-constant-low: $tau_low\n\n");

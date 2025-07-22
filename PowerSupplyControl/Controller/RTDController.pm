@@ -50,7 +50,7 @@ sub _initializeDevice {
 
   my $device = undef;
   eval {
-    $device = $package->new(%$config);
+    $device = $package->new(logger => $self->{logger}, %$config);
   };
   # Ignore errors. Device assistance is optional. Warn the user and continue.
   if (!defined($device) || $@) {
@@ -107,6 +107,15 @@ sub getTemperature {
   my ($self, $status) = @_;
   my $est = $self->{rt_estimator};
 
+  # Get the device temperature first, in case we're acout to bug out due to no current.
+  if ($self->hasTemperatureDevice) {
+    my ($hot, $cold) = $self->{device}->getTemperature;
+    $status->{'device-temperature'} = $hot;
+    if (defined $cold) {
+      $status->{'device-ambient'} = $cold;
+    }
+  }
+
   # If there is insufficient current flowing, temperature cannot be estimated.
   return if ($status->{current} < $self->{interface}->getMeasurableCurrent);
 
@@ -140,14 +149,6 @@ sub getTemperature {
 
   $status->{resistance} = $resistance;
   $status->{temperature} = $temperature;
-
-  if ($self->hasTemperatureDevice) {
-    my ($hot, $cold) = $self->{device}->getTemperature;
-    $status->{'device-temperature'} = $hot;
-    if (defined $cold) {
-      $status->{'device-ambient'} = $cold;
-    }
-  }
 
   return $temperature;
 }

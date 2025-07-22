@@ -48,11 +48,6 @@ sub new {
 
   bless $self, $class;
 
-  $self->_initializeObject('interface');
-  $self->_initializeObject('controller', $self->{interface});
-
-  $self->_initializeCommand($command, @args);
-
   my $loggerPackage = 'PowerSupplyControl::DataLogger';
   if (exists $self->{config}->{logger}->{package}) {
     $loggerPackage = $self->{config}->{logger}->{package};
@@ -62,9 +57,14 @@ sub new {
 
   $self->{logger} = $self->_initializeNamedObject($loggerPackage, $self->{config}->clone('logging'), command => $command);
 
+  $self->_initializeObject('interface');
+  $self->_initializeObject('controller', $self->{interface});
+
+  $self->_initializeCommand($command, @args);
+
   $self->{command}->setLogger($self->{logger});
-  $self->{interface}->setLogger($self->{logger});
-  $self->{controller}->setLogger($self->{logger});
+  #$self->{interface}->setLogger($self->{logger});
+  #$self->{controller}->setLogger($self->{logger});
 
   $self->{console} = 1;
 
@@ -590,8 +590,11 @@ sub _initializeObject {
 
   my $package = $self->{config}->{$key}->{package};
 
+  my $config = $self->{config}->clone($key);
+  $config->{logger} = $self->{logger};
+
   eval {
-    $self->{$key} = $self->_initializeNamedObject($package, $self->{config}->clone($key), @args);
+    $self->{$key} = $self->_initializeNamedObject($package, $config, @args);
   };
 
   if ($@) {

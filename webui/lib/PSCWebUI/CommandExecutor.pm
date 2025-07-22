@@ -233,6 +233,12 @@ sub removeWebSocket {
 sub parseOutputLine {
   my ($self, $line) = @_;
   
+  while ($line =~ s/\a//) {
+    $self->_wsSendMessage('beep', undef);
+  }
+
+  return if $line =~ /^\s*$/;
+
   my ($type, $data) = $line =~ /^(\w+): (.*)$/;
 
   if (!defined $type) {

@@ -175,9 +175,9 @@ sub send {
   $timeout //= TIMEOUT;
 
   $self->{send}->print("$command\n");
-  if ($self->{debug}) {
-    print "send: $command\n";
-  }
+#  if ($self->{debug}) {
+#    print "send: $command\n";
+#  }
 
   if ($expect) {
     return $self->waitFor($expect, $timeout);
@@ -193,9 +193,9 @@ sub clearInputBuffer {
 
   while (my $line = $self->{recv}->getline) {
     chomp $line;
-    if ($self->{debug}) {
-      print "recv: $line\n";
-    }
+#    if ($self->{debug}) {
+#      print "recv: $line\n";
+#    }
   }
 }
 
@@ -213,9 +213,9 @@ sub waitFor {
   while ($timeout--) {
     while (my $line = $self->{recv}->getline) {
       chomp $line;
-      if ($self->{debug}) {
-        print "recv: $line\n";
-      }
+#      if ($self->{debug}) {
+#        print "recv: $line\n";
+#      }
       my @rc = $line =~ $expect;
       if (@rc) {
         if ($timeout_ref) {

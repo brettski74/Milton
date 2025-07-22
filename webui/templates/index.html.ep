@@ -186,12 +186,29 @@
                                                           , grid: { drawOnChartArea: false }
                                                           }
                                                     }
-                                           , plugins: { legend: { position: 'top' }
-                                                      }
-                                           , elements: { point: { radius: 0, hitRadius: 10 }
+                                           , plugins: { legend: { position: 'top' } }
+                                           , elements: { point: { radius: 0, hitRadius: 10 } }
                                            }
                                }
                           );
+  }
+
+  function playBeep() {
+    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    const oscillator = audioContext.createOscillator();
+    const gainNode = audioContext.createGain();
+
+    oscillator.connect(gainNode);
+    gainNode.connect(audioContext.destination);
+
+    oscillator.frequency.value = 330;
+    oscillator.type = 'sine';
+
+    gainNode.gain.setValueAtTime(1, audioContext.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
+
+    oscillator.start(audioContext.currentTime);
+    oscillator.stop(audioContext.currentTime + 0.5);
   }
 
   // Load available commands
@@ -270,6 +287,8 @@
       handleStartMessage(message);
     } else if (message.type === 'finish') {
       handleFinishMessage(message);
+    } else if (message.type === 'beep') {
+      playBeep();
     }
   }
 

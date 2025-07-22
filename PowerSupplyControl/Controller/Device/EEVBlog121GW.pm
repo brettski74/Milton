@@ -78,6 +78,10 @@ sub new {
   my ($class, %options) = @_;
   my $self = $class->SUPER::new(%options);
 
+  if (defined $options{'logger'}) {
+    $self->{logger} = $options{'logger'};
+  }
+
   $self->info('Connecting to 121GW');
   if ($options{'device-address'}) {
     $self->connect(qr/$options{'device-address'}/);
@@ -171,11 +175,17 @@ sub listenNow {
 
   return if $self->isListening();
   return if $self->{'cond-var'};
+
+  $self->{window} = [];
+  $self->{'window-count'} = 0;
   $self->{'cond-var'} = AnyEvent->condvar;
   $self->startListening();
   $self->{'cond-var'}->recv;
   $self->stopListening();
   delete $self->{'cond-var'};
+  delete $self->{'window'};
+  delete $self->{'window-count'};
+  delete $self->{'window-sum'};
 
   return $self;
 }
@@ -337,6 +347,10 @@ sub parseData {
         $last_hot = $main_value;
         $last_cold = $sub_value;
         $parseCount++;
+
+        if (exists $self->{'cond-var'}) {
+          $self->checkWindow($main_value);
+        }
       }
 
       splice @$buf, 0, 19;
@@ -345,14 +359,43 @@ sub parseData {
     }
   }
 
-  if ($parseCount > 0 && exists $self->{'cond-var'}) {
-    $self->{'cond-var'}->send;
-  }
-
   $self->{'last-hot'} = $last_hot;
   $self->{'last-cold'} = $last_cold;
 
   return $self;
+}
+
+sub checkWindow {
+  my $N = 8;
+  my ($self, $measurement) = @_;
+  my $window = $self->{'window'};
+  my $count = $self->{'window-count'}++;
+  my $idx = $count % $N;
+
+  if (defined $window->[$idx]) {
+    $self->{'window-sum'} -= $window->[$idx];
+  }
+
+  $window->[$idx] = $measurement;
+  $self->{'window-sum'} += $measurement;
+
+  return if $count < $N;
+
+  my $mean = $self->{'window-sum'} / $N;
+  my $var = 0;
+  foreach my $value (@$window) {
+    $var += ($value - $mean) * ($value - $mean);
+  }
+
+  $var /= $N;
+  print "checkWindow: var=$var, mean=$mean\n";
+
+  if ($var < 0.05) {
+    $self->{'cond-var'}->send;
+    return 1;
+  }
+
+  return;
 }
 
 =head2 stopListening()

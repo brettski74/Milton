@@ -1,0 +1,18 @@
+# Configuration file for PSC installation
+# Users can modify these variables to customize installation paths
+
+# Base directory for executables
+PREFIX ?= $(HOME)
+
+# Base directory for configuration files
+CONFIG_PREFIX ?= $(HOME)/.config
+
+# Executable directory (under PREFIX)
+BINDIR ?= $(PREFIX)/bin
+
+# Library directory for Perl modules (under PREFIX)
+# Standard locations: perl5/lib/perl5 lib/perl5, lib, perl5
+LIBDIR ?= $(PREFIX)/perl5/lib/perl5
+
+# Configuration directory (under CONFIG_PREFIX)
+CONFIGDIR ?= $(CONFIG_PREFIX)/psc 

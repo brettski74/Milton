@@ -64,7 +64,7 @@ sub discoverDevices {
 sub initializeCommand {
   my ($self, $params) = @_;
 
-  my @cmd = qw(perl psc.pl
+  my @cmd = qw(psc
                --logger PowerSupplyControl::WebDataLogger
                --log set-power:.1f
                --log predict-temperature:.1f

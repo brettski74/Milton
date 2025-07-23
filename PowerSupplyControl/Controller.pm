@@ -1,6 +1,8 @@
 package PowerSupplyControl::Controller;
 
+use Carp qw(croak);
 use PowerSupplyControl::Math::PiecewiseLinear;
+use PowerSupplyControl::Predictor;
 
 =head1 NAME
 
@@ -38,6 +40,19 @@ sub new {
   if (exists $config->{calibration}->{'heat-capacity'}) {
     my $tch = $config->{calibration}->{'heat-capacity'};
     $config->{'tch-estimator'} = PowerSupplyControl::Math::PiecewiseLinear->new->addHashPoints(temperature => 'heat-capacity', @$tch);
+  }
+
+  if (exists $config->{predictor}) {
+    eval "use $config->{predictor}->{package}";
+
+
+    if ($@) {
+      croak "Failed to load predictor $config->{predictor}->{package}: $@";
+    }
+
+    $config->{predictor} = $config->{predictor}->{package}->new(%{$config->{predictor}});
+  } else {
+    $config->{predictor} = PowerSupplyControl::Predictor->new;
   }
 
   return $config;
@@ -97,34 +112,7 @@ controller configuration. Setting it to 0 disabled the delay filter.
 sub predictTemperature {
   my ($self, $status) = @_;
 
-  my $alpha;
-  if (exists $self->{'predict-alpha'}) {
-    $alpha = $self->{'predict-alpha'};
-  } else {
-    if (exists $self->{calibration}->{'predict-time-constant'}) {
-      my $tau = $self->{calibration}->{'predict-time-constant'};
-      if ($tau > 0) {
-        $alpha = $status->{period} / ($status->{period} + $tau);
-      } else {
-        $alpha = 1;
-      }
-    } else {
-      $alpha = 1;
-    }
-    $self->{'predict-alpha'} = $alpha;
-  }
-
-  my $rc;
-  if (exists $self->{'predict-temperature'}) {
-    $rc = $status->{temperature} * $alpha + (1-$alpha) * $self->{'predict-temperature'};
-  } else {
-    $rc = $status->{temperature};
-  }
-
-  $self->{'predict-temperature'} = $rc;
-  $status->{'predict-temperature'} = $rc;
-
-  return $rc;
+  return $self->{predictor}->predictTemperature($status);
 }
 
 =head2 setPredictedTemperature($temperature)
@@ -137,7 +125,7 @@ IIR filter a known state.
 sub setPredictedTemperature {
   my ($self, $temperature) = @_;
 
-  $self->{'predict-temperature'} = $temperature;
+  $self->{predictor}->setPredictedTemperature($temperature);
 }
 
 =head2 getRequiredPower($status)

@@ -12,7 +12,7 @@ use PowerSupplyControl::t::MockController;
 subtest '_nextStep method' => sub {
   my $interface = PowerSupplyControl::t::MockInterface->new;
   my $controller = PowerSupplyControl::t::MockController->new;
-  my $config = {};
+  my $config = { 'maximum-power' => 100 };
 
   note('Testing command defaults');
   my $command = PowerSupplyControl::Command::calibrate->new($config, $interface, $controller);
@@ -69,6 +69,7 @@ subtest '_nextStep method' => sub {
    $config = { 'power-step' => 7.5
              , 'step-duration' => 300
              , 'maximum-temperature' => 250
+             , 'maximum-power' => 100
              };
 
   $command = PowerSupplyControl::Command::calibrate->new($config, $interface, $controller);

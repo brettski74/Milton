@@ -135,7 +135,9 @@ subtest 'Flat with Hysteresis' => sub {
 subtest 'Cut-off Temperature' => sub {
   my $config = { 'cut-off-temperature' => 225
                , hysteresis => { low => 0, high => 0 }
-               , calibration => { 'predict-time-constant' => 28 }
+               , predictor => { package => 'PowerSupplyControl::Predictor::LowPassFilter'
+                             , tau => 28
+                             }
                };
   my $interface = PowerSupplyControl::t::MockInterface->new();
   $interface->setPowerLimits(2, 100);

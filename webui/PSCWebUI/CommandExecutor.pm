@@ -9,6 +9,8 @@ use POSIX qw(:sys_wait_h);
 
 use Mojo::IOLoop::ReadWriteFork;
 
+use PowerSupplyControl::Config::Utils qw(getDeviceNames);
+
 sub new {
   my ($class, $logger) = @_;
   
@@ -36,29 +38,7 @@ sub info {
 }
 
 sub discoverDevices {
-  my ($self) = @_;
-  
-  my @devices = ();
-  my $device_dir = 'device';
-  
-  if (-d $device_dir) {
-    opendir(my $dh, $device_dir) or return @devices;
-    
-    while (my $file = readdir($dh)) {
-      if ($file =~ /\.yaml$/) {
-        my $device_name = $file;
-        $device_name =~ s/\.yaml$//;
-        push @devices, { name => $device_name
-                       , filename => $file
-                       , description => "Device: $device_name"
-                       };
-      }
-    }
-    
-    closedir($dh);
-  }
-  
-  return @devices;
+  return PowerSupplyControl::Config::Utils::getDeviceNames();
 }
 
 sub initializeCommand {
@@ -70,6 +50,9 @@ sub initializeCommand {
                --log predict-temperature:.1f
                --log device-temperature:.1f
                --log now-temperature:.1f
+               --log back-prediction:.1f
+               --log forward-prediction:.1f
+               --log last-update-delay:.3f
                );
 
   if (defined $params->{ambient}) {
@@ -129,6 +112,10 @@ sub executeReflow {
   my @cmd = $self->initializeCommand($params);
   
   push @cmd, 'reflow';
+
+  if (defined $params->{tune}) {
+    push @cmd, '--tune', $params->{tune};
+  }
   
   return $self->executeCommand('reflow', @cmd);
 }

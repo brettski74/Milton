@@ -3,6 +3,8 @@
 use strict;
 use warnings qw(all -uninitialized);
 
+use PowerSupplyControl::Config::Utils qw(getReflowProfiles getDeviceNames);
+
 # Make sure that we can find our libraries.
 BEGIN {
   my $path = __FILE__;
@@ -33,6 +35,10 @@ my $command_executor = PSCWebUI::CommandExecutor->new();
 
 # Serve static files from public directory
 app->static->paths->[0] = app->home->child('public');
+app->renderer->paths->[0] = $ENV{HOME} .'/share/psc/webui/templates';
+app->renderer->paths->[1] = '/usr/local/share/psc/webui/templates';
+app->renderer->paths->[2] = '/usr/share/psc/webui/templates';
+#app->renderer->paths->[0] = $ENV{'HOME'} .'/dev/hp-controller/webui/templates';
 
 # Basic routes
 get '/' => sub { my $c = shift;
@@ -96,10 +102,24 @@ group {
                                        }
                                      , { name => 'reflow'
                                        , description => 'Execute reflow profile'
-                                       , parameters => { device => { type => 'text'
+                                       , parameters => { device => { type => 'pdlist'
                                                                    , required => 0
                                                                    , description => 'Device to use (optional)'
+                                                                   , url => '/api/devices'
                                                                    }
+                                                       , profile => { type => 'pdlist'
+                                                                    , required => 0
+                                                                    , description => 'Reflow Profile (optional)'
+                                                                    , url => '/api/reflow/profiles'
+                                                                    , }
+                                                       , ambient => { type => 'number'
+                                                                    , required => 0
+                                                                    , description => 'Ambient temperature in degrees Celsius (optional)'
+                                                                    }
+                                                       , tune => { type => 'text'
+                                                                 , required => 0
+                                                                 , description => 'File to save tuning results to (optional)'
+                                                                 }
                                                        }
                                        }
                                      , { name => 'replay'
@@ -203,8 +223,8 @@ group {
   # Get available devices
   get '/api/devices' => sub {
     my $c = shift;
-    my @devices = $command_executor->discoverDevices();
-    $c->render(json => { devices => \@devices });
+    my @devices = getDeviceNames();
+    $c->render(json => { list => \@devices });
   };
   
   # Get available log files for replay
@@ -212,6 +232,12 @@ group {
     my $c = shift;
     my @logfiles = $command_executor->getLogFiles();
     $c->render(json => { logfiles => \@logfiles });
+  };
+
+  get '/api/reflow/profiles' => sub {
+    my $c = shift;
+    my @profiles = getReflowProfiles();
+    $c->render(json => { list => \@profiles });
   };
 
   # WebSocket endpoints

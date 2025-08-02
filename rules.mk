@@ -18,13 +18,8 @@ $(LIBDIR)/%.pm: %.pm
 	@cp $< $(LIBDIR)/$(dir $<)
 	@chmod $(LIBPERMS) $@
 
-# Pattern rule for YAML config files (only if they don't exist)
-#$(CONFIGDIR)/%.yaml: %.yaml
-#	@if [ -f "$<" ]; then \
-#		if [ ! -f "$@" ]; then \
-#			echo "Installing config file $<"; \
-#			cp $< $@; \
-#		else \
-#			echo "Config file $< already exists, skipping"; \
-#		fi; \
-#	fi 
+# Pattern rule for configuration templates (for shared directory installation)
+$(SHAREDIR)/config/%: config/%
+	@echo "Installing config template $< to $(SHAREDIR)/config/"
+	@mkdir -p $(dir $@)
+	@cp -r $< $@ 

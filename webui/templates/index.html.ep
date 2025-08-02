@@ -153,6 +153,7 @@
                                                      , borderColor: 'rgb(11, 190, 245)'
                                                      , backgroundColor: 'rgba(11, 190, 245, 0.1)'
                                                      , tension: 0.1
+                                                     , borderWidth: 1
                                                      , yAxisID: 'y1'
                                                      }
                                                    , { label: 'External'
@@ -160,6 +161,13 @@
                                                      , borderColor: 'rgb(139, 92, 246)'
                                                      , backgroundColor: 'rgba(139, 92, 246, 0.1)'
                                                      , tension: 0.1
+                                                     }
+                                                   , { label: 'Profile'
+                                                     , data: []
+                                                     , borderColor: 'rgb(224, 224, 32)'
+                                                     , backgroundColor: 'rgba(224, 224, 32, 0.1)'
+                                                     , tension: 0.1
+                                                     , borderWidth: 1
                                                      }
                                                    ]
                                        }
@@ -201,7 +209,7 @@
     oscillator.connect(gainNode);
     gainNode.connect(audioContext.destination);
 
-    oscillator.frequency.value = 330;
+    oscillator.frequency.value = 392;
     oscillator.type = 'sine';
 
     gainNode.gain.setValueAtTime(1, audioContext.currentTime);
@@ -233,6 +241,19 @@
     }
   }
 
+  async function loadListData(url, name) {
+    var list;
+    try {
+      const response = await fetch(url);
+      const data = await response.json();
+      list = data.list || [];
+    } catch (error) {
+      console.error('Failed to load ' + name + ':', error);
+      list = [];
+    }
+    return list;
+  }
+  
   // Load available devices
   async function loadDevices() {
     try {
@@ -365,6 +386,7 @@
                              , 'External': 'deviceTemperature'
                              , 'Hotplate': 'predictTemperature'
                              , 'Power': 'power'
+                             , 'Profile': 'nowTemperature'
                              };
       
     // Add data to each dataset based on available columns
@@ -525,31 +547,7 @@
       label.textContent = param.description || name;
       div.appendChild(label);
 
-      if (name === 'device') {
-        // Create device dropdown
-        const select = document.createElement('select');
-        select.name = name;
-        select.className = 'w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500';
-        select.required = param.required;
-                    
-        // Add empty option
-        const emptyOption = document.createElement('option');
-        emptyOption.value = '';
-        emptyOption.textContent = 'No device (use default)';
-        select.appendChild(emptyOption);
-                    
-        // Load devices
-        loadDevices().then(devices => {
-          devices.forEach(device => {
-            const option = document.createElement('option');
-            option.value = device.name;
-            option.textContent = device.description;
-            select.appendChild(option);
-          });
-        });
-                    
-        div.appendChild(select);
-      } else if (name === 'file') {
+      if (name === 'file') {
         // Create file dropdown for replay command
         const select = document.createElement('select');
         select.name = name;
@@ -577,6 +575,27 @@
               console.error('Failed to load log files:', error);
             });
               
+        div.appendChild(select);
+      } else if (param.type === 'pdlist') {
+        const select = document.createElement('select');
+        select.name = name;
+        select.className = 'w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500';
+        select.required = param.required;
+        const emptyOption = document.createElement('option');
+        emptyOption.value = '';
+        emptyOption.textContent = 'No ' + select.name + ' (use default)';
+        select.appendChild(emptyOption);
+        
+        loadListData(param.url, param.name).then(list => {
+          list.forEach(item => {
+            const option = document.createElement('option');
+            option.value = item.value;
+            option.textContent = item.displayName;
+            option.title = item.description;
+            select.appendChild(option);
+          });
+        });
+
         div.appendChild(select);
       } else if (param.type === 'boolean') {
         const checkbox = document.createElement('input');

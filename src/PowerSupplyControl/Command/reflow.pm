@@ -3,6 +3,9 @@ package PowerSupplyControl::Command::reflow;
 use strict;
 use warnings qw(all -uninitialized);
 use Math::Round qw(round);
+use Carp qw(croak);
+use IO::File;
+use PowerSupplyControl::Math::Util qw(setDebug setDebugWriter);
 
 use base qw(PowerSupplyControl::Command);
 
@@ -12,6 +15,10 @@ sub new {
   my $self = $class->SUPER::new($config, $interface, $controller, @args);
 
   return $self;
+}
+
+sub options {
+  return qw( tune=s );
 }
 
 sub _buildProfile {
@@ -48,7 +55,8 @@ sub preprocess {
   my $ambient = $status->{ambient};
 
   # Get some current flowing and poll the hotplate state
-  $self->{interface}->setCurrent($self->{config}->{current}->{startup});
+  #$self->{interface}->setCurrent($self->{config}->{current}->{startup});
+  $self->{interface}->setVoltage($self->{config}->{voltage}->{startup});
   sleep(0.5);
   $self->{interface}->poll($status);
 
@@ -101,6 +109,52 @@ sub timerEvent {
   }
 
   return $self;
+}
+
+sub postprocess {
+  my ($self, $status, $history) = @_;
+  if ($self->{tune}) {
+    my $predictor = $self->{controller}->getPredictor;
+
+    PowerSupplyControl::Math::Util::setDebug(255);
+    PowerSupplyControl::Math::Util::setDebugWriter(sub {
+      $self->info($_[0]);
+    });
+
+    my $results = $predictor->tune($history);
+    my $filename = $self->{tune};
+    if ($filename !~ /\.yaml$/) {
+      $filename .= '.yaml';
+    }
+    my $csvfile = $filename;
+    $csvfile =~ s/\.yaml$/.csv/;
+
+    my $fh = $self->replaceFile($filename);
+    foreach my $key (keys %$results) {
+      print $fh "$key: $results->{$key}\n";
+      $self->info("Tune: $key: $results->{$key}");
+    }
+    $fh->close;
+
+    $fh = $self->replaceFile($csvfile);
+    my %header = ( %{$history->[3]} );
+    my @columns = qw(now resistance power temperature device-temperature last-Tp);
+    foreach my $key (@columns) {
+      delete $header{$key};
+    }
+    @columns = ( @columns, keys %header );
+    $fh->print(join(',', @columns), "\n");
+
+    $predictor->initialize;
+    foreach my $sample (@$history) {
+      if ($sample->{event} eq 'timerEvent') {
+        $predictor->predictTemperature($sample);
+        my @row = map { $sample->{$_} } @columns;
+        $fh->print(join(',', @row), "\n");
+      }
+    }
+    $fh->close;
+  }
 }
 
 1;

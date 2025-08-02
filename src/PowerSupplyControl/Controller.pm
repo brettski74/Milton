@@ -353,4 +353,10 @@ sub debug {
   }
 }
 
+sub getPredictor {
+  my ($self) = @_;
+
+  return $self->{predictor};
+}
+
 1;

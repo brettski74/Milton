@@ -162,6 +162,7 @@ sub _connect {
 
   $self->{serial} = $serial;
   ($self->{make}, $self->{model}, $self->{'serial-number'}, $self->{firmware}) = $self->_sendCommand('*IDN?');
+  croak ref($self) .": could not get device information from $port: $!" if !defined($self->{make});
 
   my ($vset) = $self->_sendCommand('SOUR:VOLT?');
   my ($iset) = $self->_sendCommand('SOUR:CURR?');

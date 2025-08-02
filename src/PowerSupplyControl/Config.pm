@@ -16,11 +16,15 @@ use YAML::PP;
 use YAML::PP::Schema::Include;
 use Path::Tiny;
 use Carp;
-use Scalar::Util qw(reftype);
+use Scalar::Util qw(reftype refaddr);
 use Hash::Merge;
 use Clone;
+use Exporter qw(import);
+our @EXPORT_OK = qw(getYamlParser);
 
 my @search_path = ( '.' );
+
+my %path_cache = ();
 
 =head1 CONSTRUCTOR
 
@@ -69,15 +73,13 @@ sub _load_file {
   
   my $path = _resolve_file_path($filename);
 
-  my $include = YAML::PP::Schema::Include->new;
-  my $ypp = YAML::PP->new(schema => ['+', $include]);
-  $include->yp($ypp);
-
   my $pathstring = $path->stringify;
+
+  my $ypp = getYamlParser();
 
   my $result = $ypp->load_file($pathstring);
 
-  $result->{' path'} = $pathstring;
+  $path_cache{refaddr($result)} = $pathstring;
   
   return $result;
 }
@@ -125,7 +127,7 @@ sub _create_node {
   return {};
 }
 
-=head2 exists(@keys)
+=head2 findKey(@keys)
 
 Check if the specified path exists in the configuration.
 
@@ -146,7 +148,7 @@ exists but is set to undef, but I'm good with that.
 
 =cut
 
-sub exists {
+sub findKey {
   my ($self, @keys) = @_;
   my $node = $self;
 
@@ -360,7 +362,20 @@ Return the path from which this configuration was loaded.
 
 sub getPath {
   my ($self) = @_;
-  return $self->{' path'};
+  return $path_cache{refaddr($self)};
+}
+
+sub DESTROY {
+  my ($self) = @_;
+  delete $path_cache{refaddr($self)};
+}
+
+sub getYamlParser {
+  my $include = YAML::PP::Schema::Include->new;
+  my $ypp = YAML::PP->new(schema => ['+', $include]);
+  $include->yp($ypp);
+
+  return $ypp;
 }
 
 1;

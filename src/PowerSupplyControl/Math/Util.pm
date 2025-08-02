@@ -5,14 +5,22 @@ use warnings qw(all -uninitialized);
 use Carp qw(croak);
 use Scalar::Util qw(reftype);
 use Exporter 'import';
+use Time::HiRes qw(time);
 
 our @EXPORT_OK = qw(
   maximum
   mean
   meanSquaredError
-  minimumSearch
   minimum
+  minimumSearch
+  minimumSearch2D
+  minimumSearch3D
+  setDebug
+  setDebugWriter
 );
+
+my $DEBUG = 0;
+my $DEBUG_WRITER = undef;
 
 =head1 NAME
 
@@ -392,28 +400,263 @@ sub minimumSearch {
     }
   }
 
+  my ($new_lo, $new_hi) = _new_limits($best_x, $lo, $hi, $step, $steps, $options{lower_constrained}, $options{upper_constrained});
+
   # If minimum is at the lower boundary
-  if ($best_x == $lo) {
-    if ($options{lower_constrained}) {
-      return minimumSearch($fn, $lo, $lo+$step, %options);
-    }
+#  if ($best_x == $lo) {
+#    if ($options{lower_constrained}) {
+#      return minimumSearch($fn, $lo, $lo+$step, %options);
+#    }
 
-    # Extend the search below the low end since the minimum may be below $lo
-    return minimumSearch($fn, $lo+(1-$steps)*$step, $lo+$step, %options);
-  }
+#    # Extend the search below the low end since the minimum may be below $lo
+#    return minimumSearch($fn, $lo+(1-$steps)*$step, $lo+$step, %options);
+#  }
 
-  # If minimum is at the upper boundary
-  if ($best_x == $hi) {
-    if ($options{upper_constrained}) {
-      return minimumSearch($fn, $hi-$step, $hi, %options);
-    }
+#  # If minimum is at the upper boundary
+#  if ($best_x == $hi) {
+#    if ($options{upper_constrained}) {
+#      return minimumSearch($fn, $hi-$step, $hi, %options);
+#    }
 
-    # Extend the search above the high end since the minimum may be above $hi
-    return minimumSearch($fn, $hi-$step, $hi+($steps-1)*$step, %options);
-  }
+#    # Extend the search above the high end since the minimum may be above $hi
+#    return minimumSearch($fn, $hi-$step, $hi+($steps-1)*$step, %options);
+#  }
 
   # We don't know which side of $idx the minimum is on, so search between -1 and +1 step around it.
-  return minimumSearch($fn, $best_x - $step, $best_x + $step, %options);
+#  return minimumSearch($fn, $best_x - $step, $best_x + $step, %options);
+  return minimumSearch($fn, $new_lo, $new_hi, %options);
+}
+
+sub _new_limits {
+  my ($best, $lo, $hi, $step, $steps, $lo_constraint, $hi_constraint, $re_flag) = @_;
+  my $bottom = $best - $step;
+  my $top = $best + $step;
+  
+  if ($bottom < $lo) {
+    if ($re_flag < 0) {
+      # Range extended on the bottom twice in a row, so accelerate range extension
+      $bottom -= $step * $steps * 2;
+    }
+
+    $re_flag = -1;
+  } elsif ($top > $hi) {
+    if ($re_flag > 0) {
+      # Range extended on the top twice in a row, so accelerate range extension
+      $top += $step * $steps * 2;
+    }
+
+    $re_flag = 1;
+  }
+
+  if (defined($lo_constraint) && $bottom < $lo_constraint) {
+    $bottom = $lo_constraint;
+    $re_flag = 0;
+  }
+
+  if (defined($hi_constraint) && $top > $hi_constraint) {
+    $top = $hi_constraint;
+    $re_flag = 0;
+  }
+
+  return ( $bottom, $top, $re_flag );
+}
+
+sub setDebug {
+  $DEBUG = shift;
+}
+
+sub writeDebug {
+  my ($message) = @_;
+  if ($DEBUG) {
+    if ($DEBUG_WRITER) {
+      $DEBUG_WRITER->($message);
+    } else {
+      print "$message\n";
+    }
+  }
+}
+
+sub setDebugWriter {
+  $DEBUG_WRITER = shift;
+}
+
+sub minimumSearch2D {
+  my ($fn, $lim1, $lim2, %options) = @_;
+
+  my $elapsed;
+  my $start = time;
+
+  die 'lim1 is not an array reference.' unless reftype($lim1) eq 'ARRAY';
+  die 'lim2 is not an array reference.' unless reftype($lim2) eq 'ARRAY';
+  die 'lim1 is out of order.' unless $lim1->[0] <= $lim1->[1];
+  die 'lim2 is out of order.' unless $lim2->[0] <= $lim2->[1];
+
+  my $threshold = $options{threshold} // [ 0.01, 0.01 ];
+  if (!ref($threshold)) {
+    $threshold = [ $threshold, $threshold ];
+  }
+
+  # Copy the limits so we can work with them.
+  my @limits = ( [ @$lim1 ], [ @$lim2 ] );
+  $lim1 = $limits[0];
+  $lim2 = $limits[1];
+
+  # Check search depth to prevent infinite recursion
+  my $depth = $options{depth} // 100;
+
+  while ($depth > 0) {
+    if ($DEBUG) {
+      my $msg = sprintf('limits: [ %.6f, %.6f ], [ %.6f, %.6f ]'
+                      , $lim1->[0]
+                      , $lim1->[1]
+                      , $lim2->[0]
+                      , $lim2->[1]
+                      );
+      writeDebug($msg);
+      $elapsed = time;
+    }
+
+    $depth--;
+
+    my $range1 = $lim1->[1] - $lim1->[0];
+    my $range2 = $lim2->[1] - $lim2->[0];
+
+    my $steps = $options{steps} // 30;
+    my $step1 = $range1 / $steps;
+    my $step2 = $range2 / $steps;
+
+    my $best_y = $fn->($lim1->[0], $lim2->[0]);
+    my $best_x1 = $lim1->[0];
+    my $best_x2 = $lim2->[0];
+
+    for (my $i=1-$steps; $i <= 0; $i++) {
+      my $x1 = $lim1->[1] + $step1 * $i;
+      for (my $j=1-$steps; $j <= 0; $j++) {
+        my $x2 = $lim2->[1] + $step2 * $j;
+        my $y = $fn->($x1, $x2);
+        if ($y < $best_y) {
+          $best_y = $y;
+          $best_x1 = $x1;
+          $best_x2 = $x2;
+        }
+      }
+    }
+
+    if ($range1 <= $threshold->[0] && $range2 <= $threshold->[1]) {
+      if ($DEBUG) {
+        my $end = time;
+        writeDebug(sprintf("best: [ %.6f, %.6f ], elapsed: %.3f seconds", $best_x1, $best_x2, $end - $start));
+      }
+      return ( $best_x1, $best_x2 );
+    } else {
+      if ($DEBUG) {
+        my $end = time;
+        my $msg = sprintf("elapsed: %.3f seconds", $end - $elapsed);
+        $elapsed = $end;
+        $msg .= sprintf(" range1: %.6f > $threshold->[0]", $range1) if $range1 > $threshold->[0];
+        $msg .= sprintf(" range2: %.6f > $threshold->[1]", $range2) if $range2 > $threshold->[1];
+        writeDebug($msg);
+      }
+    }
+
+    @$lim1 = _new_limits($best_x1, $lim1->[0], $lim1->[1], $step1, $steps, $options{lower_constraint}->[0], $options{upper_constraint}->[0], $lim1->[2]);
+    @$lim2 = _new_limits($best_x2, $lim2->[0], $lim2->[1], $step2, $steps, $options{lower_constraint}->[1], $options{upper_constraint}->[1], $lim2->[2]);
+  }
+
+  croak 'Search depth exceeded.';
+  return;
+}
+
+sub minimumSearch3D {
+  my ($fn, $limits, %options) = @_;
+
+  my $elapsed;
+  if ($DEBUG) {
+    $elapsed = time;
+    my $msg = sprintf('limits: [ %.6f, %.6f ], [ %.6f, %.6f ], [ %.6f, %.6f ]'
+                    , @{$limits->[0]}
+                    , @{$limits->[1]}
+                    , @{$limits->[2]}
+                    );
+    writeDebug($msg);
+  }
+
+  die 'limits[0] is not an array reference.' unless reftype($limits->[0]) eq 'ARRAY';
+  die 'limits[1] is not an array reference.' unless reftype($limits->[1]) eq 'ARRAY';
+  die 'limits[2] is not an array reference.' unless reftype($limits->[2]) eq 'ARRAY';
+  die 'limits[0] is out of order ['. join(', ', @{$limits->[0]}) . ']' unless $limits->[0]->[0] <= $limits->[0]->[1];
+  die 'limits[1] is out of order ['. join(', ', @{$limits->[1]}) . ']' unless $limits->[1]->[0] <= $limits->[1]->[1];
+  die 'limits[2] is out of order ['. join(', ', @{$limits->[2]}) . ']' unless $limits->[2]->[0] <= $limits->[2]->[1];
+
+  # Check search depth to prevent infinite recursion
+  my $depth = $options{depth} // 100;
+  if ($depth <= 0) {
+    croak 'Search depth exceeded.';
+  }
+  $options{depth} = $depth - 1;
+
+  my $threshold = $options{threshold} // [ 0.01, 0.01, 0.01 ];
+  if (!ref($threshold)) {
+    $threshold = [ $threshold, $threshold, $threshold ];
+  }
+
+  my $steps = $options{steps} // 24;
+  my $range1 = $limits->[0]->[1] - $limits->[0]->[0];
+  my $range2 = $limits->[1]->[1] - $limits->[1]->[0];
+  my $range3 = $limits->[2]->[1] - $limits->[2]->[0];
+  my $step1 = $range1 / $steps;
+  my $step2 = $range2 / $steps;
+  my $step3 = $range3 / $steps;
+
+  my $best_y = $fn->($limits->[0]->[0], $limits->[1]->[0], $limits->[2]->[0]);
+  my $best_x1 = $limits->[0]->[0];
+  my $best_x2 = $limits->[1]->[0];
+  my $best_x3 = $limits->[2]->[0];
+
+  for (my $i=1-$steps; $i <= 0; $i++) {
+    my $x1 = $limits->[0]->[1] + $step1 * $i;
+    for (my $j=1-$steps; $j <= 0; $j++) {
+      my $x2 = $limits->[1]->[1] + $step2 * $j;
+      for (my $k=1-$steps; $k <= 0; $k++) {
+        my $x3 = $limits->[2]->[1] + $step3 * $k;
+        my $y = $fn->($x1, $x2, $x3);
+        if ($y < $best_y) {
+          $best_y = $y;
+          $best_x1 = $x1;
+          $best_x2 = $x2;
+          $best_x3 = $x3;
+        }
+      }
+    }
+  }
+
+  if ($range1 <= $threshold->[0] && $range2 <= $threshold->[1] && $range3 <= $threshold->[2]) {
+    if ($DEBUG) {
+      my $msg = sprintf("best: [ %.6f, %.6f, %.6f ]", $best_x1, $best_x2, $best_x3);
+      writeDebug($msg);
+    }
+    return ( $best_x1, $best_x2, $best_x3 );
+  } else {
+    if ($DEBUG) {
+      $elapsed = time - $elapsed;
+      my $msg = sprintf("elapsed: %.3f seconds", $elapsed);
+      $msg .= sprintf(" range1: %.6f > $threshold->[0]", $range1) if $range1 > $threshold->[0];
+      $msg .= sprintf(" range2: %.6f > $threshold->[1]", $range2) if $range2 > $threshold->[1];
+      $msg .= sprintf(" range3: %.6f > $threshold->[2]", $range3) if $range3 > $threshold->[2];
+      writeDebug($msg);
+    }
+  }
+
+  my ($new_lo1, $new_hi1) = _new_limits($best_x1, $limits->[0]->[0], $limits->[0]->[1], $step1, $steps, $options{lower_constraint}->[0], $options{upper_constraint}->[0]);
+  my ($new_lo2, $new_hi2) = _new_limits($best_x2, $limits->[1]->[0], $limits->[1]->[1], $step2, $steps, $options{lower_constraint}->[1], $options{upper_constraint}->[1]);
+  my ($new_lo3, $new_hi3) = _new_limits($best_x3, $limits->[2]->[0], $limits->[2]->[1], $step3, $steps, $options{lower_constraint}->[2], $options{upper_constraint}->[2]);
+
+  return minimumSearch3D($fn, [ [ $new_lo1, $new_hi1 ]
+                              , [ $new_lo2, $new_hi2 ]
+                              , [ $new_lo3, $new_hi3 ]
+                              ]
+                       , %options
+                       );
 }
 
 1;

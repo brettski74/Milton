@@ -2,6 +2,7 @@ package PowerSupplyControl::Interface;
 
 use strict;
 use warnings qw(all -uninitialized);
+use Time::HiRes qw(time);
 
 use Carp qw(croak);
 
@@ -204,6 +205,9 @@ sub poll {
   my $raw = $self->{raw};
   my $cooked = $self->{cooked};
 
+  # Save the time of the last sample for measuring update delays.
+  $self->{'last-update-delay'} = 0;
+  $self->{'sample-time'} = time;
   my ($vout, $iout, $on) = $self->_poll;
   $raw->{vout} = $vout;
   $raw->{iout} = $iout;
@@ -418,9 +422,11 @@ sub setVoltage {
   }
 
   my ($ok, $on, $iset);
+  my $update_time = undef;
   
   # Only set the voltage if this change is significant
   if (abs($vset - $raw->{vset}) >= $self->voltagePrecision) {
+    $update_time = time();
     ($ok, $on, $iset) = $self->_setVoltage($vset, $irec);
     croak "setVoltage: Failed to set output voltage" if !$ok;
     $raw->{vset} = $vset;
@@ -436,6 +442,7 @@ sub setVoltage {
   if (!defined($iset) || $iset <= 0) {
     # Only set the current if this change is significant
     if (abs($irec - $raw->{iset}) >= $self->currentPrecision) {
+      $update_time = time();
       ($ok, $on) = $self->_setCurrent($irec);
       croak "setVoltage: Failed to set current set point" if !$ok;
       $iset = $irec;
@@ -457,11 +464,20 @@ sub setVoltage {
     $raw->{on} = $cooked->{on} = 1;
   } else {
     if (defined($on) || (!defined($on) && !$raw->{on})) {
+      $update_time = time();
       $self->_on(1);
       $raw->{on} = 1;
       $cooked->{on} = 1;
     }
   } 
+
+  if (defined($update_time) && defined($self->{'sample-time'})) {
+    my $update_delay = $update_time - $self->{'sample-time'};
+    $self->{'last-update-delay'} = $update_delay;
+    $self->{'update-delay'} += $update_delay;
+    $self->{'update-count'}++;
+    $self->{'sample-time'} = undef;
+  }
 
   return $self;
 }
@@ -1109,6 +1125,22 @@ sub debug {
   if ($self->{logger}) {
     $self->{logger}->debug($level, $message);
   }
+}
+
+sub getLastUpdateDelay {
+  my ($self) = @_;
+
+  return $self->{'last-update-delay'};
+}
+
+sub getUpdateDelay {
+  my ($self) = @_;
+
+  if ($self->{'update-count'} > 0) {
+    return $self->{'update-delay'} / $self->{'update-count'};
+  }
+
+  return undef;
 }
 
 

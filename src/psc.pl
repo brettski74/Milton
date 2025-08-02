@@ -14,6 +14,7 @@ PowerSupplyControl::Config->addSearchDir(@{$args->{library}}
                        , split(/:/, $ENV{PSC_CONFIG_PATH})
                        , '.'
                        , "$ENV{HOME}/.config/psc"
+                       , "$ENV{HOME}/.local/share/psc"
                        , '/usr/local/share/psc'
                        , '/usr/share/psc'
                        );
@@ -41,7 +42,18 @@ if (PowerSupplyControl::Config->configFileExists("command/$command-override.yaml
 # Merge in any command line overrides
 if ($args->{override}) {
   foreach my $override (@{$args->{override}}) {
-    $config->merge($override);
+    my $filename = $override;
+    my @keys = ();
+    if ($override =~ /^([^:]+):(.*)$/) {
+      $filename = $2;
+      @keys = split /\./,$1;
+    }
+
+    if ($filename !~ /\.yaml$/) {
+      $filename .= '.yaml';
+    }
+
+    $config->merge($filename, @keys);
   }
 }
 
@@ -70,8 +82,9 @@ if ($args->{profile}) {
   if (PowerSupplyControl::Config->configFileExists("command/profile/$filename")) {
     $filename = "command/profile/$filename";
   }
-
-  $config->merge($filename, 'command', $command, 'profile');
+  
+  # Overwrite any existing profile. Don't merge. That appends onto the default profile.
+  $config->{command}->{$command}->{profile} = PowerSupplyControl::Config->new($filename);
 }
 
 # Add any extra logging columns
@@ -110,5 +123,7 @@ if ($args->{r0}) {
 }
 
 $evl->run;
+
+$evl->{logger}->info('update-delay: '. $evl->{interface}->getUpdateDelay);
   
 exit(0);

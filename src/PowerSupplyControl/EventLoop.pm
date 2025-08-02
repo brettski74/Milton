@@ -63,8 +63,8 @@ sub new {
   $self->_initializeCommand($command, @args);
 
   $self->{command}->setLogger($self->{logger});
-  #$self->{interface}->setLogger($self->{logger});
-  #$self->{controller}->setLogger($self->{logger});
+  $self->{interface}->setLogger($self->{logger});
+  $self->{controller}->setLogger($self->{logger});
 
   $self->{console} = 1;
 
@@ -87,7 +87,14 @@ be enriched with additional data as processing proceeds.
 sub poll {
   my ($self, $event, @attrs) = @_;
 
+  my $update_delay = $self->{interface}->getLastUpdateDelay;
+
   my $status = $self->{interface}->poll();
+  if (defined $update_delay) {
+    $status->{'last-update-delay'} = $update_delay;
+    $status->{'average-update-delay'} = $self->{interface}->getUpdateDelay;
+  }
+
   $status->{event} = $event;
   $status->{period} = $self->{config}->{period};
 
@@ -499,6 +506,7 @@ sub _timerWatcher {
                          , now => $self->_now
                          , ambient => $self->{ambient}
                          );
+
   if (! $cmd->timerEvent($status)) {
     $self->{logger}->log($status);
     $evl->send;

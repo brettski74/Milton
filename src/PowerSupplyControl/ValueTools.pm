@@ -181,7 +181,7 @@ key names associated with each column.
 
 =item Return Value
 
-An array of hashes, one for each line in the CSV file.
+An reference to an array of hashes, one for each line in the CSV file.
 
 =cut
 

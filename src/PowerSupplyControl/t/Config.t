@@ -33,33 +33,33 @@ ok(!PowerSupplyControl::Config->configFileExists('nonexistent.yaml'), 'nonexiste
 ok(PowerSupplyControl::Config->configFileExists('command/test.yaml'), 'command/test.yaml does exist');
 ok(!PowerSupplyControl::Config->configFileExists('command/are_you_serious.yaml'), 'command/are_you_serious.yaml does not exist');
 
-# Test exists method
-note("Testing exists method");
-subtest 'exists method' => sub {
+# Test findKey method
+note("Testing findKey method");
+subtest 'findKey method' => sub {
     # Test basic hash key existence
-    is($cfg2->exists('test1'), 'value1', 'exists returns value for existing top-level key');
-    is($cfg2->exists('test2'), 'value2', 'exists returns value for existing top-level key');
-    is($cfg2->exists('test3'), { colour => 'green', size => 'large' }, 'exists returns value for existing hash key');
+    is($cfg2->findKey('test1'), 'value1', 'findKey returns value for existing top-level key');
+    is($cfg2->findKey('test2'), 'value2', 'findKey returns value for existing top-level key');
+    is($cfg2->findKey('test3'), { colour => 'green', size => 'large' }, 'findKey returns value for existing hash key');
     
     # Test non-existent keys
-    is($cfg2->exists('nonexistent'), undef, 'exists returns undef for non-existent top-level key');
-    is($cfg2->exists('test1', 'nonexistent'), undef, 'exists returns undef for non-existent nested key');
+    is($cfg2->findKey('nonexistent'), undef, 'findKey returns undef for non-existent top-level key');
+    is($cfg2->findKey('test1', 'nonexistent'), undef, 'findKey returns undef for non-existent nested key');
     
     # Test nested hash access
-    is($cfg2->exists('test3', 'colour'), 'green', 'exists returns value for existing nested hash key');
-    is($cfg2->exists('test3', 'size'), 'large', 'exists returns value for existing nested hash key');
-    is($cfg2->exists('test3', 'nonexistent'), undef, 'exists returns undef for non-existent nested hash key');
+    is($cfg2->findKey('test3', 'colour'), 'green', 'findKey returns value for existing nested hash key');
+    is($cfg2->findKey('test3', 'size'), 'large', 'findKey returns value for existing nested hash key');
+    is($cfg2->findKey('test3', 'nonexistent'), undef, 'findKey returns undef for non-existent nested hash key');
     
     # Test deep nesting
-    is($cfg2->exists('test3', 'colour'), 'green', 'exists works with deep nesting');
+    is($cfg2->findKey('test3', 'colour'), 'green', 'findKey works with deep nesting');
     
     # Test with empty key list
-    is($cfg2->exists(), $cfg2, 'exists with no keys returns the entire config');
+    is($cfg2->findKey(), $cfg2, 'findKey with no keys returns the entire config');
     
     # Test with undef values
     my $cfg_with_undef = PowerSupplyControl::Config->new();
     $cfg_with_undef->{undef_key} = undef;
-    is($cfg_with_undef->exists('undef_key'), undef, 'exists returns undef for key that exists but has undef value');
+    is($cfg_with_undef->findKey('undef_key'), undef, 'findKey returns undef for key that exists but has undef value');
     
     # Test with array access (if we had arrays in the test config)
     # Since testconfig.yaml doesn't have arrays, let's create a test config with arrays
@@ -70,33 +70,33 @@ subtest 'exists method' => sub {
         hash => { key => 'value' }
     };
     
-    is($array_cfg->exists('array_key', 0), 'item1', 'exists returns value for existing array index');
-    is($array_cfg->exists('array_key', 1), 'item2', 'exists returns value for existing array index');
-    is($array_cfg->exists('array_key', 2), 'item3', 'exists returns value for existing array index');
-    is($array_cfg->exists('array_key', 3), undef, 'exists returns undef for non-existent array index');
-    is($array_cfg->exists('array_key', -1), 'item3', 'exists returns undef for negative array index');
+    is($array_cfg->findKey('array_key', 0), 'item1', 'findKey returns value for existing array index');
+    is($array_cfg->findKey('array_key', 1), 'item2', 'findKey returns value for existing array index');
+    is($array_cfg->findKey('array_key', 2), 'item3', 'findKey returns value for existing array index');
+    is($array_cfg->findKey('array_key', 3), undef, 'findKey returns undef for non-existent array index');
+    is($array_cfg->findKey('array_key', -1), 'item3', 'findKey returns undef for negative array index');
     
     # Test nested array access
-    is($array_cfg->exists('nested', 'array', 0), 'nested1', 'exists returns value for existing nested array index');
-    is($array_cfg->exists('nested', 'array', 1), 'nested2', 'exists returns value for existing nested array index');
-    is($array_cfg->exists('nested', 'array', 2), { 'nested-hash-key' => 'nested-hash-value' }, 'exists returns value for existing nested array index');
-    is($array_cfg->exists('nested', 'array', 3), undef, 'exists returns undef for non-existent nested array index');
+    is($array_cfg->findKey('nested', 'array', 0), 'nested1', 'findKey returns value for existing nested array index');
+    is($array_cfg->findKey('nested', 'array', 1), 'nested2', 'findKey returns value for existing nested array index');
+    is($array_cfg->findKey('nested', 'array', 2), { 'nested-hash-key' => 'nested-hash-value' }, 'findKey returns value for existing nested array index');
+    is($array_cfg->findKey('nested', 'array', 3), undef, 'findKey returns undef for non-existent nested array index');
 
     # Test mixed hash and array access
-    is($array_cfg->exists('nested', 'hash', 'key'), 'value', 'exists works with mixed hash and array access');
-    is($array_cfg->exists('nested', 'array', 2, 'nested-hash-key'), 'nested-hash-value', 'hash-array-hash nesting'); 
-    is($array_cfg->exists('nested', 'array', 2, 'nested-has-key'), undef, 'hash-array-hash nesting'); 
+    is($array_cfg->findKey('nested', 'hash', 'key'), 'value', 'findKey works with mixed hash and array access');
+    is($array_cfg->findKey('nested', 'array', 2, 'nested-hash-key'), 'nested-hash-value', 'hash-array-hash nesting'); 
+    is($array_cfg->findKey('nested', 'array', 2, 'nested-has-key'), undef, 'hash-array-hash nesting'); 
     
     # Test with non-integer keys on arrays
-    is($array_cfg->exists('array_key', 'string'), undef, 'exists returns undef for non-integer key on array');
+    is($array_cfg->findKey('array_key', 'string'), undef, 'findKey returns undef for non-integer key on array');
     
     # Test with empty strings as keys
     $array_cfg->{''} = 'empty_key_value';
-    is($array_cfg->exists(''), 'empty_key_value', 'exists works with empty string as key');
+    is($array_cfg->findKey(''), 'empty_key_value', 'findKey works with empty string as key');
     
     # Test with zero as key
     $array_cfg->{0} = 'zero_key_value';
-    is($array_cfg->exists(0), 'zero_key_value', 'exists works with zero as key');
+    is($array_cfg->findKey(0), 'zero_key_value', 'findKey works with zero as key');
     
 };
 
@@ -155,7 +155,7 @@ is($include_cfg->{environment}, 'development', 'environment');
 is($include_cfg->getPath, 't/include_base.yaml');
 
 # Test that included controller configuration is loaded
-ok(exists $include_cfg->{controller}, 'Controller configuration should be included');
+is($include_cfg->{controller}, D(), 'Controller configuration should be included');
 is($include_cfg->{controller}->{thermal_constant}, 1.234, 'controller->thermal_constant');
 is($include_cfg->{controller}->{thermal_offset}, 34.56, 'controller->thermal_offset');
 is($include_cfg->{controller}->{reflow_profile}->[0]->{name}, 'preheat', 'controller->reflow_profile->1->name');
@@ -166,7 +166,7 @@ is($include_cfg->{controller}->{reflow_profile}->[1]->{duration}, 99, 'controlle
 is($include_cfg->{controller}->{reflow_profile}->[1]->{target_temperature}, 169, 'controller->reflow_profile->2->target_temperature');
 
 # Test that included interface configuration is loaded
-ok(exists $include_cfg->{interface}, 'Interface configuration should be included');
+is($include_cfg->{interface}, D(), 'Interface configuration should be included');
 is($include_cfg->{interface}->{address}, 1, 'interface->address');
 is($include_cfg->{interface}->{baud_rate}, 19200, 'interface->baud_rate');
 is($include_cfg->{interface}->{power}->{max}, 120, 'interface->power->max');

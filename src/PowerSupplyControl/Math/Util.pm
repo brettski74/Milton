@@ -480,7 +480,7 @@ sub minimumSearch2D {
   die 'lim1 is out of order.' unless $lim1->[0] <= $lim1->[1];
   die 'lim2 is out of order.' unless $lim2->[0] <= $lim2->[1];
 
-  my $threshold = $options{threshold} // [ 0.01, 0.01 ];
+  my $threshold = $options{threshold} // [ 0.001, 0.001 ];
   if (!ref($threshold)) {
     $threshold = [ $threshold, $threshold ];
   }

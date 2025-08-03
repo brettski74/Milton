@@ -22,38 +22,38 @@ subtest 'quadratic function' => sub {
     return quadratic(shift, 1, -10, 29) + quadratic(shift, 1, -14, 53);
   };
   my @x = minimumSearch2D($fn, [ 0, 10 ], [0, 10]);
-  is($x[0], float(5, tolerance => 0.01), 'x1');
-  is($x[1], float(7, tolerance => 0.01), 'x2');
+  is($x[0], float(5, tolerance => 0.001), 'x1');
+  is($x[1], float(7, tolerance => 0.001), 'x2');
 
   # Make the search space lower bounded on the solution
   @x = minimumSearch2D($fn, [ 5, 10 ], [0, 10]);
-  is($x[0], float(5, tolerance => 0.01), 'x1 - lower-bounded on solution');
-  is($x[1], float(7, tolerance => 0.01), 'x2 - lower-bounded on solution');
+  is($x[0], float(5, tolerance => 0.001), 'x1 - lower-bounded on solution');
+  is($x[1], float(7, tolerance => 0.001), 'x2 - lower-bounded on solution');
 
   # Make the search space upper bounded on the solution
   @x = minimumSearch2D($fn, [ 0, 10 ], [0, 7]);
-  is($x[0], float(5, tolerance => 0.01), 'x1 - upper-bounded on solution');
-  is($x[1], float(7, tolerance => 0.01), 'x2 - upper-bounded on solution');
+  is($x[0], float(5, tolerance => 0.001), 'x1 - upper-bounded on solution');
+  is($x[1], float(7, tolerance => 0.001), 'x2 - upper-bounded on solution');
 
   # Lower-constrain the solution on the actual minimum
-  @x = minimumSearch2D($fn, [ 5, 10 ], [0, 10], lower_constraint => [5, undef]);
-  is($x[0], float(5, tolerance => 0.01), 'x1 - lower-constrained on solution');
-  is($x[1], float(7, tolerance => 0.01), 'x2 - lower-constrained on solution');
+  @x = minimumSearch2D($fn, [ 5, 10 ], [0, 10], 'lower-constraint' => [5, undef]);
+  is($x[0], float(5, tolerance => 0.001), 'x1 - lower-constrained on solution');
+  is($x[1], float(7, tolerance => 0.001), 'x2 - lower-constrained on solution');
 
   # Upper-constrain the solution on the actual minimum
   @x = minimumSearch2D($fn, [ 0, 4 ], [0, 7], 'upper-constraint' => [ undef, 7 ]);
-  is($x[0], float(5, tolerance => 0.01), 'x1 - upper-constrained on solution');
-  is($x[1], float(7, tolerance => 0.01), 'x2 - upper-constrained on solution');
+  is($x[0], float(5, tolerance => 0.001), 'x1 - upper-constrained on solution');
+  is($x[1], float(7, tolerance => 0.001), 'x2 - upper-constrained on solution');
 
   # Lower-constrain the solution above the actual minimum
   @x = minimumSearch2D($fn, [ 6, 10 ], [9, 18], 'lower-constraint' => [undef, 8]);
-  is($x[0], float(5, tolerance => 0.01), 'x1 - lower-constrained above solution');
-  is($x[1], float(8, tolerance => 0.01), 'x2 - lower-constrained above solution');
+  is($x[0], float(5, tolerance => 0.001), 'x1 - lower-constrained above solution');
+  is($x[1], float(8, tolerance => 0.001), 'x2 - lower-constrained above solution');
 
   # Upper-constrain the solution below the actual minimum
   @x = minimumSearch2D($fn, [ 0, 4 ], [0, 6], 'upper-constraint' => [ 4.5, undef ]);
-  is($x[0], float(4.5, tolerance => 0.01), 'x1 - upper-constrained below solution');
-  is($x[1], float(7, tolerance => 0.01), 'x2 - upper-constrained below solution');
+  is($x[0], float(4.5, tolerance => 0.001), 'x1 - upper-constrained below solution');
+  is($x[1], float(7, tolerance => 0.001), 'x2 - upper-constrained below solution');
 
 };
 

@@ -2,11 +2,15 @@
 
 use strict;
 use warnings qw(all -uninitialized);
+use lib qw(.);
 
 use Test2::V0;
 
-use PowerSupplyControl::Math::Util qw(minimumSearch);
+use PowerSupplyControl::Math::Util qw(minimumSearch setDebug setDebugWriter);
 use PowerSupplyControl::ValueTools qw(dirname readCSVData);
+
+setDebug($ENV{DEBUG});
+setDebugWriter(sub { diag(@_); });
 
 sub quadratic {
   my ($x, $a, $b, $c) = @_;
@@ -32,16 +36,16 @@ subtest 'simple quadratic function' => sub {
   $result = minimumSearch($fn, -10, 0);
   is($result, float(5, tolerance => 0.01), 'minimum search when minimum is above upper bound');
 
-  $result = minimumSearch($fn, 5, 10, lower_constrained => 1);
+  $result = minimumSearch($fn, 5, 10, 'lower-constraint' => 5);
   is($result, float(5, tolerance => 0.01), 'lower-constrained search when minimum is on lower bound');
 
-  $result = minimumSearch($fn, 0, 5, upper_constrained => 1);
+  $result = minimumSearch($fn, 0, 5, 'upper-constraint' => 5);
   is($result, float(5, tolerance => 0.01), 'upper-constrained search when minimum is on upper bound');
 
-  $result = minimumSearch($fn, 6, 10, lower_constrained => 1);
+  $result = minimumSearch($fn, 6, 10, 'lower-constraint' => 6);
   is($result, float(6, tolerance => 0.01), 'lower-constrained search when minimum is below lower bound');
 
-  $result = minimumSearch($fn, 0, 4, upper_constrained => 1);
+  $result = minimumSearch($fn, 0, 4, 'upper-constraint' => 4);
   is($result, float(4, tolerance => 0.01), 'upper-constrained search when minimum is above upper bound');
 
   $result = minimumSearch($fn, 0, 10, threshold => 0.0000001);
@@ -58,7 +62,7 @@ subtest 'failure cases' => sub {
 
   like(dies { minimumSearch($fn, 0, 10); }, qr/Search depth exceeded/i, 'Search depth exceeded');
   like( dies { minimumSearch($fn, 10, 8); }, qr/High end.*less.*low end/i, 'Limits reversed');
-  like( dies { minimumSearch($fn, 0, 10, steps => 1); }, qr/Steps must be greater than/i, 'Insufficient steps');
+  like( dies { minimumSearch($fn, 0, 10, steps => 1); }, qr/Must have at least 4 steps/i, 'Insufficient steps');
 
 };
 

@@ -347,84 +347,72 @@ provided function.
 
 sub minimumSearch {
   my ($fn, $lo, $hi, %options) = @_;
+  my $start = time;
 
   if ($hi < $lo) {
     croak 'High end of search space is less than the low end.';
   }
 
-  my $threshold = $options{threshold} // 0.01;
-
-  # Met threshold - return best of lo, mid, hi values
-  if ($hi - $lo <= $threshold) {
-    my $mid = ($lo + $hi) / 2;
-    my $fnlo = $fn->($lo);
-    my $fnmid = $fn->($mid);
-    my $fnhi = $fn->($hi);
-    
-    if ($fnlo < $fnmid) {
-      if ($fnlo < $fnhi) {
-        return $lo;
-      }
-      return $hi;
-    } elsif ($fnmid < $fnhi) {
-      return $mid;
-    }
-    return $hi;
-  }
-
-  # Check search depth to prevent infinite recursion
-  my $depth = $options{depth} // 100;
-  if ($depth <= 0) {
-    croak 'Search depth exceeded.';
-  }
-  $options{depth} = $depth - 1;
-
+  my $hi_constraint = $options{'upper-constraint'};
+  my $lo_constraint = $options{'lower-constraint'};
   my $steps = $options{steps} // 100;
-  if ($steps < 4) {
-    croak 'Number of steps must be greater than 4.';
-  }
 
-  my $step = ($hi - $lo) / $steps;
+  croak "Must have at least 4 steps." if $steps < 4;
 
-  my $best_x = $lo;
-  my $best_y = $fn->($lo);
-  my @data = ( [ $best_x, $best_y] );
+  my $threshold = $options{threshold} // 0.001;
 
-  for (my $i=1-$steps; $i <= 0; $i++) {
-    my $x = $hi + $step * $i;
-    my $y = $fn->($x);
-    push @data, [ $x, $y ];
-    if ($y < $best_y) {
-      $best_y = $y;
-      $best_x = $x;
+  my $depth = $options{depth} // 100;
+
+  my $elapsed = $start;
+  my $re_flag = 0;
+
+  while ($depth > 0) {
+    if ($DEBUG) {
+      my $msg = sprintf('limits: [ %.6f, %.6f ]'
+                      , $lo
+                      , $hi
+                      );
+      writeDebug($msg);
+    }
+    $depth--;
+
+    croak "Search range limits out of order [ $lo, $hi ]" if $hi < $lo;
+
+    my $range = $hi - $lo;
+    my $step = $range / $steps;
+
+    my $best_x = $lo;
+    my $best_y = $fn->($lo);
+
+    for (my $i=1-$steps; $i <= 0; $i++) {
+      my $x = $hi + $step * $i;
+      my $y = $fn->($x);
+      if ($y < $best_y) {
+        $best_y = $y;
+        $best_x = $x;
+      }
+    }
+
+    if ($range <= $threshold) {
+      if ($DEBUG) {
+        my $end = time;
+        my $msg = sprintf("best: %.6f, elapsed: %.3f seconds", $best_x, $end - $start);
+        writeDebug($msg);
+      }
+      return $best_x;
+    }
+
+    ($lo, $hi, $re_flag) = _new_limits($best_x, $lo, $hi, $step, $steps, $lo_constraint, $hi_constraint, $re_flag);
+    if ($DEBUG) {
+      my $end = time;
+      my $msg = sprintf("elapsed: %.3f seconds", $end - $elapsed);
+      $elapsed = $end;
+      $msg .= sprintf(" range: %.6f > $threshold", $range) if $range > $threshold;
+      writeDebug($msg);
     }
   }
 
-  my ($new_lo, $new_hi) = _new_limits($best_x, $lo, $hi, $step, $steps, $options{lower_constrained}, $options{upper_constrained});
-
-  # If minimum is at the lower boundary
-#  if ($best_x == $lo) {
-#    if ($options{lower_constrained}) {
-#      return minimumSearch($fn, $lo, $lo+$step, %options);
-#    }
-
-#    # Extend the search below the low end since the minimum may be below $lo
-#    return minimumSearch($fn, $lo+(1-$steps)*$step, $lo+$step, %options);
-#  }
-
-#  # If minimum is at the upper boundary
-#  if ($best_x == $hi) {
-#    if ($options{upper_constrained}) {
-#      return minimumSearch($fn, $hi-$step, $hi, %options);
-#    }
-
-#    # Extend the search above the high end since the minimum may be above $hi
-#    return minimumSearch($fn, $hi-$step, $hi+($steps-1)*$step, %options);
-#  }
-
-  # We don't know which side of $idx the minimum is on, so search between -1 and +1 step around it.
-#  return minimumSearch($fn, $best_x - $step, $best_x + $step, %options);
-  return minimumSearch($fn, $new_lo, $new_hi, %options);
+  croak 'Search depth exceeded.';
 }
 
 sub _new_limits {
@@ -463,6 +451,7 @@ sub _new_limits {
 
 sub setDebug {
   $DEBUG = shift;
+  return $DEBUG;
 }
 
 sub writeDebug {
@@ -496,6 +485,9 @@ sub minimumSearch2D {
     $threshold = [ $threshold, $threshold ];
   }
 
+  my $steps = $options{steps} // 30;
+  croak "Must have at least 4 steps." if $steps < 4;
+
   # Copy the limits so we can work with them.
   my @limits = ( [ @$lim1 ], [ @$lim2 ] );
   $lim1 = $limits[0];
@@ -521,7 +513,6 @@ sub minimumSearch2D {
     my $range1 = $lim1->[1] - $lim1->[0];
     my $range2 = $lim2->[1] - $lim2->[0];
 
-    my $steps = $options{steps} // 30;
     my $step1 = $range1 / $steps;
     my $step2 = $range2 / $steps;
 
@@ -559,8 +550,8 @@ sub minimumSearch2D {
       }
     }
 
-    @$lim1 = _new_limits($best_x1, $lim1->[0], $lim1->[1], $step1, $steps, $options{lower_constraint}->[0], $options{upper_constraint}->[0], $lim1->[2]);
-    @$lim2 = _new_limits($best_x2, $lim2->[0], $lim2->[1], $step2, $steps, $options{lower_constraint}->[1], $options{upper_constraint}->[1], $lim2->[2]);
+    @$lim1 = _new_limits($best_x1, $lim1->[0], $lim1->[1], $step1, $steps, $options{'lower-constraint'}->[0], $options{'upper-constraint'}->[0], $lim1->[2]);
+    @$lim2 = _new_limits($best_x2, $lim2->[0], $lim2->[1], $step2, $steps, $options{'lower-constraint'}->[1], $options{'upper-constraint'}->[1], $lim2->[2]);
   }
 
   croak 'Search depth exceeded.';
@@ -569,6 +560,7 @@ sub minimumSearch2D {
 
 sub minimumSearch3D {
   my ($fn, $limits, %options) = @_;
+  my $start = time;
 
   my $elapsed;
   if ($DEBUG) {
@@ -632,7 +624,8 @@ sub minimumSearch3D {
 
   if ($range1 <= $threshold->[0] && $range2 <= $threshold->[1] && $range3 <= $threshold->[2]) {
     if ($DEBUG) {
-      my $msg = sprintf("best: [ %.6f, %.6f, %.6f ]", $best_x1, $best_x2, $best_x3);
+      my $end = time;
+      my $msg = sprintf("best: [ %.6f, %.6f, %.6f ], elapsed: %.3f seconds", $best_x1, $best_x2, $best_x3, $end - $start);
       writeDebug($msg);
     }
     return ( $best_x1, $best_x2, $best_x3 );

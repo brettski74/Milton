@@ -6,8 +6,70 @@ use warnings qw(all -uninitialized);
 
 use Test2::V0;
 
-use PowerSupplyControl::Math::Util qw(minimumSearch2D);
+use PowerSupplyControl::Math::Util qw(minimumSearch2D setDebug setDebugWriter);
 use PowerSupplyControl::ValueTools qw(readCSVData dirname);
+
+setDebug($ENV{DEBUG});
+setDebugWriter(sub { diag(@_); });
+
+sub quadratic {
+  my ($x, $a, $b, $c) = @_;
+  return ($a * $x + $b) * $x + $c;
+}
+
+subtest 'quadratic function' => sub {
+  my $fn = sub {
+    return quadratic(shift, 1, -10, 29) + quadratic(shift, 1, -14, 53);
+  };
+  my @x = minimumSearch2D($fn, [ 0, 10 ], [0, 10]);
+  is($x[0], float(5, tolerance => 0.01), 'x1');
+  is($x[1], float(7, tolerance => 0.01), 'x2');
+
+  # Make the search space lower bounded on the solution
+  @x = minimumSearch2D($fn, [ 5, 10 ], [0, 10]);
+  is($x[0], float(5, tolerance => 0.01), 'x1 - lower-bounded on solution');
+  is($x[1], float(7, tolerance => 0.01), 'x2 - lower-bounded on solution');
+
+  # Make the search space upper bounded on the solution
+  @x = minimumSearch2D($fn, [ 0, 10 ], [0, 7]);
+  is($x[0], float(5, tolerance => 0.01), 'x1 - upper-bounded on solution');
+  is($x[1], float(7, tolerance => 0.01), 'x2 - upper-bounded on solution');
+
+  # Lower-constrain the solution on the actual minimum
+  @x = minimumSearch2D($fn, [ 5, 10 ], [0, 10], lower_constraint => [5, undef]);
+  is($x[0], float(5, tolerance => 0.01), 'x1 - lower-constrained on solution');
+  is($x[1], float(7, tolerance => 0.01), 'x2 - lower-constrained on solution');
+
+  # Upper-constrain the solution on the actual minimum
+  @x = minimumSearch2D($fn, [ 0, 4 ], [0, 7], 'upper-constraint' => [ undef, 7 ]);
+  is($x[0], float(5, tolerance => 0.01), 'x1 - upper-constrained on solution');
+  is($x[1], float(7, tolerance => 0.01), 'x2 - upper-constrained on solution');
+
+  # Lower-constrain the solution above the actual minimum
+  @x = minimumSearch2D($fn, [ 6, 10 ], [9, 18], 'lower-constraint' => [undef, 8]);
+  is($x[0], float(5, tolerance => 0.01), 'x1 - lower-constrained above solution');
+  is($x[1], float(8, tolerance => 0.01), 'x2 - lower-constrained above solution');
+
+  # Upper-constrain the solution below the actual minimum
+  @x = minimumSearch2D($fn, [ 0, 4 ], [0, 6], 'upper-constraint' => [ 4.5, undef ]);
+  is($x[0], float(4.5, tolerance => 0.01), 'x1 - upper-constrained below solution');
+  is($x[1], float(7, tolerance => 0.01), 'x2 - upper-constrained below solution');
+
+};
+
+subtest 'failure cases' => sub {
+  my $fn = sub {
+    return quadratic(shift, 1, -10, 29) + quadratic(shift, 1, -14, 53);
+  };
+
+  like(dies { minimumSearch2D($fn, [ 0, 10 ], [0, 10], steps => 3); }, qr/at least .* steps/i, 'Insufficient steps');
+  like(dies { minimumSearch2D($fn, [ 0, 10 ], [10, 0]); }, qr/out of order/i, 'Reversed search bounds');
+  like(dies { minimumSearch2D($fn, [ 1e6, 1e6+1 ], [0, 10], steps => 5, depth => 10); }, qr/depth exceeded/i, 'Search depth exceeded');
+};
+
+
+SKIP: {
+  skip 'Prediction algorithms changing - not a great test unless/until algorithms are stable.', 1;
 
 subtest 'reflow profile fitting' => sub {
   my $path = dirname(__FILE__);
@@ -45,5 +107,6 @@ subtest 'reflow profile fitting' => sub {
   is($tau1, float(170, tolerance => 0.01), 'tau1');
   is($tau2, float(20, tolerance => 0.01), 'tau2');
 };
+}
 
 done_testing;

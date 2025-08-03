@@ -13,8 +13,6 @@ our @EXPORT_OK = qw(
   meanSquaredError
   minimum
   minimumSearch
-  minimumSearch2D
-  minimumSearch3D
   setDebug
   setDebugWriter
 );

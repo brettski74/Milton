@@ -3,7 +3,7 @@ package PowerSupplyControl::Predictor;
 use strict;
 use warnings qw(all -uninitialized);
 
-use PowerSupplyControl::Math::Util qw(minimumSearch2D minimumSearch3D);
+use PowerSupplyControl::Math::Util qw(minimumSearch);
 
 sub new {
   my ($class, %options) = @_;
@@ -11,6 +11,8 @@ sub new {
   my $self = { %options };
 
   bless $self, $class;
+
+  $self->initialize;
 
   return $self;
 }
@@ -71,7 +73,7 @@ sub _tune2D {
     return $sum2;
   };
 
-  my ($p1, $p2) = minimumSearch2D($fn, $limits->[0], $limits->[1], %options);
+  my ($p1, $p2) = minimumSearch($fn, $limits->[0], $limits->[1], %options);
 
   $self->{$param1} = $p1;
   $self->{$param2} = $p2;
@@ -110,7 +112,7 @@ sub _tune3D {
     return $sum2;
   };
 
-  my ($p1, $p2, $p3) = minimumSearch3D($fn, $limits, %options);
+  my ($p1, $p2, $p3) = minimumSearch($fn, $limits, %options);
 
   $self->{$param1} = $p1;
   $self->{$param2} = $p2;

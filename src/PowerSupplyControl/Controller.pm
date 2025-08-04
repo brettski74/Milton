@@ -84,6 +84,8 @@ sub setLogger {
   my ($self, $logger) = @_;
 
   $self->{logger} = $logger;
+
+  $self->{predictor}->setLogger($logger) if $self->{predictor};
 }
 
 =head2 predictTemperature($status)

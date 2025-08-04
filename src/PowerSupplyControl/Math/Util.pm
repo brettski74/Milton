@@ -351,7 +351,7 @@ sub _new_bounds {
   if ($bottom < $lo) {
     if ($re_flag < 0) {
       # Range extended on the bottom twice in a row, so accelerate range extension
-      $step = $step * 2;
+      $step = $step * 5;
     }
     $bottom -= ($step * ($steps - 2));
 
@@ -359,7 +359,7 @@ sub _new_bounds {
   } elsif ($top > $hi) {
     if ($re_flag > 0) {
       # Range extended on the top twice in a row, so accelerate range extension
-      $step = $step * 2;
+      $step = $step * 5;
     }
     $top += ($step * ($steps - 2));
 
@@ -500,6 +500,9 @@ sub minimumSearch {
     }
 
     if ($DEBUG) {
+      my $end = time;
+      $params[0] = $end - $elapsed;
+      $elapsed = $end;
       writeDebug(sprintf($msg, @params));
     }
   }

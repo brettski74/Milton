@@ -104,7 +104,7 @@ group {
                                        , description => 'Execute reflow profile'
                                        , parameters => { device => { type => 'pdlist'
                                                                    , required => 0
-                                                                   , description => 'Device to use (optional)'
+                                                                   , description => 'Calibration device to use (optional)'
                                                                    , url => '/api/devices'
                                                                    }
                                                        , profile => { type => 'pdlist'

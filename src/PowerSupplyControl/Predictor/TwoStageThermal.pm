@@ -16,6 +16,11 @@ PowerSupplyControl::Predictor::TwoStageThermal - Two stage thermal predictor
 
 =head1 DESCRIPTION
 
+NOTE THAT THIS PREICTOR DOES NOT CURRENTLY WORK!
+
+It's still here because some of the code is the basis of the TwoStageBackPredictor, which
+works really well. I'll clean this all up in a later commit.
+
 This predictor is a two stage thermal predictor. It uses two first order thermal models to
 predict the temperature of the hotplate over time. It models the heat capacity of the heating
 element and the thermal resistance between the heating element and the rest of the hotplate
@@ -33,12 +38,11 @@ as the offset between heating element temperature and hotplate temperature - hop
 sub new {
   my ($class, %options) = @_;
 
-  my $self = { %options };
-
-  bless $self, $class;
+  my $self = $class->SUPER::new(%options);
+  $self->{class} = $class;
 
   # Check mandatory parameters. If any are missing, switch to the empty predictor.
-  foreach my $mandatory (qw(R-int R-ext-gradient R-ext-intercept C-plate C-heater)) {
+  foreach my $mandatory ($self->mandatoryParameters) {
     if (!exists $self->{$mandatory}) {
       bless $self, 'PowerSupplyControl::Predictor::TwoStageThermal::Empty';
       last;
@@ -46,6 +50,10 @@ sub new {
   }
 
   return $self;
+}
+
+sub mandatoryParameters {
+  return qw(R-int R-ext-gradient R-ext-intercept C-plate C-heater);
 }
 
 =head2 setPredictedTemperature
@@ -84,8 +92,7 @@ sub predictTemperature {
   # Some kind of weighted average needed here... Let's just start with alpha = 0.5 for now.
   #my $alpha = 0.5;
   #my $prediction = $alpha * $back_prediction + (1 - $alpha) * $forward_prediction;
-  $self->{'predict-temperature'} = $back_prediction;
-  $status->{'predict-temperature'} = $back_prediction;
+  my $prediction = $back_prediction;
   $status->{'back-prediction'} = $back_prediction;
   $status->{'forward-prediction'} = $forward_prediction;
   $self->{'back-iir'} = $status->{'back-iir'} = $back_iir;
@@ -95,10 +102,24 @@ sub predictTemperature {
   $status->{'last-Tp'} = $self->{'last-Tp'};
   #$self->{'last-Tp'} = $back_iir;
   #$self->{'last-Tp'} = $status->{'device-temperature'};   # Cheating!!! Testing Only!!!
+  my $first_difference = $status->{'predict-temperature'} - $self->{'last-Tp'};
+  my $second_difference = $self->{'first-difference'} - $first_difference;
+  $self->{'first-difference'} = $first_difference;
+  $self->{'second-difference'} = $second_difference;
+  my $delta_P = abs($status->{'effective-power'} - $self->{'last-power'});
+  my $dpalpha = 0.3333333333333;
+  my $dpiir = $delta_P * $dpalpha + (1 - $dpalpha) * $self->{'dpiir'};
+  $self->{'dpiir'} = $dpiir;
+
+  # Hack - need to get max power from somewhere
+
   $self->{'last-Tp'} = $status->{'predict-temperature'};
   $self->{'last-power'} = $status->{power};
 
-  return $back_iir;
+  $status->{'predict-temperature'} = $back_prediction;
+  $self->{'predict-temperature'} = $back_prediction;
+
+  return $self->{'predict-temperature'};
 }
 
 sub _effectiveTemperature {
@@ -153,30 +174,7 @@ sub _effectivePower {
     $delay = $period;
   }
 
-#  my $variance = abs($power - $last_power)/max($power, $last_power);
-#  if ($delay < $period && $variance > 0.05) {
-#    my $transition = $self->{'transition-time'} // 0;
-#    my $transition_power = 0;
-#    if ($transition > 0) {
-#      my $resistance = $status->{resistance};
-#      my $vmin = min($last_power, $power) / $resistance;
-#      my $vmax = max($last_power, $power) / $resistance;
-#      my $delta_v = $vmax - $vmin;
-      
-#      $transition_power = ($vmin*$vmin + $vmin*$delta_v + $delta_v*$delta_v/3) / $resistance;
-#    }
-
-#    if ($delay + $transition > $period) {
-#      $transition = $period - $delay;
-#    }
-
-#    $effective_power = ($delay * $last_power
-#                      + $transition * $transition_power
-#                      + ($period - $delay - $transition) * $power
-#                      ) / $period;
-#  } else {
-    $effective_power = ($delay * $last_power + ($period - $delay) * $power) / $period;
-#  }
+  $effective_power = ($delay * $last_power + ($period - $delay) * $power) / $period;
 
   $status->{'effective-power'} = $effective_power;
 
@@ -184,58 +182,62 @@ sub _effectivePower {
 }
 
 sub _backPredictTemperature {
-  my ($self, $status) = @_;
+  my ($self, $status, %args) = @_;
 
-  my $real_delta_T = $status->{temperature} - $self->{'last-Th'};
-  my $power = $status->{'effective-power'};
-  my $T_heater = $status->{'effective-temperature'};
-#  my $loss_factor = $self->{'loss-factor'} // 0.95;
+  # Heating element temperature
+  # May be adjusted for estimated variation between samples
+  my $temperature = $args{temperature} // $status->{'effective-temperature'} // $status->{temperature};
 
-  my $iir_power = $self->{'iir-power'} // $power;
+  # Input power
+  # May be adjusted for variation between samples
+  my $power = $args{power} // $status->{'effective-power'} // $status->{power};
 
-  my $period = $status->{period};
-  my $R_int = $self->{'R-int'};
-  my $C_heater = $self->{'C-heater'};
+  # Real heating element temperature change since last sample
+  my $delta_T = $args{'delta-T'} // $status->{temperature} - $self->{'last-Th'};
 
-  my $tau = $R_int * $C_heater;
-  my $alpha = $period / ($period + $tau);
+  # Sample period - usually should be constant. Unsure how well this works with varilable sample periods.
+  my $period = $args{period} // $status->{period};
 
-  my $power_tau = $tau*$tau;
-  my $power_alpha = $period / ($period + $power_tau);
+  # Heating element heat capacity
+  my $C_heater = $args{'C-heater'} // $self->{'C-heater'};
 
-  $iir_power = $power_alpha * $power + (1 - $power_alpha) * $iir_power;
+  # Thermal resistance between heating element and the surrounding hotplate assembly
+  my $R_int = $args{'R-int'} // $self->{'R-int'};
 
-  # Back-calculate the plate offset that is needed to account for any excess energy input
-  my $T_plate = $T_heater - ($power - $C_heater * $real_delta_T/$period) * $R_int;
-  my $back_iir = $alpha * $T_plate + (1 - $alpha) * $self->{'back-iir'};
-  my $T_plate2 = $T_heater - ($iir_power - $C_heater * $real_delta_T/$period) * $R_int;
-
-  $self->{'iir-power'} = $iir_power;
-  $status->{'iir-power'} = $iir_power;
-  $self->{'back-iir'} = $back_iir;
-  $status->{'back-iir'} = $back_iir;
-  
-  my $prediction = ($T_plate2 + $back_iir) / 2;
-
-  return ($prediction, $back_iir);
+  return $temperature - ($power - $C_heater * $delta_T/$period) * $R_int;
 }
 
 sub _forwardPredictTemperature {
-  my ($self, $status) = @_;
+  my ($self, $status, %args) = @_;
 
-  my $T_heater = $status->{'effective-temperature'};
-#  my $T_plate = $status->{'predict-temperature'};
-  my $T_plate = $self->{'last-Tp'};
-  my $T_rel = $T_plate - $status->{ambient};
+  # Heating element temperature
+  # May be adjusted for estimated variation between samples
+  my $temperature = $args{temperature} // $status->{'effective-temperature'} // $status->{temperature};
 
-  my $R_int = $self->{'R-int'};
-  my $R_ext = $self->{'R-ext-gradient'} * $T_rel + $self->{'R-ext-intercept'};
-  my $C_plate = $self->{'C-plate'};
-  my $period = $status->{period};
+  # Hotplate temperature
+  # Best guess. Usually from the most recent prediction.
+  my $T_plate = $args{T_plate} // $self->{'last-Tp'};
 
-  my $delta_Tp = (($T_heater - $T_plate)/$R_int - $T_rel/$R_ext) * $period / $C_plate;
+  # Ambient temperature
+  my $ambient = $args{ambient} // $status->{ambient};
 
-  return $T_plate + $delta_Tp;
+  # Thermal resistance between the heating element and the hotplate assembly
+  my $R_int = $args{'R-int'} // $self->{'R-int'};
+
+  # Thermal resistance between the hotplate assembly and the ambient environment
+  # Typically varies with temperature and may be approximated with a linear function
+  my $gradient = $args{'R-ext-gradient'} // $self->{'R-ext-gradient'};
+  my $intercept = $args{'R-ext-intercept'} // $self->{'R-ext-intercept'};
+  my $T_rel = $args{T_rel} // $T_plate - $ambient;
+  my $R_ext = $args{R_ext} // $gradient * ($T_plate - $ambient) + $intercept;
+
+  # Heat capacity of the hotplate assembly
+  my $C_plate = $args{'C-plate'} // $self->{'C-plate'};
+
+  # Sample period - usually should be constant. Unsure how well this works with varilable sample periods.
+  my $period = $args{period} // $status->{period};
+
+  return $T_plate + (($temperature - $T_plate)/$R_int - $T_rel/$R_ext) * $period / $C_plate;
 }
 
 sub initialize {
@@ -318,7 +320,7 @@ sub tune {
   $self->{'C-plate'} = 100;
 
   # re-bless ourselves into the correct class
-  bless $self, 'PowerSupplyControl::Predictor::TwoStageThermal';
+  bless $self, $self->{class} // 'PowerSupplyControl::Predictor::TwoStageThermal';
 
   # Now do the real tuning!
   return $self->tune($samples);

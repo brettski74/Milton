@@ -54,7 +54,7 @@ sub reset {
 
   $self->{value} = $value;
 
-  $self->_initialize(%args);
+  $self->_initialize(%args) if @_ > 2;
 
   return $value;
 }
@@ -82,6 +82,46 @@ sub setPeriod {
 
   $self->{period} = $period;
   $self->{alpha} = $self->{period} / ($self->{period} + $self->{tau});
+}
+
+sub period {
+  my ($self) = @_;
+  return $self->{period};
+}
+
+sub tau {
+  my ($self) = @_;
+  return $self->{tau};
+}
+
+sub tune {
+  my ($self, $samples, $input_key, $output_key, $threshold, $upper_bound) = @_;
+
+  $upper_bound //= 500;
+  $threshold //= 0.001;
+
+  my $fn = sub {
+    my ($tau) = @_;
+    $self->setTau($tau);
+
+    delete $self->{value};
+    my $sum2 = 0;
+
+    foreach my $sample (@$samples) {
+      my $input = $sample->{$input_key};
+      my $output = $self->next($input);
+      my $error = $output - $sample->{$output_key};
+      $sum2 += $error * $error;
+    }
+
+    return $sum2;
+  };
+
+  my $tau = minimumSearch($fn, [ [ 0, $upper_bound ] ]);
+
+  $self->setTau($tau);
+
+  return { tau => $tau };
 }
 
 1;

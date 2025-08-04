@@ -42,8 +42,46 @@ sub initialize {
   return;
 }
 
+sub _tune1D {
+  my ($self, $samples, $param, $bounds, %options) = @_;
+
+  my $prediction = $options{prediction} // 'predict-temperature';
+  my $expected = $options{expected} // 'device-temperature';
+
+  delete $options{prediction};
+  delete $options{expected};
+
+  my $fn = sub {
+    my ($p) = @_;
+
+    $self->{$param} = $p;
+
+    # Remove any saved state and apply updated parameters
+    $self->initialize;
+
+    my $sum2 = 0;
+
+    foreach my $sample (@$samples) {
+      if (!exists($sample->{event}) || $sample->{event} eq 'timerEvent') {
+        $self->predictTemperature($sample);
+        my $error = $sample->{$prediction} - $sample->{$expected};
+        $sum2 += $error * $error;
+      }
+    }
+
+    return $sum2;
+  };
+
+  my $p = minimumSearch($fn, $bounds, %options);
+
+  $self->{$param} = $p;
+  $self->initialize;
+
+  return { $param => $p };
+}
+
 sub _tune2D {
-  my ($self, $samples, $param1, $param2, $limits, %options) = @_;
+  my ($self, $samples, $param1, $param2, $bounds, %options) = @_;
 
   my $prediction = $options{prediction} // 'predict-temperature';
   my $expected = $options{expected} // 'device-temperature';
@@ -54,11 +92,11 @@ sub _tune2D {
   my $fn = sub {
     my ($p1, $p2) = @_;
 
-    # Remove any saved state
-    $self->initialize;
-
     $self->{$param1} = $p1;
     $self->{$param2} = $p2;
+
+    # Remove any saved state and apply updated parameters
+    $self->initialize;
 
     my $sum2 = 0;
 
@@ -73,16 +111,17 @@ sub _tune2D {
     return $sum2;
   };
 
-  my ($p1, $p2) = minimumSearch($fn, $limits->[0], $limits->[1], %options);
+  my ($p1, $p2) = minimumSearch($fn, $bounds, %options);
 
   $self->{$param1} = $p1;
   $self->{$param2} = $p2;
+  $self->initialize;
 
   return { $param1 => $p1, $param2 => $p2 };
 }
 
 sub _tune3D {
-  my ($self, $samples, $param1, $param2, $param3, $limits, %options) = @_;
+  my ($self, $samples, $param1, $param2, $param3, $bounds, %options) = @_;
 
   my $prediction = $options{prediction} // 'predict-temperature';
   my $expected = $options{expected} // 'device-temperature';
@@ -93,11 +132,12 @@ sub _tune3D {
   my $fn = sub {
     my ($p1, $p2, $p3) = @_;
 
-    $self->initialize;
-
     $self->{$param1} = $p1;
     $self->{$param2} = $p2;
     $self->{$param3} = $p3;
+
+    # Remove any saved state and apply updated parameters
+    $self->initialize;
 
     my $sum2 = 0;
 
@@ -112,13 +152,46 @@ sub _tune3D {
     return $sum2;
   };
 
-  my ($p1, $p2, $p3) = minimumSearch($fn, $limits, %options);
+  my ($p1, $p2, $p3) = minimumSearch($fn, $bounds, %options);
 
   $self->{$param1} = $p1;
   $self->{$param2} = $p2;
   $self->{$param3} = $p3;
+  $self->initialize;
 
   return { $param1 => $p1, $param2 => $p2, $param3 => $p3 };
+}
+
+sub setLogger {
+  my ($self, $logger) = @_;
+
+  $self->{'logger'} = $logger;
+
+  $self->info('Using Predictor: '. ref($self));
+}
+
+sub info {
+  my ($self, $message) = @_;
+
+  $self->{'logger'}->info($message) if $self->{'logger'};
+}
+
+sub warning {
+  my ($self, $message) = @_;
+
+  $self->{'logger'}->warning($message) if $self->{'logger'};
+}
+
+sub error {
+  my ($self, $message) = @_;
+
+  $self->{'logger'}->error($message) if $self->{'logger'};
+}
+
+sub debug {
+  my ($self, $message) = @_;
+
+  $self->{'logger'}->debug($message) if $self->{'logger'};
 }
 
 1;

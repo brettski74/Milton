@@ -283,6 +283,8 @@ sub tune {
 
 package PowerSupplyControl::Predictor::TwoStageThermal::Empty;
 
+use base qw(PowerSupplyControl::Predictor);
+
 # provide some simple prediction model for an un-tuned predictor so that we can tune it
 # afterwards
 sub predictTemperature {

@@ -189,9 +189,9 @@ sub error {
 }
 
 sub debug {
-  my ($self, $message) = @_;
+  my ($self, $level, $message) = @_;
 
-  $self->{'logger'}->debug($message) if $self->{'logger'};
+  $self->{'logger'}->debug($level, $message) if $self->{'logger'};
 }
 
 1;

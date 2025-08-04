@@ -111,6 +111,29 @@ sub timerEvent {
   return $self;
 }
 
+sub writeHistory {
+  my ($self, $history, $filename) = @_;
+  my %header = ( %{$history->[5]} );
+  delete $header{last};
+  delete $header{next};
+  delete $header{'event-loop'};
+
+  my @columns = qw(now resistance power temperature device-temperature predict-temperature last-Tp);
+  foreach my $key (@columns) {
+    delete $header{$key};
+  }
+  @columns = ( @columns, sort keys %header );
+  my $fh = $self->replaceFile($filename);
+  $fh->print(join(',', @columns), "\n");
+  foreach my $sample (@$history) {
+    if ($sample->{event} eq 'timerEvent') {
+      my @row = map { $sample->{$_} } @columns;
+      $fh->print(join(',', @row), "\n");
+    }
+  }
+  $fh->close;
+}
+
 sub postprocess {
   my ($self, $status, $history) = @_;
   if ($self->{tune}) {
@@ -121,13 +144,17 @@ sub postprocess {
       $self->info($_[0]);
     });
 
-    my $results = $predictor->tune($history);
     my $filename = $self->{tune};
     if ($filename !~ /\.yaml$/) {
       $filename .= '.yaml';
     }
     my $csvfile = $filename;
     $csvfile =~ s/\.yaml$/.csv/;
+    my $rawfile = $filename;
+    $rawfile =~ s/\.yaml$/.raw.csv/;
+    $self->writeHistory($history, $rawfile);
+
+    my $results = $predictor->tune($history);
 
     my $fh = $self->replaceFile($filename);
     foreach my $key (keys %$results) {
@@ -136,24 +163,14 @@ sub postprocess {
     }
     $fh->close;
 
-    $fh = $self->replaceFile($csvfile);
-    my %header = ( %{$history->[3]} );
-    my @columns = qw(now resistance power temperature device-temperature last-Tp);
-    foreach my $key (@columns) {
-      delete $header{$key};
-    }
-    @columns = ( @columns, keys %header );
-    $fh->print(join(',', @columns), "\n");
-
     $predictor->initialize;
     foreach my $sample (@$history) {
       if ($sample->{event} eq 'timerEvent') {
         $predictor->predictTemperature($sample);
-        my @row = map { $sample->{$_} } @columns;
-        $fh->print(join(',', @row), "\n");
       }
     }
-    $fh->close;
+
+    $self->writeHistory($history, $csvfile);
   }
 }
 

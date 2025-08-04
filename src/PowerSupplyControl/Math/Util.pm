@@ -6,6 +6,8 @@ use Carp qw(croak);
 use Scalar::Util qw(reftype);
 use Exporter 'import';
 use Time::HiRes qw(time);
+use IO::Pipe;
+use Storable qw(store_fd fd_retrieve);
 
 our @EXPORT_OK = qw(
   maximum
@@ -398,6 +400,39 @@ sub writeDebug {
 sub setDebugWriter {
   $DEBUG_WRITER = shift;
 }
+sub _spawnChildren {
+  my ($self, $search, $fn, $count) = @_;
+  my @children;
+
+  while (@children < $count) {
+    my $send = IO::Pipe->new;
+    my $recv = IO::Pipe->new;
+    if (my $pid = fork) {
+      # Parent
+      $send->writer;
+      $recv->reader;
+      push @children, { send => $send, recv => $recv, pid => $pid };
+    } elsif (defined $pid) {
+      # Child
+      $send->reader;
+      $recv->writer;
+      while (my $args = fd_retrieve($recv)) {
+        my @best = $search->($fn, @$args);
+        store_fd($send, \@best);
+      }
+      exit 0;
+    } else {
+      croak "Unable to fork: $!";
+    }
+  }
+
+  return @children;
+}
+
+sub _splitBounds {
+  my ($self, $bounds, $steps) = @_;
+  
+}
 
 sub minimumSearch {
   my ($fn, $bounds, %options) = @_;
@@ -435,6 +470,8 @@ sub minimumSearch {
   croak "Invalid depth: $depth. Must be positive." if $depth <= 0;
 
   my $search = _searchFunction(scalar(@$bounds));
+  my $best_y;
+  my $worst_y;
 
   while ($depth > 0) {
     if ($DEBUG) {
@@ -450,6 +487,8 @@ sub minimumSearch {
     $depth--;
 
     my @best = $search->($fn, $bounds, $steps);
+    $worst_y = pop @best;
+    $best_y = pop @best;
 
     # Determine if we've met all of our thresholds
     my $done = 1;
@@ -503,6 +542,9 @@ sub minimumSearch {
       my $end = time;
       $params[0] = $end - $elapsed;
       $elapsed = $end;
+
+      $msg .= ', best-y: %.6f, worst-y: %.6f';
+      push @params, $best_y, $worst_y;
       writeDebug(sprintf($msg, @params));
     }
   }
@@ -535,6 +577,8 @@ sub {
 
   my @best = @args;
   my $best_y = $fn->(@args);
+  my @worst = @args;
+  my $worst_y = $best_y;
 
 EOS
 
@@ -551,10 +595,16 @@ EOS
 
   $code .= <<"EOS";
 $indent  my \$y = \$fn->(\@args);
+#$indent  print '[ '. join(', ', map { sprintf('%.6f', \$_) } \@args) . " ], y: \$y\\n";
 
 $indent  if (\$y < \$best_y) {
 $indent    \$best_y = \$y;
 $indent    \@best = \@args;
+$indent  }
+
+$indent  if (\$y > \$worst_y) {
+$indent    \$worst_y = \$y;
+$indent    \@worst = \@args;
 $indent  }
 EOS
 
@@ -564,7 +614,7 @@ EOS
   }
 
   $code .= <<'EOS';
-  return @best;
+  return (@best, $best_y, $worst_y);
 }
 EOS
 

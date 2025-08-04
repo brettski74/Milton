@@ -2,7 +2,7 @@ package PowerSupplyControl::DataLogger;
 
 use strict;
 use warnings qw(all -uninitialized);
-use Carp;
+use Carp qw(croak);
 use IO::File;
 
 =head1 NAME
@@ -232,7 +232,7 @@ sub consoleProcess {
 sub consoleOutput {
   my ($self, $type, $output) = @_;
 
-  print $self->consoleProcess($type, $output);
+  print $self->consoleProcess($type, $output) ."\n";
 }
 
 =head2 logFilename
@@ -324,7 +324,7 @@ sub close {
 
 package PowerSupplyControl::DataLogger::Null;
 
-use base 'PowerSupplyControl::DataLogger';
+use base qw(PowerSupplyControl::DataLogger);
 
 sub log {
   return;

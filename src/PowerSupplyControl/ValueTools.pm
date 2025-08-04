@@ -203,6 +203,10 @@ sub readCSVData {
     push @$data, $record;
   }
   $fh->close;
+
+  if (wantarray) {
+    return ($data, \@columns);
+  }
   return $data;
 }
 

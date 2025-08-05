@@ -7,21 +7,97 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
+    /* Base container - allow full width on large screens */
+    .main-container {
+      width: 100%;
+      max-width: 100%;
+      margin: 0 auto;
+      padding: 0 1rem;
+    }
+    
+    /* On very large screens, use more width */
+    @media (min-width: 1920px) {
+      .main-container {
+        padding: 0 2rem;
+      }
+    }
+    
+    /* Chart container - responsive sizing */
     .chart-container {
       position: relative;
-      height: 400px;
       width: 100%;
+      height: 60vh;
+      min-height: 400px;
+      max-height: 800px;
+    }
+    
+    /* Console container - responsive sizing */
+    .console-container {
+      height: calc(40vh - 2rem);
+      min-height: 200px;
+      max-height: 600px;
+    }
+    
+    /* Ensure minimum usable size on smaller screens */
+    @media (max-height: 800px) {
+      .chart-container {
+        height: 50vh;
+        min-height: 350px;
+      }
+      .console-container {
+        height: calc(30vh - 2rem);
+        min-height: 150px;
+      }
+    }
+    
+    /* Optimize for large screens - use more vertical space */
+    @media (min-height: 1200px) {
+      .chart-container {
+        height: 70vh;
+        max-height: 1000px;
+      }
+      .console-container {
+        height: calc(30vh - 2rem);
+        max-height: 800px;
+      }
+    }
+    
+    /* On very large screens, use even more space */
+    @media (min-height: 1440px) {
+      .chart-container {
+        height: 70vh;
+        max-height: 1000px;
+      }
+      .console-container {
+        height: calc(30vh - 2rem);
+        max-height: 1000px;
+      }
+    }
+    
+    /* Responsive grid adjustments */
+    @media (min-width: 1920px) {
+      .responsive-grid {
+        grid-template-columns: 1fr 4fr;
+        gap: 2rem;
+      }
+    }
+    
+    @media (min-width: 2560px) {
+      .responsive-grid {
+        grid-template-columns: 1fr 5fr;
+        gap: 3rem;
+      }
     }
   </style>
 </head>
 <body class="bg-gray-100">
-  <div class="container mx-auto px-4 py-8">
+  <div class="main-container py-8">
     <header class="mb-8">
       <h1 class="text-3xl font-bold text-gray-800">Hotplate Controller</h1>
       <p class="text-gray-600">Web interface for controlling the hotplate system</p>
     </header>
 
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <div class="grid grid-cols-1 lg:grid-cols-4 gap-6 responsive-grid">
       <!-- Command Panel -->
       <div class="lg:col-span-1">
         <div class="bg-white rounded-lg shadow-md p-6">
@@ -56,7 +132,7 @@
         <div class="bg-white rounded-lg shadow-md p-6 mt-6">
           <h2 class="text-xl font-semibold mb-4">Status</h2>
           <div id="statusPanel">
-            <div class="grid grid-cols-2 gap-4">
+            <div class="grid grid-cols-2 xl:grid-cols-3 gap-4">
               <div>
                 <label class="block text-sm font-medium text-gray-700">System Status</label>
                 <span id="systemStatus" class="text-lg font-semibold text-green-600">Idle</span>
@@ -95,7 +171,7 @@
       </div>
 
       <!-- Main Content Area -->
-      <div class="lg:col-span-2">
+      <div class="lg:col-span-3">
         <!-- Real-time Chart -->
         <div class="bg-white rounded-lg shadow-md p-6 mb-6">
           <h2 class="text-xl font-semibold mb-4">Temperature & Power</h2>
@@ -107,7 +183,7 @@
       <!-- Console Output -->
       <div class="bg-white rounded-lg shadow-md p-6">
         <h2 class="text-xl font-semibold mb-4">Console Output</h2>
-        <div id="consoleOutput" class="bg-gray-900 text-green-400 p-4 rounded-md h-64 overflow-y-auto font-mono text-sm">
+        <div id="consoleOutput" class="bg-gray-900 text-green-400 p-4 rounded-md console-container overflow-y-auto font-mono text-sm">
         </div>
       </div>
     </div>
@@ -173,6 +249,7 @@
                                        }
                                , options: { responsive: true
                                           , maintainAspectRatio: false
+                                          , aspectRatio: null
                                           , scales: { x: { display: true
                                                          , title: { display: true
                                                                   , text: 'Time'

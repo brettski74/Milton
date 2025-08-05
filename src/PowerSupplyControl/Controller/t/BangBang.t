@@ -51,36 +51,6 @@ subtest 'Single-level Bang-Bang' => sub {
   is($controller->getRequiredPower({ temperature => 125.0, 'then-temperature' => 120.0 }), 2.0, '125.0 > 120.0');
 };
 
-subtest 'Modulated Bang-Bang, Zero Hysteresis' => sub {
-  my $config = { 'power-levels' => [ { temperature => 25.0
-                                     , power => 20.0
-                                     }
-                                   , { temperature => 200.0
-                                     , power => 100.0
-                                     }
-                                   ]
-              , hysteresis => { low => 0, high => 0 }
-              };
-
-  my $interface = PowerSupplyControl::t::MockInterface->new();
-  $interface->setPowerLimits(2, 100);
-  my $controller = PowerSupplyControl::Controller::BangBang->new($config, $interface);
-
-  is($controller->getRequiredPower({ temperature => 24.0, 'then-temperature' => 25.0 }), 20, '24.0 < 25.0');
-  is($controller->getRequiredPower({ temperature => 25.0, 'then-temperature' => 25.0 }), 2, '25.0 == 25.0');
-  is($controller->getRequiredPower({ temperature => 27.0, 'then-temperature' => 25.0 }), 2, '27.0 > 25.0');
-
-  is($controller->getRequiredPower({ temperature => 24.0, 'then-temperature' => 200.0 }), 100, '24.0 < 200.0');
-  is($controller->getRequiredPower({ temperature => 199.999, 'then-temperature' => 200.0 }), 100, '199.999 < 200.0');
-  is($controller->getRequiredPower({ temperature => 200.0, 'then-temperature' => 200.0 }), 2, '200.0 == 200.0');
-  is($controller->getRequiredPower({ temperature => 205.0, 'then-temperature' => 200.0 }), 2, '205.0 > 200.0');
-
-  is($controller->getRequiredPower({ temperature => 24.0, 'then-temperature' => 120.0 }), float(444/7, tolerance => $EPS), '24.0 < 120.0');
-  is($controller->getRequiredPower({ temperature => 119.999, 'then-temperature' => 120.0 }), float(444/7, tolerance => $EPS), '119.999 < 120.0');
-  is($controller->getRequiredPower({ temperature => 120.0, 'then-temperature' => 120.0 }), 2, '120.0 == 120.0');
-  is($controller->getRequiredPower({ temperature => 125.0, 'then-temperature' => 120.0 }), 2, '125.0 > 120.0');
-};
-
 subtest 'Flat with Hysteresis' => sub {
   my $config = { hysteresis => { low => 3, high => 3 } };
   my $interface = PowerSupplyControl::t::MockInterface->new();
@@ -129,6 +99,117 @@ subtest 'Flat with Hysteresis' => sub {
   is($controller->getRequiredPower({ temperature => 66.0, 'then-temperature' => 67.0 }), 2.0, '66.0 == 67.0 - 1');
   is($controller->getRequiredPower({ temperature => 65.9, 'then-temperature' => 67.0 }), 100.0, '65.9 < 67.0 - 1');
   is($controller->getRequiredPower({ temperature => 62.0, 'then-temperature' => 67.0 }), 100.0, '62.0 < 67.0 - 1');
+
+};
+
+subtest 'High Temperature Fall-Off' => sub {
+  my $config = { 'power-levels' => [ { temperature => 20
+                                     , power => 155
+                                     }
+                                   , { temperature => 215
+                                     , power => 155
+                                     }
+                                   , { temperature => 230
+                                     , power => 20
+                                     }
+                                   ]
+               , 'cut-off-temperature' => 230
+               , hysteresis => { low => 0, high => 0 }
+               };
+
+  my $interface = PowerSupplyControl::t::MockInterface->new();
+  $interface->setPowerLimits(2, 155);
+  my $controller = PowerSupplyControl::Controller::BangBang->new($config, $interface);
+
+  is($controller->getRequiredPower({ temperature => 215
+                                   , 'then-temperature' => 215.0
+                                   , suggestion => 200.0
+                                   }), 155.0, '215 celsius fall-off');
+  is($controller->getRequiredPower({ temperature => 216
+                                   , 'then-temperature' => 215.0
+                                   , suggestion => 200.0
+                                   }), 146.0, '216 celsius fall-off');
+  is($controller->getRequiredPower({ temperature => 217
+                                   , 'then-temperature' => 215.0
+                                   , suggestion => 200.0
+                                   }), 137, '217 celsius fall-off');
+  is($controller->getRequiredPower({ temperature => 218
+                                   , 'then-temperature' => 215.0
+                                   , suggestion => 200.0
+                                   }), 128, '218 celsius fall-off');
+  is($controller->getRequiredPower({ temperature => 219
+                                   , 'then-temperature' => 215.0
+                                   , suggestion => 200.0
+                                   }), 119, '219 celsius fall-off');
+  is($controller->getRequiredPower({ temperature => 220
+                                   , 'then-temperature' => 215.0
+                                   , suggestion => 200.0
+                                   }), 110, '220 celsius fall-off');
+  is($controller->getRequiredPower({ temperature => 221
+                                   , 'then-temperature' => 215.0
+                                   , suggestion => 200.0
+                                   }), 101, '221 celsius fall-off');
+  is($controller->getRequiredPower({ temperature => 222
+                                   , 'then-temperature' => 215.0
+                                   , suggestion => 200.0
+                                   }), 92, '222 celsius fall-off');
+  is($controller->getRequiredPower({ temperature => 223
+                                   , 'then-temperature' => 215.0
+                                   , suggestion => 200.0
+                                   }), 83, '223 celsius fall-off');
+  is($controller->getRequiredPower({ temperature => 224
+                                   , 'then-temperature' => 215.0
+                                   , suggestion => 200.0
+                                   }), 74, '224 celsius fall-off');
+  is($controller->getRequiredPower({ temperature => 225
+                                   , 'then-temperature' => 215.0
+                                   , suggestion => 200.0
+                                   }), 65, '225 celsius fall-off');
+  is($controller->getRequiredPower({ temperature => 226
+                                   , 'then-temperature' => 215.0
+                                   , suggestion => 200.0
+                                   }), 56, '226 celsius fall-off');
+  is($controller->getRequiredPower({ temperature => 227
+                                   , 'then-temperature' => 215.0
+                                   , suggestion => 200.0
+                                   }), 47, '227 celsius fall-off');
+  is($controller->getRequiredPower({ temperature => 228
+                                   , 'then-temperature' => 215.0
+                                   , suggestion => 200.0
+                                   }), 38, '228 celsius fall-off');
+  is($controller->getRequiredPower({ temperature => 229
+                                   , 'then-temperature' => 215.0
+                                   , suggestion => 200.0
+                                   }), 29, '229 celsius fall-off');
+  is($controller->getRequiredPower({ temperature => 230
+                                   , 'then-temperature' => 215.0
+                                   , suggestion => 200.0
+                                   }), 2, '230 celsius fall-off');
+};
+
+subtest 'Set Power Limit' => sub {
+  my $config = { hysteresis => { low => 0, high => 0 } };
+  my $sts = sub {
+    my ($heating_element, $hotplate, $then) = @_;
+
+    return { temperature => $heating_element
+           , suggestion => $hotplate
+           , 'then-temperature' => $then
+           };
+  };
+
+  my $interface = PowerSupplyControl::t::MockInterface->new();
+  $interface->setPowerLimits(2, 155);
+  my $controller = PowerSupplyControl::Controller::BangBang->new($config, $interface);
+
+  is($controller->getRequiredPower($sts->(25, 25, 75)), 155, 'Cold start');
+  is($controller->getRequiredPower($sts->(220, 205, 215)), 155, 'Hot, no limit');
+  $controller->setPowerLimit(215, 50);
+  is($controller->getRequiredPower($sts->(220, 205, 215)), 120, 'Hot, 220 limited');
+
+  $controller->setCutoffTemperature(232);
+  $controller->setPowerLimit(217, 50);
+  is($controller->getRequiredPower($sts->(220, 205, 215)), 134, 'Hot, 220 limited, 232 cut-off');
 
 };
 

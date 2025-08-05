@@ -44,6 +44,11 @@ sub discoverDevices {
 sub initializeCommand {
   my ($self, $params) = @_;
 
+  print "params:\n";
+  foreach my $key (sort keys %$params) {
+    print "    $key: $params->{$key}\n";
+  }
+
   my @cmd = qw(psc
                --logger PowerSupplyControl::WebDataLogger
                --log set-power:.1f
@@ -68,6 +73,14 @@ sub initializeCommand {
     push @cmd, '--r0', $params->{r0};
   } elsif ($params->{reset}) {
     push @cmd, '--reset';
+  }
+
+  if (defined $params->{cutoff}) {
+    push @cmd, '--cutoff', $params->{cutoff};
+  }
+
+  if (defined $params->{limit}) {
+    push @cmd, '--limit', $params->{limit};
   }
 
   if (defined $params->{device}) {
@@ -160,6 +173,9 @@ sub executeRework {
 
   push @cmd, 'rework';
   push @cmd, '--duration', $params->{duration} if defined $params->{duration};
+  push @cmd, '--ramp', $params->{ramp} if defined $params->{ramp};
+  push @cmd, '--monitor', $params->{monitor} if defined $params->{monitor};
+  push @cmd, '--unsafe' if $params->{unsafe};
   push @cmd, $params->{temperature};
 
   return $self->executeCommand('rework', @cmd);

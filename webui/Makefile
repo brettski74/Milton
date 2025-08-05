@@ -29,7 +29,7 @@ $(BINDIR) $(LIBDIR) $(TEMPLATES_DIR): install-dirs
 $(TEMPLATES_DIR): install-dirs
 
 $(TEMPLATES_DIR)/%: templates/% $(TEMPLATES_DIR)
-	@cp $< $@
+	@cp -v $< $@
 	@chmod $(TEMPLATE_PERMS) $@
 
 install: $(REL_PERL_MODULES) $(REL_PERL_SCRIPTS) $(REL_TEMPLATES)

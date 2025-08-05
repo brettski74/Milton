@@ -461,11 +461,8 @@ Returns this command object to allow for method chaining.
 sub info {
   my ($self, $message) = @_;
 
-  if (defined $self->{'output-channel'}) {
-    $self->{'output-channel'}->print($message);
-  } else {
-    $message =~ s/\n/\nINFO: /g;
-    print "INFO: $message\n";
+  if (defined $self->{logger}) {
+    $self->{logger}->info($message);
   }
 
   return $self;
@@ -496,15 +493,18 @@ Returns this command object to allow for method chaining.
 sub debug {
   my ($self, $level, $message) = @_;
 
-  if ($self->{debug} >= $level) {
-    if (defined $self->{'output-channel'}) {
-      $self->{'output-channel'}->print($message);
-    } else {
-      $message =~ s/\n/\nDEBUG: /g;
-      print "DEBUG: $message\n";
-    }
+  if (defined $self->{logger}) {
+    $self->{logger}->debug($level, $message);
   }
 
+  return $self;
+}
+
+sub warning {
+  my ($self, $message) = @_;
+  if (defined $self->{logger}) {
+    $self->{logger}->warning($message);
+  }
   return $self;
 }
 

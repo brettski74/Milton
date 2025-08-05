@@ -24,12 +24,19 @@ sub setPredictedTemperature {
 }
 
 sub predictTemperature {
+  # Suggestion only for use during testing.
   my ($self, $status) = @_;
 
-  $self->{'predict-temperature'} = $status->{temperature};
-  $status->{'predict-temperature'} = $status->{temperature};
+  my $prediction;
+  if (exists $status->{suggestion}) {
+    $prediction = $status->{suggestion};
+  } else {
+    $prediction = $status->{temperature};
+  }
+  $self->{'predict-temperature'} = $prediction;
+  $status->{'predict-temperature'} = $prediction;
 
-  return $status->{temperature};
+  return $prediction;
 }
 
 sub tune {

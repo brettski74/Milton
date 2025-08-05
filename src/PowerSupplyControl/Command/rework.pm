@@ -37,7 +37,7 @@ sub new {
 
     croak "Temperature not specified." unless $self->{'rework-temperature'};
     croak "Temperature must be a positive number: $self->{'rework-temperature'}" unless $self->{'rework-temperature'} > 0;
-    croak "Temperature is crazy high: $self->{'rework-temperature'}" unless $self->{'rework-temperature'} < 230;
+    croak "Temperature is crazy high: $self->{'rework-temperature'}" unless $self->{'rework-temperature'} <= 250;
 
     return $self;
 }
@@ -61,11 +61,44 @@ The time to run for in seconds. It set, the command will shut off power and exit
 =cut
 
 sub options {
-  return ( 'duration=i' );
+  return ( 'duration=i', 'unsafe', 'ramp=i', 'monitor=i' );
 }
 
 sub preprocess {
   my ($self, $status) = @_;
+
+  my $profile = PowerSupplyControl::Math::PiecewiseLinear->new;
+  my $time = 0;
+
+  if ($self->{ramp} > 0) {
+    # Always start a little below ambient to give some state initialization samples
+    $profile->addPoint(0, 15);
+    $profile->addPoint($self->{ramp}, $self->{'rework-temperature'});
+    $time = $self->{ramp};
+  }
+
+  if ($self->{duration} > 0) {
+    $time += $self->{duration};
+
+    $profile->addPoint($time, $self->{'rework-temperature'});
+
+    if ($self->{monitor} > 0) {
+      $profile->addPoint($time+0.1, 15);
+      $time += $self->{monitor};
+      $profile->addPoint($time, 15);
+    }
+
+    $self->{'end-time'} = $time;
+  } else {
+    $profile->addPoint($time+1, $self->{'rework-temperature'});
+  }
+
+  $self->{profile} = $profile;
+
+  if ($self->{unsafe}) {
+    $self->{controller}->disableSafety;
+    $self->warning('Hotplate safety limits disabled. Use with caution. Do not leave hotplate unattended.');
+  }
 
   # Ensure that we have some current through the hotplate so we will be able to measure resistance and set output power.
   $self->{interface}->setCurrent($self->{config}->{current}->{startup});
@@ -102,13 +135,14 @@ sub timerEvent {
     $self->{controller}->getTemperature($status);
 
     # If we've passed the set duration, then power off and exit.
-    if ($self->{duration} && $status->{now} > $self->{duration}) {
+    if ($self->{'end-time'} && $status->{now} > $self->{'end-time'}) {
       $self->{interface}->on(0);
       $self->beep;
       return;
     }
 
-    $status->{'then-temperature'} = $status->{'now-temperature'} = $self->{'rework-temperature'};
+    $status->{'now-temperature'} = $self->{profile}->estimate($status->{now});
+    $status->{'then-temperature'} = $self->{profile}->estimate($status->{now} + $status->{period});
 
     my $power = $self->{controller}->getRequiredPower($status);
     $status->{'set-power'} = $power;

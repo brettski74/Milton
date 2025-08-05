@@ -334,6 +334,20 @@ sub shutdown {
   return;
 }
 
+sub disableSafety {
+  return;
+}
+
+sub setCutoffTemperature {
+  my ($self, $temperature) = @_;
+
+  $self->{'cut-off-temperature'} = $temperature;
+}
+
+sub setPowerLimit {
+  return;
+}
+
 sub info {
   my ($self, $message) = @_;
   if ($self->{logger}) {

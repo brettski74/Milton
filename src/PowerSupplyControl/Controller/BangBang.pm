@@ -283,8 +283,46 @@ sub getRequiredPower {
     }
   }
 
-  return $self->{'on-power'}->estimate($target_temp) if $self->{on};
+  return $self->{'on-power'}->estimate($status->{temperature}) if $self->{on};
   return $self->{'min-power'};
+}
+
+sub disableSafety {
+  my ($self) = @_;
+
+  # Remove any cut-off temperature that may have been set
+  delete $self->{'cut-off-temperature'};
+  
+  # Remove any power fall-off that may have been set
+  my ($pmin, $pmax) = $self->{interface}->getPowerLimits();
+  $self->{'on-power'} = PowerSupplyControl::Math::PiecewiseLinear->new(20, $pmax);
+
+  return;
+}
+
+sub setPowerLimit {
+  my ($self, $temperature, $power) = @_;
+
+  # Get current maximum power - assume this this applies at 25 celsius
+  my $pmax = $self->{'on-power'}->estimate(25);
+
+  # If we don't have power specified, assume 1/3 of max
+  if (!defined $power) {
+    $power = $pmax / 3;
+  }
+
+  my $cutoff = $self->{'cut-off-temperature'};
+  if (!defined $cutoff) {
+    # Assume limiting applies over a 15 celsius range
+    $cutoff = $temperature + 15;
+  }
+
+  # Allow maximum power up to the limit temperature, then drop to the specified power by cut-off temperature
+  $self->{'on-power'} = PowerSupplyControl::Math::PiecewiseLinear->new(20, $pmax)
+    ->addPoint($temperature, $pmax)
+    ->addPoint($cutoff, $power);
+
+  return;
 }
 
 1;

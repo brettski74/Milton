@@ -7,7 +7,19 @@ use PowerSupplyControl::Config;
 use PowerSupplyControl::EventLoop;
 
 my $args = { config => 'psc.yaml' };
-GetOptions($args, 'config=s', 'override=s@', 'library=s@', 'device=s', 'log=s@', 'logger=s', 'ambient=f', 'profile=s', 'reset', 'r0=s');
+GetOptions($args, qw( config=s
+                     override=s@
+                     library=s@
+                     device=s
+                     log=s@
+                     logger=s
+                     ambient=f
+                     profile=s
+                     reset
+                     r0=s
+                     cutoff=i
+                     limit=s
+                     ));
 
 my $command = shift;
 PowerSupplyControl::Config->addSearchDir(@{$args->{library}}
@@ -101,12 +113,14 @@ if ($args->{log}) {
 
 my $evl = PowerSupplyControl::EventLoop->new($config, $command, @ARGV);
 
+my $controller = $evl->getController;
+
 if ($args->{ambient}) {
   $evl->setAmbient($args->{ambient});
 }
 
 if ($args->{reset}) {
-  $evl->getController->resetTemperatureCalibration(0);
+  $controller->resetTemperatureCalibration(0);
 }
 
 if ($args->{r0}) {
@@ -118,8 +132,19 @@ if ($args->{r0}) {
     $r = $r / 1000;
   }
 
-  $evl->getController->resetTemperatureCalibration(0);
-  $evl->getController->setTemperaturePoint($t, $r);
+  $controller->resetTemperatureCalibration(0);
+  $controller->setTemperaturePoint($t, $r);
+}
+
+if ($args->{cutoff}) {
+  $evl->{logger}->info("Setting cutoff temperature to $args->{cutoff} celsius");
+  $controller->setCutoffTemperature($args->{cutoff});
+}
+
+if ($args->{limit}) {
+  my ($t, $p) = split(/:/, $args->{limit}, 2);
+  $evl->{logger}->info("Setting power limit at $t celsius going down to $p watts");
+  $controller->setPowerLimit($t, $p);
 }
 
 $evl->run;

@@ -136,14 +136,39 @@ group {
                                        }
                                      , { name => 'rework'
                                        , description => 'Apply constant temperature to the hotplate for rework or preheating'
-                                       , parameters => { temperature => { type => 'number'
+                                       , parameters => { device => { type => 'pdlist'
+                                                                   , required => 0
+                                                                   , description => 'Calibration device to use (optional)'
+                                                                   , url => '/api/devices'
+                                                                   }
+                                                       , temperature => { type => 'number'
                                                                        , required => 1
                                                                        , description => 'Temperature to apply in degrees Celsius'
                                                                        }
+                                                       , ramp => { type => 'number'
+                                                                 , required => 0
+                                                                 , description => 'Ramp up time in seconds (optional)'
+                                                                 }
+                                                       , cutoff => { type => 'number'
+                                                                   , required => 0
+                                                                   , description => 'Heating element cutoff temperature in celsius (optional)'
+                                                                   }
+                                                       , limit => { type => 'text'
+                                                                  , required => 0
+                                                                  , description => 'Heating element limit temperature:power in celsius:watts (optional)'
+                                                                  }
                                                        , duration => { type => 'number'
                                                                   , required => 0
                                                                   , description => 'Duration of temperature application in seconds (optional)'
                                                                   }
+                                                       , monitor => { type => 'number'
+                                                                  , required => 0
+                                                                  , description => 'Duration in seconds to monitor temperature after shutdown (optional)'
+                                                                  }
+                                                       , unsafe => { type => 'boolean'
+                                                                   , required => 0
+                                                                   , description => 'Disable safety limits (optional)'
+                                                                   }
                                                        }
                                        }
                                      ]

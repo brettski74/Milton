@@ -226,13 +226,17 @@ sub debugLevel {
 sub consoleProcess {
   my ($self, $type, $output) = @_;
 
+  if ($output !~ /\n$/) {
+    return "$output\n";
+  }
+
   return $output;
 }
 
 sub consoleOutput {
   my ($self, $type, $output) = @_;
 
-  print $self->consoleProcess($type, $output) ."\n";
+  print $self->consoleProcess($type, $output);
 }
 
 =head2 logFilename

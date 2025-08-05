@@ -50,6 +50,7 @@ sub initialize {
   }
 
   if (!defined $self->{'power-lpf'}) {
+    croak "power-time-constant must be non-negative" if $self->{'power-time-constant'} < 0;
     $self->{'power-lpf'} = PowerSupplyControl::Math::LowPassFilter->new(tau => $self->{'power-time-constant'} // 6, period => 100);
     $self->debug(10, 'new power lpf: tau: '. $self->{'power-lpf'}->tau);
   } else {
@@ -61,6 +62,7 @@ sub initialize {
     $self->{'Th-lpf'} = PowerSupplyControl::Math::LowPassFilter->new(tau => $self->{'Th-time-constant'} // 27, period => 100);
     $self->debug(10, 'new Th lpf: tau: '. $self->{'Th-lpf'}->tau);
   } else {
+    croak "Th-time-constant must be non-negative" if $self->{'Th-time-constant'} < 0;
     $self->{'Th-lpf'}->reset(undef, tau => $self->{'Th-time-constant'} // 27);
     $self->debug(10, 're-initialized Th lpf: tau: '. $self->{'Th-lpf'}->tau);
   }
@@ -69,6 +71,7 @@ sub initialize {
     $self->{'deltaP-lpf'} = PowerSupplyControl::Math::LowPassFilter->new(tau => $self->{'deltaP-time-constant'} // 3, period => 100);
     $self->debug(10, 'new deltaP lpf: tau: '. $self->{'deltaP-lpf'}->tau);
   } else {
+    croak "deltaP-time-constant must be non-negative" if $self->{'deltaP-time-constant'} < 0;
     $self->{'deltaP-lpf'}->reset(undef, tau => $self->{'deltaP-time-constant'} // 3);
     $self->debug(10, 're-initialized deltaP lpf: tau: '. $self->{'deltaP-lpf'}->tau);
   }
@@ -169,7 +172,7 @@ sub predictTemperature {
 =cut
 
 sub tune {
-  my ($self, $samples) = @_;
+  my ($self, $samples, %args) = @_;
 
   $self->info('INFO: Tuning TwoStageBackPredictor primary predictor');
 
@@ -180,15 +183,16 @@ sub tune {
                              , 'lower-constraint' => [ 0.001, 0.3, 0.001 ],
                              , 'upper-constraint' => [ 100, 100, 10 ]
                              , threshold => 0.001,
+                             , %args
                              );
 
   $self->info('INFO: Tuning TwoStageBackPredictor low pass filter secondary predictor');
   $self->{'tuning-lpf-reset'} = 1;
   my $lpf_tune = $self->_tune1D($samples, 'Th-time-constant'
-                              , [ [ 0, 200 ] ]
+                              , [ [ 0, 500 ] ]
                               , prediction => 'lpf-prediction'
                               , 'lower-constraint' => [ 0.001 ]
-                              , 'upper-constraint' => [ 2000 ]
+                              , 'upper-constraint' => [ 500 ]
                               , threshold => 0.001
                               );
   delete $self->{'tuning-lpf-reset'};
@@ -199,6 +203,7 @@ sub tune {
                              , [ [ 0.01, 30 ], [ -100, 100 ], [ -100, 100 ] ]
                              , 'lower-constraint' => [ 0.01, undef, undef ]
                              , threshold => 0.001
+                             , %args
                              );
 
   my $tuned = { %$primary, %$lpf_tune, %$mixture };

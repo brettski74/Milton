@@ -137,6 +137,7 @@ sub writeHistory {
 sub postprocess {
   my ($self, $status, $history) = @_;
   if ($self->{tune}) {
+    my $parallel = $self->{config}->{tuning}->{parallel} || 1;
     my $predictor = $self->{controller}->getPredictor;
 
     PowerSupplyControl::Math::Util::setDebug(255);
@@ -154,7 +155,7 @@ sub postprocess {
     $rawfile =~ s/\.yaml$/.raw.csv/;
     $self->writeHistory($history, $rawfile);
 
-    my $results = $predictor->tune($history);
+    my $results = $predictor->tune($history, parallel => $parallel);
 
     my $fh = $self->replaceFile($filename);
     foreach my $key (keys %$results) {

@@ -187,6 +187,7 @@ An reference to an array of hashes, one for each line in the CSV file.
 
 sub readCSVData {
   my ($filename) = @_;
+
   my $fh = IO::File->new($filename, 'r') || croak "Failed to open $filename: $!";
   my $header = $fh->getline;
   chomp $header;

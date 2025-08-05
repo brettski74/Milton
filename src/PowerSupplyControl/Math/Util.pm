@@ -8,6 +8,8 @@ use Exporter 'import';
 use Time::HiRes qw(time);
 use IO::Pipe;
 use Storable qw(store_fd fd_retrieve);
+use POSIX qw(ceil);
+use Data::Dumper;
 
 our @EXPORT_OK = qw(
   maximum
@@ -401,8 +403,10 @@ sub setDebugWriter {
   $DEBUG_WRITER = shift;
 }
 sub _spawnChildren {
-  my ($self, $search, $fn, $count) = @_;
+  my ($search, $fn, $count) = @_;
   my @children;
+
+  writeDebug("Spawning $count children");
 
   while (@children < $count) {
     my $send = IO::Pipe->new;
@@ -411,14 +415,17 @@ sub _spawnChildren {
       # Parent
       $send->writer;
       $recv->reader;
+      $send->autoflush(1);
       push @children, { send => $send, recv => $recv, pid => $pid };
     } elsif (defined $pid) {
       # Child
       $send->reader;
       $recv->writer;
-      while (my $args = fd_retrieve($recv)) {
+      $recv->autoflush(1);
+      while (my $args = fd_retrieve($send)) {
+        last if !@$args;
         my @best = $search->($fn, @$args);
-        store_fd($send, \@best);
+        store_fd(\@best, $recv);
       }
       exit 0;
     } else {
@@ -430,8 +437,78 @@ sub _spawnChildren {
 }
 
 sub _splitBounds {
-  my ($self, $bounds, $steps) = @_;
-  
+  my ($bounds, $steps, $count) = @_;
+
+  # Find the bound with the largest range
+  my $max_range = 0;
+  my $max_range_idx = 0;
+  for(my $i=0; $i < @$bounds; $i++) {
+    my $range = $bounds->[$i]->[1] - $bounds->[$i]->[0];
+    if ($range > $max_range) {
+      $max_range = $range;
+      $max_range_idx = $i;
+    }
+  }
+
+  my $small_steps = ceil($steps->[$max_range_idx] / $count);
+  my $small_range = $max_range / $count;
+  my $last_step = 1 - 1/$small_steps;
+  my @rc;
+
+  for(my $i=0; $i < $count; $i++) {
+    my $b = [ map { [ @$_ ] } @$bounds ];
+    my $s = [ @$steps ];
+
+    $s->[$max_range_idx] = $small_steps;
+    $b->[$max_range_idx]->[0] = $bounds->[$max_range_idx]->[0] + $i * $small_range;
+    $b->[$max_range_idx]->[1] = $b->[$max_range_idx]->[0] + $last_step * $small_range;
+
+    $rc[$i] = { bounds => $b, steps => $s };
+  }
+
+  return @rc;
+}
+
+sub _taskChildren {
+  my ($children, $bounds, $steps) = @_;
+
+  my @b = _splitBounds($bounds, $steps, scalar(@$children));
+
+  foreach my $child (@$children) {
+    my $b = pop @b;
+
+    store_fd([ $b->{bounds}, $b->{steps} ], $child->{send});
+  }
+
+  my @best;
+  my $best_y;
+  my $worst_y;
+  foreach my $child (@$children) {
+    my $rc = fd_retrieve($child->{recv});
+    my $wy = pop @$rc;
+    my $by = pop @$rc;
+    if (!defined($best_y) || $by < $best_y) {
+      $best_y = $by;
+      @best = @$rc;
+    }
+    if (!defined($worst_y) || $wy > $worst_y) {
+      $worst_y = $wy;
+    }
+  }
+
+  return ( @best, $best_y, $worst_y );
+}
+
+sub _shutdownChildren {
+  my ($children) = @_;
+  my $killswitch = [];
+  foreach my $child (@$children) {
+    store_fd($killswitch, $child->{send});
+    waitpid($child->{pid}, 0);
+    $child->{send}->close;
+    $child->{recv}->close;
+  }
+  return;
 }
 
 sub minimumSearch {
@@ -461,7 +538,7 @@ sub minimumSearch {
     croak "Invalid threshold for dimension $i: $threshold->[$i]. Must be positive." if $threshold->[$i] <= 0;
 
     # Make sure we have a valid steps for each dimension
-    $steps->[$i] //= 30;
+    $steps->[$i] //= 24;
     croak "Invalid steps for dimension $i: $steps->[$i]. Must be at least 4." if $steps->[$i] < 4;
   }
 
@@ -472,6 +549,11 @@ sub minimumSearch {
   my $search = _searchFunction(scalar(@$bounds));
   my $best_y;
   my $worst_y;
+  my @children;
+
+  if ($options{parallel} > 1) {
+    @children = _spawnChildren($search, $fn, $options{parallel});
+  }
 
   while ($depth > 0) {
     if ($DEBUG) {
@@ -486,7 +568,13 @@ sub minimumSearch {
 
     $depth--;
 
-    my @best = $search->($fn, $bounds, $steps);
+    my @best;
+    if (@children) {
+      @best = _taskChildren(\@children, $bounds, $steps);
+    } else {
+      @best = $search->($fn, $bounds, $steps);
+    }
+
     $worst_y = pop @best;
     $best_y = pop @best;
 
@@ -501,6 +589,8 @@ sub minimumSearch {
     }
 
     if ($done) {
+      _shutdownChildren(\@children) if @children;
+
       if ($DEBUG) {
         my $end = time;
         my $msg = sprintf('best: [ '

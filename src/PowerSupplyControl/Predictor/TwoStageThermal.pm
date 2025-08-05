@@ -311,7 +311,7 @@ sub predictTemperature {
 }
 
 sub tune {
-  my ($self, $samples) = @_;
+  my ($self, $samples, %args) = @_;
 
   # We need to ensure that predictTemperature has sufficient parameters to run during
   # tuning. Back-prediction parameters are tuned first, so we don't need to provide them,
@@ -325,7 +325,7 @@ sub tune {
   bless $self, $self->{class} // 'PowerSupplyControl::Predictor::TwoStageThermal';
 
   # Now do the real tuning!
-  return $self->tune($samples);
+  return $self->tune($samples, %args);
 }
 
 1;

@@ -35,6 +35,17 @@ heating element.
 
 =cut
 
+sub mandatoryParameters {
+  return qw(R-int
+            C-heater
+            );
+#            power-time-constant
+#            Th-time-constant
+#            mixture-gradient
+#            mixture-offset
+#            deltaP-time-constant
+}
+
 sub initialize {
   my ($self) = @_;
   
@@ -49,30 +60,35 @@ sub initialize {
     $self->debug(10, "re-initialized sigmoid weight: gradient: $gradient, offset: $offset");
   }
 
+#  my $tau = $self->{'power-time-constant'} // 6;
+  my $tau = $self->{'R-int'} * $self->{'C-heater'};
+  $tau = $tau * $tau;
+  croak "power-time-constant ($tau) must be non-negative" if $tau < 0;
   if (!defined $self->{'power-lpf'}) {
-    croak "power-time-constant must be non-negative" if $self->{'power-time-constant'} < 0;
-    $self->{'power-lpf'} = PowerSupplyControl::Math::LowPassFilter->new(tau => $self->{'power-time-constant'} // 6, period => 100);
+    $self->{'power-lpf'} = PowerSupplyControl::Math::LowPassFilter->new(tau => $tau, period => 100);
     $self->debug(10, 'new power lpf: tau: '. $self->{'power-lpf'}->tau);
   } else {
-    $self->{'power-lpf'}->reset(undef, tau => $self->{'power-time-constant'} // 6);
+    $self->{'power-lpf'}->reset(undef, tau => $tau);
     $self->debug(10, 're-initialized power lpf: tau: '. $self->{'power-lpf'}->tau);
   }
 
+  $tau = $self->{'Th-time-constant'} // 27;
+  croak "Th-time-constant ($tau) must be non-negative" if $tau < 0;
   if (!defined $self->{'Th-lpf'}) {
-    $self->{'Th-lpf'} = PowerSupplyControl::Math::LowPassFilter->new(tau => $self->{'Th-time-constant'} // 27, period => 100);
+    $self->{'Th-lpf'} = PowerSupplyControl::Math::LowPassFilter->new(tau => $tau, period => 100);
     $self->debug(10, 'new Th lpf: tau: '. $self->{'Th-lpf'}->tau);
   } else {
-    croak "Th-time-constant must be non-negative" if $self->{'Th-time-constant'} < 0;
-    $self->{'Th-lpf'}->reset(undef, tau => $self->{'Th-time-constant'} // 27);
+    $self->{'Th-lpf'}->reset(undef, tau => $tau);
     $self->debug(10, 're-initialized Th lpf: tau: '. $self->{'Th-lpf'}->tau);
   }
 
+  $tau = $self->{'deltaP-time-constant'} // 3;
+  croak "deltaP-time-constant ($tau) must be non-negative" if $tau < 0;
   if (!defined $self->{'deltaP-lpf'}) {
-    $self->{'deltaP-lpf'} = PowerSupplyControl::Math::LowPassFilter->new(tau => $self->{'deltaP-time-constant'} // 3, period => 100);
+    $self->{'deltaP-lpf'} = PowerSupplyControl::Math::LowPassFilter->new(tau => $tau, period => 100);
     $self->debug(10, 'new deltaP lpf: tau: '. $self->{'deltaP-lpf'}->tau);
   } else {
-    croak "deltaP-time-constant must be non-negative" if $self->{'deltaP-time-constant'} < 0;
-    $self->{'deltaP-lpf'}->reset(undef, tau => $self->{'deltaP-time-constant'} // 3);
+    $self->{'deltaP-lpf'}->reset(undef, tau => $tau);
     $self->debug(10, 're-initialized deltaP lpf: tau: '. $self->{'deltaP-lpf'}->tau);
   }
 
@@ -176,12 +192,15 @@ sub tune {
 
   $self->info('INFO: Tuning TwoStageBackPredictor primary predictor');
 
-  my $primary = $self->_tune3D($samples
-                             , 'R-int', 'C-heater', 'power-time-constant'
-                             , [ [ 0.001, 100 ], [ 0.3, 100 ], [ 0.001, 10 ] ]
+  my $primary = $self->_tune2D($samples
+                             , 'R-int', 'C-heater' #, 'power-time-constant'
+#                             , [ [ 0.001, 100 ], [ 0.001, 100 ], [ 0.001, 10 ] ]
+                             , [ [ 0.001, 100 ], [ 0.001, 100 ] ]
                              , prediction => 'back-prediction'
-                             , 'lower-constraint' => [ 0.001, 0.3, 0.001 ],
-                             , 'upper-constraint' => [ 100, 100, 10 ]
+#                             , 'lower-constraint' => [ 0.001, 0.3, 0.001 ],
+                             , 'lower-constraint' => [ 0.001, 0.1 ]
+#                             , 'upper-constraint' => [ 100, 100, 10 ]
+                             , 'upper-constraint' => [ 100, 100 ]
                              , threshold => 0.001,
                              , %args
                              );
@@ -198,11 +217,18 @@ sub tune {
   delete $self->{'tuning-lpf-reset'};
 
   $self->info('INFO: Tuning TwoStageBackPredictor mixture parameters');
+  # This one is challenging to optimize - the search space can have some tricky topology
+  # Asymmetric searching - focusing more detail on the offset and less on the time constant,
+  # Since the time constant seems the least twitchy and the offset is the most twitchy.
+  # 39 is roughly 2.5 squared, so we're looking for an RMS error of around 2.5 celsius.
+  my $y_threshold = 39 * scalar(@$samples);
   my $mixture = $self->_tune3D($samples
                              , 'deltaP-time-constant', 'mixture-gradient', 'mixture-offset'
                              , [ [ 0.01, 30 ], [ -100, 100 ], [ -100, 100 ] ]
-                             , 'lower-constraint' => [ 0.01, undef, undef ]
-                             , threshold => 0.001
+                             , 'lower-constraint' => [ 0.01, -4, undef ]
+                             , threshold => [ 0.001, 0.001, 0.01 ]
+                             , steps => [ 12, 32, 64 ]
+#                             , 'y-threshold' => $y_threshold
                              , %args
                              );
 

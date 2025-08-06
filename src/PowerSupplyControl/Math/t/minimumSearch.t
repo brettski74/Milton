@@ -17,6 +17,30 @@ sub quadratic {
   return ($a * $x + $b) * $x + $c;
 }
 
+subtest 'precise steps' => sub {
+  my $steps = PowerSupplyControl::Math::Util::_generatePreciseSteps(0, 10, 10);
+  is($steps, [ 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 ], '0-10 / 10');
+
+  $steps = PowerSupplyControl::Math::Util::_generatePreciseSteps(0, 9, 9);
+  is($steps, [ 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 ], '0-9 / 9');
+
+  # Causes precision issues due to accumulation of rounding errors in naive implementations
+  $steps = PowerSupplyControl::Math::Util::_generatePreciseSteps(0, 500, 30);
+  is($steps->[0], 0.0, 'lower bound must be exact');
+  is($steps->[30], 500.0, 'upper bound must be exact');
+
+};
+
+subtest 'new bounds' => sub {
+  my $new_bounds = \&PowerSupplyControl::Math::Util::_new_bounds;
+  # ($bottom, $top, $re) = _new_bounds($best, $lo, $hi, $step, $steps, $lo_constraint, $hi_constraint, $re_flag);
+  # 
+
+  my $bounds = [ $new_bounds->(5, 0, 10, 1, 10, undef, undef, 0) ];
+  is($bounds, [ 4, 6, 0 ], '5 in 0-10/10');
+
+};
+
 subtest 'simple quadratic function' => sub {
   # f(x) = (x-5)^2 + 2 = x^2 - 10x + 29, minimum at x=5 with value 2
   my $fn = sub { return quadratic(shift, 1, -10, 29); };

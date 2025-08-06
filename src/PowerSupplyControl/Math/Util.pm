@@ -358,6 +358,9 @@ sub _new_bounds {
       $step = $step * 5;
     }
     $bottom -= ($step * ($steps - 2));
+    
+    # Add a little something onto the top as well to help ensure we land somewhere in the middle next pass
+    $top += $step;
 
     $re_flag = -1;
   } elsif ($top > $hi) {
@@ -366,6 +369,9 @@ sub _new_bounds {
       $step = $step * 5;
     }
     $top += ($step * ($steps - 2));
+
+    # Add a little something onto the bottom as well to help ensure we land somewhere in the middle next pass
+    $bottom -= $step;
 
     $re_flag = 1;
   }
@@ -524,6 +530,8 @@ sub minimumSearch {
     $threshold = [ map $threshold, @$bounds ];
   }
 
+  my $y_threshold = $options{'y-threshold'};
+
   my $steps = $options{steps} // 30;
   if (!ref($steps)) {
     $steps = [ map $steps, @$bounds ];
@@ -578,7 +586,7 @@ sub minimumSearch {
     $worst_y = pop @best;
     $best_y = pop @best;
 
-    # Determine if we've met all of our thresholds
+    # Determine if we've met our end conditions
     my $done = 1;
     my @range;
     for(my $i=0; $i < @$bounds; $i++) {
@@ -588,15 +596,16 @@ sub minimumSearch {
       }
     }
 
-    if ($done) {
+    if ($done || (defined($y_threshold) && $best_y <= $y_threshold)) {
       _shutdownChildren(\@children) if @children;
 
       if ($DEBUG) {
         my $end = time;
         my $msg = sprintf('best: [ '
                         . join(', ', map '%.6f', @best)
-                        . ' ], elapsed: %.3f seconds'
+                        . ' ], best-y: %.6f, elapsed: %.3f seconds'
                         , @best
+                        , $best_y
                         , $end - $start
                         );
         writeDebug($msg);
@@ -643,6 +652,23 @@ sub minimumSearch {
   return;
 }
 
+sub _generatePreciseSteps {
+  my ($lower, $upper, $steps) = @_;
+
+  my $rc = [ $lower ];
+  $rc->[$steps] = $upper;
+
+  # Count in from each end, stopping in the middle
+  for(my $i=$steps>>1; $i > 0; $i--) {
+    my $offset = $i * ($upper - $lower) / $steps;
+    $rc->[$i] = $lower + $offset;
+    $rc->[$steps-$i] = $upper - $offset;
+  }
+
+  return $rc;
+}
+
+  
 my @SEARCH_FUNCTIONS = ();
 
 # A bit of a hack, but I can't think of a better way to generalize an aribtrary depth nesting of loops
@@ -672,17 +698,24 @@ sub {
 
 EOS
 
+  for (my $i=0; $i<$dimensions; $i++) {
+    $code .= <<"EOS";
+  my \$vals$i = _generatePreciseSteps(\$bounds->[$i]->[0], \$bounds->[$i]->[1], \$steps->[$i]);
+EOS
+  }
+
   my $indent;
   # Add in the loop statements for each dimension
   for(my $i=0; $i<$dimensions; $i++) {
     $indent = ' ' x (2 * ($i+1));
 
     $code .= <<"EOS";
-${indent}for (my \$i$i=-\$steps->[$i]; \$i$i <= 0; \$i$i\++) {
-${indent}  \$args[$i] = \$bounds->[$i]->[1] + \$i$i * \$step[$i];
+
+${indent}foreach my \$val$i (\@\$vals$i) {
+${indent}  \$args[$i] = \$val$i;
 EOS
   }
-
+  
   $code .= <<"EOS";
 $indent  my \$y = \$fn->(\@args);
 #$indent  print '[ '. join(', ', map { sprintf('%.6f', \$_) } \@args) . " ], y: \$y\\n";

@@ -360,6 +360,19 @@ sub setLogger {
   $self->{logger}->addColumns(@{$self->{config}->{logging}->{columns}});
 }
 
+sub startupCurrent {
+  my ($self, $status) = @_;
+
+  if (!defined $status->{current} || $status->{current} == 0) {
+    my $interface = $self->{interface};
+    my ($vmin, $vmax) = $interface->getVoltageLimits();
+    $self->{interface}->setVoltage($self->{config}->{voltage}->{startup} || $vmin);
+    sleep(1.5);
+    $self->{interface}->poll($status);
+    $self->{controller}->getTemperature($status);
+  }
+}
+
 sub nobeep {
   my $self = shift;
 

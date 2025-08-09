@@ -80,10 +80,18 @@ Set the logger for the controller.
 
 =cut
 
+sub description {
+  my ($self) = @_;
+
+  return ref($self);
+}
+
 sub setLogger {
   my ($self, $logger) = @_;
 
   $self->{logger} = $logger;
+
+  $self->info('Using Controller: '. $self->description);
 
   $self->{predictor}->setLogger($logger) if $self->{predictor};
 }

@@ -301,7 +301,9 @@ sub setDevice {
 
 sub setLogger {
   my ($self, $logger) = @_;
-  $self->{logger} = $logger;
+
+  $self->SUPER::setLogger($logger);
+  
   if ($self->{device}) {
     $self->{device}->setLogger($logger);
   }

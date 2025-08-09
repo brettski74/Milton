@@ -55,15 +55,13 @@ sub preprocess {
   my $ambient = $status->{ambient};
 
   # Get some current flowing and poll the hotplate state
-  #$self->{interface}->setCurrent($self->{config}->{current}->{startup});
-  $self->{interface}->setVoltage($self->{config}->{voltage}->{startup});
-  sleep(0.5);
-  $self->{interface}->poll($status);
+  $self->startupCurrent($status);
 
   if (!defined $ambient) {
     $self->{controller}->getTemperature($status);
     $ambient = $status->{temperature};
     $status->{ambient} = $ambient;
+    $self->info("reflow: set ambient to $ambient");
   }
   $self->{ambient} = $ambient;
   $self->debug(10, join(', ', "Ambient temperature: $ambient"

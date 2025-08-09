@@ -631,8 +631,8 @@ sub minimumSearch {
       @$bound = _new_bounds($best[$i], $bound->[0], $bound->[1], $step, $steps->[$i], $options{'lower-constraint'}->[$i], $options{'upper-constraint'}->[$i], $bound->[2]);
       if ($DEBUG) {
         if ($range[$i] > $threshold->[$i]) {
-          $msg .= ", range%d: %.6f > $threshold->[$i]";
-          push @params, $i, $range[$i];
+          $msg .= ", range%d: %.6f > $threshold->[$i] (%.6f)";
+          push @params, $i, $range[$i], $best[$i];
         }
       }
     }
@@ -642,8 +642,8 @@ sub minimumSearch {
       $params[0] = $end - $elapsed;
       $elapsed = $end;
 
-      $msg .= ', best-y: %.6f, worst-y: %.6f';
-      push @params, $best_y, $worst_y;
+      $msg .= ', best-y: %.6f, worst-y: %.6f, depth: %d';
+      push @params, $best_y, $worst_y, $depth;
       writeDebug(sprintf($msg, @params));
     }
   }

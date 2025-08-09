@@ -52,32 +52,8 @@ group {
   # List available commands
   get '/api/commands' => sub {
     my $c = shift;
-    $c->render(json => { commands => [ { name => 'calibrate'
-                                       , description => 'Full Device Calibration'
-                                       , parameters => { device => { type => 'text'
-                                                                   , required => 1
-                                                                   , description => 'External temperature device for calibration'
-                                                                   }
-                                                       , ambient => { type => 'number'
-                                                                    , required => 0
-                                                                    , description => 'Ambient temperature in degrees Celsius (optional)'
-                                                                    }
-                                                       , r0 => { type => 'text'
-                                                               , required => 0
-                                                               , description => 'Cold resistance:temperature in ohms or milliohms and degrees Celsius (optional)'
-                                                               }
-                                                       }
-                                     }
-                                     , { name => 'delaycal'
-                                       , description => 'Calibrate hotplate temperature prediction'
-                                       , parameters => { device => { type => 'text'
-                                                                   , required => 1
-                                                                   , description => 'External temperature device for calibration'
-                                                                   }
-                                                       }
-                                     }
-                                     , { name => 'power'
-                                       , description => 'Apply constant power to the hotplate'
+    $c->render(json => { commands => [ { name => 'power'
+                                       , description => 'Constant power'
                                        , parameters => { power => { type => 'number'
                                                                   , required => 1
                                                                   , description => 'Power to apply in watts'
@@ -135,7 +111,7 @@ group {
                                                        }
                                        }
                                      , { name => 'rework'
-                                       , description => 'Apply constant temperature to the hotplate for rework or preheating'
+                                       , description => 'Constant temperature (Rework or Preheat)'
                                        , parameters => { device => { type => 'pdlist'
                                                                    , required => 0
                                                                    , description => 'Calibration device to use (optional)'

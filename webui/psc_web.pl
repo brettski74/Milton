@@ -33,12 +33,21 @@ app->config(
 # Create command executor
 my $command_executor = PSCWebUI::CommandExecutor->new();
 
-# Serve static files from public directory
-app->static->paths->[0] = app->home->child('public');
-app->renderer->paths->[0] = $ENV{HOME} .'/share/psc/webui/templates';
-app->renderer->paths->[1] = '/usr/local/share/psc/webui/templates';
-app->renderer->paths->[2] = '/usr/share/psc/webui/templates';
-#app->renderer->paths->[0] = $ENV{'HOME'} .'/dev/hp-controller/webui/templates';
+# Serve static files from shared/public directories (user/local/system) with app-local as fallback
+app->static->paths([
+  $ENV{HOME} . '/share/psc/webui/public',
+  '/usr/local/share/psc/webui/public',
+  '/usr/share/psc/webui/public',
+  app->home->child('public'),
+]);
+
+# Template search paths (user/local/system) with app-local as fallback
+app->renderer->paths([
+  $ENV{HOME} . '/share/psc/webui/templates',
+  '/usr/local/share/psc/webui/templates',
+  '/usr/share/psc/webui/templates',
+  app->home->child('templates'),
+]);
 
 # Basic routes
 get '/' => sub { my $c = shift;

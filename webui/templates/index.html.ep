@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Hotplate Controller</title>
+  <title>Milton: The Makeshift Melt-Master!</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
@@ -14,14 +14,29 @@
       margin: 0 auto;
       padding: 0 1rem;
     }
+
+    .tagline {
+      font-size: 1.2rem;
+      font-style: italic;
+    }
+
+    #milton-logo {
+      height: 100px;
+      width: auto;
+      margin-bottom: 1rem;
+    }
     
     /* On very large screens, use more width */
     @media (min-width: 1920px) {
       .main-container {
-        padding: 0 2rem;
+        padding: 0 1rem;
       }
     }
     
+    #command-panel {
+      max-width: 25rem;
+    }
+
     /* Chart container - responsive sizing */
     .chart-container {
       position: relative;
@@ -33,7 +48,7 @@
     
     /* Console container - responsive sizing */
     .console-container {
-      height: calc(40vh - 2rem);
+      height: calc(40vh - 1rem);
       min-height: 200px;
       max-height: 600px;
     }
@@ -45,7 +60,7 @@
         min-height: 350px;
       }
       .console-container {
-        height: calc(30vh - 2rem);
+        height: calc(30vh - 1rem);
         min-height: 150px;
       }
     }
@@ -57,7 +72,7 @@
         max-height: 1000px;
       }
       .console-container {
-        height: calc(30vh - 2rem);
+        height: calc(30vh - 1rem);
         max-height: 800px;
       }
     }
@@ -69,70 +84,42 @@
         max-height: 1000px;
       }
       .console-container {
-        height: calc(30vh - 2rem);
+        height: calc(30vh - 1rem);
         max-height: 1000px;
       }
     }
     
     /* Responsive grid adjustments */
-    @media (min-width: 1920px) {
-      .responsive-grid {
-        grid-template-columns: 1fr 4fr;
-        gap: 2rem;
-      }
+    .responsive-grid {
+      grid-template-columns: 1fr;
     }
-    
-    @media (min-width: 2560px) {
+    @media (min-width: 1024px) { /* Tailwind lg breakpoint */
       .responsive-grid {
-        grid-template-columns: 1fr 5fr;
-        gap: 3rem;
+        grid-template-columns: 25rem 1fr;
       }
     }
   </style>
 </head>
 <body class="bg-gray-100">
   <div class="main-container py-8">
-    <header class="mb-8">
-      <h1 class="text-3xl font-bold text-gray-800">Hotplate Controller</h1>
-      <p class="text-gray-600">Web interface for controlling the hotplate system</p>
-    </header>
-
-    <div class="grid grid-cols-1 lg:grid-cols-4 gap-6 responsive-grid">
+    <div class="grid gap-6 responsive-grid">
       <!-- Command Panel -->
-      <div class="lg:col-span-1">
-        <div class="bg-white rounded-lg shadow-md p-6">
-          <h2 class="text-xl font-semibold mb-4">Commands</h2>
-                    
-          <!-- Command Selection -->
-          <div class="mb-4">
-            <label class="block text-sm font-medium text-gray-700 mb-2">Select Command</label>
-            <select id="commandSelect" class="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-              <option value="">Choose a command...</option>
-            </select>
+      <div class="lg:col-span-1" id="command-panel">
+        <header></header>
+          <div class="flex items-center gap-4">
+            <img id="milton-logo" class="h-16 w-auto" src="/images/milton-logo.png" alt="Milton Logo">
+            <div class="flex flex-col">
+              <h1 class="text-3xl font-bold text-gray-800">Milton</h1>
+              <p class="tagline text-gray-600">The Makeshift Melt-Master!</p>
+            </div>
           </div>
-
-          <!-- Command Parameters -->
-          <div id="commandParams" class="mb-4 hidden">
-            <h3 class="text-lg font-medium mb-2">Parameters</h3>
-            <div id="paramFields"></div>
-          </div>
-
-          <!-- Control Buttons -->
-          <div class="flex space-x-2">
-            <button id="executeBtn" class="flex-1 bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed" disabled>
-              Execute
-            </button>
-            <button id="stopBtn" class="flex-1 bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700 disabled:bg-gray-400 disabled:cursor-not-allowed" disabled>
-              Stop
-            </button>
-          </div>
-        </div>
+        </header>
 
         <!-- Status Panel -->
-        <div class="bg-white rounded-lg shadow-md p-6 mt-6">
+        <div class="bg-white rounded-lg shadow-md p-6">
           <h2 class="text-xl font-semibold mb-4">Status</h2>
           <div id="statusPanel">
-            <div class="grid grid-cols-2 xl:grid-cols-3 gap-4">
+            <div class="grid grid-cols-2 gap-4">
               <div>
                 <label class="block text-sm font-medium text-gray-700">System Status</label>
                 <span id="systemStatus" class="text-lg font-semibold text-green-600">Idle</span>
@@ -168,10 +155,40 @@
             </div>
           </div>
         </div>
+
+        <!-- Command Panel -->
+        <div class="bg-white rounded-lg shadow-md p-6 mt-6">
+          <!-- Control Buttons -->
+          <div class="flex space-x-2">
+            <h2 class="text-xl font-semibold mb-4">Commands</h2>
+            <button id="executeBtn" class="flex-1 bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed" disabled>
+              Execute
+            </button>
+            <button id="stopBtn" class="flex-1 bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700 disabled:bg-gray-400 disabled:cursor-not-allowed" disabled>
+              Stop
+            </button>
+          </div>
+                    
+          <!-- Command Selection -->
+          <div class="mb-4">
+            <label class="block text-sm font-medium text-gray-700 mb-2">Select Command</label>
+            <select id="commandSelect" class="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+              <option value="">Choose a command...</option>
+            </select>
+          </div>
+
+          <!-- Command Parameters -->
+          <div id="commandParams" class="mb-4 hidden">
+            <h3 class="text-lg font-medium mb-2">Parameters</h3>
+            <div id="paramFields"></div>
+          </div>
+
+        </div>
+
       </div>
 
       <!-- Main Content Area -->
-      <div class="lg:col-span-3">
+      <div>
         <!-- Real-time Chart -->
         <div class="bg-white rounded-lg shadow-md p-6 mb-6">
           <h2 class="text-xl font-semibold mb-4">Temperature & Power</h2>

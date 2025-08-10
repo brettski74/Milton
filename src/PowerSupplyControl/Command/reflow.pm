@@ -52,18 +52,10 @@ sub _buildProfile {
 sub preprocess {
   my ($self, $status) = @_;
 
-  my $ambient = $status->{ambient};
-
   # Get some current flowing and poll the hotplate state
   $self->startupCurrent($status);
+  my $ambient = $status->{ambient};
 
-  if (!defined $ambient) {
-    $self->{controller}->getTemperature($status);
-    $ambient = $status->{temperature};
-    $status->{ambient} = $ambient;
-    $self->info("reflow: set ambient to $ambient");
-  }
-  $self->{ambient} = $ambient;
   $self->debug(10, join(', ', "Ambient temperature: $ambient"
                             , "device-temperature: $status->{'device-temperature'}"
                             , "device-ambient: $status->{'device-ambient'}"

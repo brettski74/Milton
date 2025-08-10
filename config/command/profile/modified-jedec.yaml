@@ -1,0 +1,42 @@
+#@ description: Derived from JEDEC J-STD-020C recommendations
+# Modified solder profile loosely based on JEDEC J-STD-020C recommendations
+# For SnPb solder. It calls for
+#
+#   - a soak stage between 100 and 150 celsius for 60 to 120 seconds
+#   - a ramp up rate to peak temperature of 3 celsius per second or less
+#   - a peak temperature of 225 +/-5 celsius
+#   - a time above 183 celsius of between 60 and 150 seconds
+#   - a time within +/- 5 celsius of the peak temperature of 10-30 seconds
+#   - a ramp-down rate of 6 celsius per second or less
+#   - Cool down to ambient of 6 minutes or less
+#
+# 225 celsius may be difficult to achieve without tripping the thermal fuse,
+# so the reality is that we probably won't reach that on an FR4 hotplate, but
+# the settings below attempt to reach this.
+#
+# Cool down is passive, so definitely won't exceed the max ramp-down rate, but
+# cannot guarantee the 6 minutes maximum cool down time.
+
+# Start at zero with a little below expected ambient temperature to ensure we
+# start with an "off" state.
+- name: ambient
+  seconds: 0
+  temperature: 15
+- name: preheat
+  seconds: 40
+  temperature: 100
+- name: soak
+  seconds: 120
+  temperature: 150
+- name: reflow
+  seconds: 60
+  temperature: 220
+- name: hold
+  seconds: 12
+  temperature: 220
+- name: cool
+  seconds: 180
+  temperature: 100
+- name: monitor
+  seconds: 180
+  temperature: 25

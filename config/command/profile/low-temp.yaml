@@ -1,0 +1,22 @@
+#@ description: For low-temperature solder alloys
+- name: ambient
+  seconds: 0
+  temperature: 15
+- name: preheat
+  seconds: 40
+  temperature: 100
+- name: soak
+  seconds: 120
+  temperature: 130
+- name: reflow
+  seconds: 30
+  temperature: 175
+- name: hold
+  seconds: 20
+  temperature: 175
+- name: cool
+  seconds: 180
+  temperature: 100
+- name: monitor
+  seconds: 180
+  temperature: 25

@@ -1,0 +1,41 @@
+#@ description: A generic profile for DIY reflow hotplates
+#
+# Custom profile based on some of the considerations of using a DIY, PCB-based hotplate.
+# Reflow ovens apply heat from all sides - top and bottom and even on the sides of
+# components. A hotplate only applies heat from the bottom, so the top of the PCB will
+# be colder than the hotplate, as will the components.
+# Additionally, there are practical limitations on how hot a PCB hotplate can get and
+# how much power may be available to get it there.
+#
+# For these reasons, the following main differences are made to the JEDEC recommendations:
+#
+# - The soak stage is longer to allow more time for heat to soak into the components whilst
+#   it also leaks out of the top of the PCB and components.
+# - The soak stage ends at a higher temperature to ensure we're closer to reflow before we
+#   start the ramp to peak temperature.
+# - The reflow stage (ie. time above 183 celsius) is longer to allow more time for good
+#   reflow and wetting of pads and terminals/leads on components. 
+#
+
+# Start a little below ambient to ensure we start in an "off" state.
+- name: ambient
+  seconds: 0
+  temperature: 15
+- name: preheat
+  seconds: 40
+  temperature: 100
+- name: soak
+  seconds: 240
+  temperature: 170
+- name: reflow
+  seconds: 40
+  temperature: 220
+- name: hold
+  seconds: 30
+  temperature: 220
+- name: cool
+  seconds: 180
+  temperature: 100
+- name: monitor
+  seconds: 180
+  temperature: 25

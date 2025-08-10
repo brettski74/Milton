@@ -63,98 +63,117 @@ group {
     my $c = shift;
     $c->render(json => { commands => [ { name => 'power'
                                        , description => 'Constant power'
-                                       , parameters => { power => { type => 'number'
-                                                                  , required => 1
-                                                                  , description => 'Power to apply in watts'
-                                                                  }
-                                                       , ambient => { type => 'number'
-                                                                    , required => 0
-                                                                    , description => 'Ambient temperature in degrees Celsius (optional)'
-                                                                    }
-                                                       , duration => { type => 'number'
-                                                                  , required => 0
-                                                                  , description => 'Duration of power application in seconds (optional)'
-                                                                  }
-                                                       , r0 => { type => 'text'
-                                                               , required => 0
-                                                               , description => 'Cold resistance:temperature in ohms or milliohms and degrees Celsius (optional)'
-                                                               }
-                                                       , resetCalibration => { type => 'boolean'
-                                                                             , required => 0
-                                                                             , description => 'Treat as new hotplate PCB'
-                                                                             }
-                                                       }
+                                       , parameters => [ { name => 'power'
+                                                         , type => 'number'
+                                                         , required => 1
+                                                         , description => 'Power to apply in watts'
+                                                         }
+                                                       , { name => 'duration'
+                                                         , type => 'number'
+                                                         , required => 0
+                                                         , description => 'Duration of power application in seconds (optional)'
+                                                         }
+                                                       , { name => 'r0'
+                                                         , type => 'text'
+                                                         , required => 0
+                                                         , description => 'Cold resistance:temperature in ohms or milliohms and degrees Celsius (optional)'
+                                                         }
+                                                       , { name => 'ambient'
+                                                         , type => 'number'
+                                                         , required => 0
+                                                         , description => 'Ambient temperature in degrees Celsius (optional)'
+                                                         }
+                                                       , { name => 'resetCalibration'
+                                                         , type => 'boolean'
+                                                         , required => 0
+                                                         , description => 'Treat as new hotplate PCB'
+                                                         }
+                                                       ]
                                        }
                                      , { name => 'reflow'
                                        , description => 'Execute reflow profile'
-                                       , parameters => { device => { type => 'pdlist'
-                                                                   , required => 0
-                                                                   , description => 'Calibration device to use (optional)'
-                                                                   , url => '/api/devices'
-                                                                   }
-                                                       , profile => { type => 'pdlist'
-                                                                    , required => 0
-                                                                    , description => 'Reflow Profile (optional)'
-                                                                    , url => '/api/reflow/profiles'
-                                                                    , }
-                                                       , ambient => { type => 'number'
-                                                                    , required => 0
-                                                                    , description => 'Ambient temperature in degrees Celsius (optional)'
-                                                                    }
-                                                       , tune => { type => 'text'
-                                                                 , required => 0
-                                                                 , description => 'File to save tuning results to (optional)'
-                                                                 }
-                                                       }
+                                       , parameters => [ { name => 'profile'
+                                                         , type => 'pdlist'
+                                                         , required => 0
+                                                         , description => 'Reflow Profile (optional)'
+                                                         , url => '/api/reflow/profiles'
+                                                         }
+                                                       , { name => 'ambient'
+                                                         , type => 'number'
+                                                         , required => 0
+                                                         , description => 'Ambient temperature in °C (optional)'
+                                                         }
+                                                       , { name => 'tune'
+                                                         , type => 'text'
+                                                         , required => 0
+                                                         , description => 'File to save tuning results to (optional)'
+                                                         }
+                                                       , { name => 'device'
+                                                         , type => 'pdlist'
+                                                         , required => 0
+                                                         , description => 'Calibration device to use (optional)'
+                                                         , url => '/api/devices'
+                                                         }
+                                                       ]
                                        }
                                      , { name => 'replay'
                                        , description => 'Replay log file for testing'
-                                       , parameters => { file => { type => 'text'
-                                                                 , required => 1
-                                                                 , description => 'Log file to replay'
-                                                                 }
-                                                       , speed => { type => 'number'
-                                                                  , required => 0
-                                                                  , description => 'Speed of replay (optional)'
-                                                                  }
-                                                       }
+                                       , parameters => [ { name => 'file'
+                                                         , type => 'text'
+                                                         , required => 1
+                                                         , description => 'Log file to replay'
+                                                         }
+                                                       , { name => 'speed'
+                                                         , type => 'number'
+                                                         , required => 0
+                                                         , description => 'Speed of replay (optional)'
+                                                         }
+                                                       ]
                                        }
                                      , { name => 'rework'
                                        , description => 'Constant temperature (Rework or Preheat)'
-                                       , parameters => { device => { type => 'pdlist'
-                                                                   , required => 0
-                                                                   , description => 'Calibration device to use (optional)'
-                                                                   , url => '/api/devices'
-                                                                   }
-                                                       , temperature => { type => 'number'
-                                                                       , required => 1
-                                                                       , description => 'Temperature to apply in degrees Celsius'
-                                                                       }
-                                                       , ramp => { type => 'number'
-                                                                 , required => 0
-                                                                 , description => 'Ramp up time in seconds (optional)'
-                                                                 }
-                                                       , cutoff => { type => 'number'
-                                                                   , required => 0
-                                                                   , description => 'Heating element cutoff temperature in celsius (optional)'
-                                                                   }
-                                                       , limit => { type => 'text'
-                                                                  , required => 0
-                                                                  , description => 'Heating element limit temperature:power in celsius:watts (optional)'
-                                                                  }
-                                                       , duration => { type => 'number'
-                                                                  , required => 0
-                                                                  , description => 'Duration of temperature application in seconds (optional)'
-                                                                  }
+                                       , parameters => [ { name => 'temperature'
+                                                         , type => 'number'
+                                                         , required => 1
+                                                         , description => 'Temperature to apply in degrees Celsius'
+                                                         , order => 2
+                                                         }
+                                                       , { name => 'ramp'
+                                                         , type => 'number'
+                                                         , required => 0
+                                                         , description => 'Ramp up time in seconds (optional)'
+                                                         , order => 3
+                                                         }
+                                                       , { name => 'cutoff'
+                                                         , type => 'number'
+                                                         , required => 0
+                                                         , description => 'Heating element cutoff temperature in celsius (optional)'
+                                                         , order => 4
+                                                         }
+                                                       , { name => 'limit'
+                                                         , type => 'text'
+                                                         , required => 0
+                                                         , description => 'Heating element limit temperature:power in celsius:watts (optional)'
+                                                         , order => 5
+                                                         }
+                                                       , { name => 'duration'
+                                                         , type => 'number'
+                                                         , required => 0
+                                                         , description => 'Duration of temperature application in seconds (optional)'
+                                                         , order => 6
+                                                         }
                                                        , monitor => { type => 'number'
-                                                                  , required => 0
-                                                                  , description => 'Duration in seconds to monitor temperature after shutdown (optional)'
-                                                                  }
+                                                         , type => 'number'
+                                                         , required => 0
+                                                         , description => 'Duration in seconds to monitor temperature after shutdown (optional)'
+                                                         , order => 7
+                                                         }
                                                        , unsafe => { type => 'boolean'
-                                                                   , required => 0
-                                                                   , description => 'Disable safety limits (optional)'
-                                                                   }
-                                                       }
+                                                         , required => 0
+                                                         , description => 'Disable safety limits (optional)'
+                                                         , order => 8
+                                                         }
+                                                       ]
                                        }
                                      ]
                                    }

@@ -123,7 +123,7 @@ sub getTemperature {
 
   # If the estimator is empty, give it some sane defaults assuming a copper heating element
   if ($est->length() == 0 && !$self->{reset}) {
-    my $ambient = $self->{ambient} || 20.0;
+    my $ambient = getAmbient($status);
     $est->addPoint($resistance, $ambient);
   }
   
@@ -151,40 +151,6 @@ sub getTemperature {
   $status->{temperature} = $temperature;
 
   return $temperature;
-}
-
-=head2 setAmbient($temperature)
-
-Set the current ambient temperature.
-
-=over
-
-=item $temperature
-
-The current ambient temperature in degrees celsius.
-
-=item Return Value
-
-The previously set value of ambient temperature, if any.
-
-=cut
-
-sub setAmbient {
-  my ($self, $temperature) = @_;
-  my $ambient = $self->{ambient};
-  $self->{ambient} = $temperature;
-  return $ambient;
-}
-
-=head2 getAmbient()
-
-Get the current ambient temperature.
-
-=cut
-
-sub getAmbient {
-  my ($self) = @_;
-  return $self->{ambient};
 }
 
 =head2 setTemperaturePoint($temperature, $resistance)

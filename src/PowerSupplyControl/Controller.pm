@@ -1,5 +1,7 @@
 package PowerSupplyControl::Controller;
 
+use strict;
+use warnings qw(all -uninitialized);
 use Carp qw(croak);
 use PowerSupplyControl::Math::PiecewiseLinear;
 use PowerSupplyControl::Predictor;
@@ -96,6 +98,66 @@ sub setLogger {
   $self->{predictor}->setLogger($logger) if $self->{predictor};
 }
 
+=head2 getAmbient($status)
+
+Provide a standard way to get the ambient temperature from multiple potential sources. 
+
+If the ambient temperature is already set in the $status hash (eg. from command line, previous
+call, etc) use that.  Otherwise, take the minimum of temperature, device-temperature and
+device-ambient. Compare that to the default ambient temperature set in the controller
+configuration (or 25 celsius if not set).  If the minimum is within +/- 5 celsius of the
+default, use the minimum. If not, assume we're starting hot and use the default.
+
+If the ambient temperature is not set in the $status hash, it will be after calling this method.
+
+=over
+
+=item $status
+
+A hash of data values representing the current state of the hotplate and power supply.
+
+=item Return Value
+
+The ambient temperature in degrees celsius.
+
+=back
+
+=cut
+  
+sub getAmbient {
+  my ($self, $status) = @_;
+  my $ambient = $status->{ambient};
+
+  if (!defined $ambient) {
+    my $default = $self->{ambient} // 25;
+
+    $ambient = $status->{temperature};
+    my $device_temperature = $status->{'device-temperature'};
+    my $device_ambient = $status->{'device-ambient'};
+
+    if (!defined($device_temperature) && defined($self->hasTemperatureDevice)) {
+      ($device_temperature, $device_ambient) = $self->getDeviceTemperature;
+    }
+
+    if (!defined($ambient) || (defined($device_temperature) && $device_temperature < $ambient)) {
+      $ambient = $device_temperature;
+    }
+
+    if (!defined($ambient) || (defined($device_ambient) && $device_ambient < $ambient)) {
+      $ambient = $device_ambient;
+    }
+
+    if (!defined($ambient) || $ambient > $default + 5) {
+      $ambient = $default;
+    }
+
+    $self->info(sprintf('Ambient temperature: %.1f', $ambient));
+    $status->{ambient} = $ambient;
+  }
+
+  return $ambient;
+}
+
 =head2 predictTemperature($status)
 
 Provide a prediction of the hotplate temperature based on the current status data. This usually
@@ -183,17 +245,12 @@ The previously set value of ambient temperature, if any.
 =cut
 
 sub setAmbient {
-  return;
-}
+  my ($self, $temperature) = @_;
 
-=head2 getAmbient()
+  my $rc = $self->{ambient};
+  $self->{ambient} = $temperature;
 
-Get the current ambient temperature.
-
-=cut
-
-sub getAmbient {
-  return;
+  return $rc;
 }
 
 =head2 setThermalResistancePoint($temperature, $thermal_resistance)

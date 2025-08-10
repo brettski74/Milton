@@ -526,11 +526,8 @@ sub run {
     if (!defined $self->{ambient}) {
       if (defined $status->{ambient}) {
         $self->setAmbient($status->{ambient});
-        $self->{logger}->info("Set ambient from status{ambient} to $status->{ambient}");
       } elsif (defined $status->{temperature}) {
-        $self->setAmbient($status->{temperature});
-        $self->{logger}->info("Set ambient from status{temperature} to $status->{temperature}");
-        $status->{ambient} = $status->{temperature};
+        $self->setAmbient($self->{controller}->getAmbient($status));
       }
     }
 

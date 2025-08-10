@@ -49,16 +49,12 @@ sub new {
   $self->{config} = $merge->merge($config, $self->defaults);
 
   my @options = $self->options;
-  push @options, 'ambient=f', 'debug=i';
+  push @options, 'debug=i';
 
   # psc.pl sets the require_order option to stop parsing options after the command name
   # We need to turn that off not so the comman can parse all of its options
   Getopt::Long::Configure('no_require_order');
   GetOptionsFromArray(\@args, $self, @options);
-
-  if (defined $self->{ambient}) {
-    $self->{controller}->setAmbient($self->{ambient});
-  }
 
   $self->initialize;
 
@@ -370,6 +366,7 @@ sub startupCurrent {
     sleep(1.5);
     $self->{interface}->poll($status);
     $self->{controller}->getTemperature($status);
+    $self->{controller}->getAmbient($status);
   }
 }
 

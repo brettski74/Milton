@@ -82,7 +82,7 @@ sub new {
     $self->{logger} = $options{'logger'};
   }
 
-  $self->info('Connecting to 121GW');
+  $self->info('Connecting...');
   if ($options{'device-address'}) {
     $self->connect(qr/$options{'device-address'}/);
   } else {
@@ -90,7 +90,6 @@ sub new {
   }
 
   croak 'Failed to connect to 121GW' unless $self->isConnected();
-  $self->info('Connected to 121GW');
 
   my $uuid = $options{'indication-uuid'} || $INDICATION_UUID;
   my $service = $options{'indication-service'} || $INDICATION_SERVICE;
@@ -113,7 +112,7 @@ sub setLogger {
 sub info {
   my ($self, $message) = @_;
   if ($self->{logger}) {
-    $self->{logger}->info($message);
+    $self->{logger}->info("EEVBlog121GW: $message");
   } else {
     print $message, "\n";
   }
@@ -122,7 +121,7 @@ sub info {
 sub warning {
   my ($self, $message) = @_;
   if ($self->{logger}) {
-    $self->{logger}->warning($message);
+    $self->{logger}->warning("EEVBlog121GW: $message");
   } else {
     warn $message;
   }
@@ -388,7 +387,6 @@ sub checkWindow {
   }
 
   $var /= $N;
-  print "checkWindow: var=$var, mean=$mean\n";
 
   if ($var < 0.05) {
     $self->{'cond-var'}->send;

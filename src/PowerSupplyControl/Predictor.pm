@@ -49,89 +49,14 @@ sub initialize {
   return;
 }
 
-sub _tune1D {
-  my ($self, $samples, $param, $bounds, %options) = @_;
-
-  my $prediction = $options{prediction} // 'predict-temperature';
-  my $expected = $options{expected} // 'device-temperature';
-
-  delete $options{prediction};
-  delete $options{expected};
-
-  my $fn = sub {
-    my ($p) = @_;
-
-    $self->{$param} = $p;
-
-    # Remove any saved state and apply updated parameters
-    $self->initialize;
-
-    my $sum2 = 0;
-
-    foreach my $sample (@$samples) {
-      if (!exists($sample->{event}) || $sample->{event} eq 'timerEvent') {
-        $self->predictTemperature($sample);
-        my $error = $sample->{$prediction} - $sample->{$expected};
-        $sum2 += $error * $error;
-      }
-    }
-
-    return $sum2;
-  };
-
-  my $p = minimumSearch($fn, $bounds, %options);
-
-  $self->{$param} = $p;
-  $self->initialize;
-
-  return { $param => $p };
-}
-
-sub _tune2D {
-  my ($self, $samples, $param1, $param2, $bounds, %options) = @_;
-
-  my $prediction = $options{prediction} // 'predict-temperature';
-  my $expected = $options{expected} // 'device-temperature';
-
-  delete $options{prediction};
-  delete $options{expected};
-
-  my $fn = sub {
-    my ($p1, $p2) = @_;
-
-    $self->{$param1} = $p1;
-    $self->{$param2} = $p2;
-
-    # Remove any saved state and apply updated parameters
-    $self->initialize;
-
-    my $sum2 = 0;
-
-    foreach my $sample (@$samples) {
-      if (!exists($sample->{event}) || $sample->{event} eq 'timerEvent') {
-        $self->predictTemperature($sample);
-        my $error = $sample->{$prediction} - $sample->{$expected};
-        $sum2 += $error * $error;
-      }
-    }
-
-    return $sum2;
-  };
-
-  my ($p1, $p2) = minimumSearch($fn, $bounds, %options);
-
-  $self->{$param1} = $p1;
-  $self->{$param2} = $p2;
-  $self->initialize;
-
-  return { $param1 => $p1, $param2 => $p2 };
-}
-
 sub _tune {
   my ($self, $samples, $params, $bounds, %options) = @_;
 
   my $prediction = $options{prediction} // 'predict-temperature';
   my $expected = $options{expected} // 'device-temperature';
+
+  my $time_cut_off = $self->{'time-cut-off'} // 180;
+  my $temperature_cut_off = $self->{'temperature-cut-off'} // 120;
 
   delete $options{prediction};
   delete $options{expected};
@@ -147,14 +72,19 @@ sub _tune {
     foreach my $sample (@$samples) {
       if (!exists($sample->{event}) || $sample->{event} eq 'timerEvent') {
         $self->predictTemperature($sample);
-        my $error = $sample->{$prediction} - $sample->{$expected};
-        my $err2 = $error * $error;
 
-        if ($options{bias}) {
-          $err2 = $err2 * ($sample->{$expected} - $sample->{ambient});
+        # Avoid using the long cool-down tail samples. We don't care about them and want the
+        # prediction to best match the important/active sections of the profile.
+        if ($sample->{now} < $time_cut_off || $sample->{$expected} > $temperature_cut_off) {
+          my $error = $sample->{$prediction} - $sample->{$expected};
+          my $err2 = $error * $error;
+
+          if ($options{bias}) {
+            $err2 = $err2 * ($sample->{$expected} - $sample->{ambient});
+          }
+          
+          $sum2 += $err2;
         }
-        
-        $sum2 += $err2;
       }
     }
 
@@ -171,49 +101,9 @@ sub _tune {
   }
   $self->initialize;
 
+  $tuned->{package} = ref($self);
+
   return $tuned;
-}
-
-sub _tune3D {
-  my ($self, $samples, $param1, $param2, $param3, $bounds, %options) = @_;
-
-  my $prediction = $options{prediction} // 'predict-temperature';
-  my $expected = $options{expected} // 'device-temperature';
-
-  delete $options{prediction};
-  delete $options{expected};
-
-  my $fn = sub {
-    my ($p1, $p2, $p3) = @_;
-
-    $self->{$param1} = $p1;
-    $self->{$param2} = $p2;
-    $self->{$param3} = $p3;
-
-    # Remove any saved state and apply updated parameters
-    $self->initialize;
-
-    my $sum2 = 0;
-
-    foreach my $sample (@$samples) {
-      if (!exists($sample->{event}) || $sample->{event} eq 'timerEvent') {
-        $self->predictTemperature($sample);
-        my $error = $sample->{$prediction} - $sample->{$expected};
-        $sum2 += $error * $error;
-      }
-    }
-
-    return $sum2;
-  };
-
-  my ($p1, $p2, $p3) = minimumSearch($fn, $bounds, %options);
-
-  $self->{$param1} = $p1;
-  $self->{$param2} = $p2;
-  $self->{$param3} = $p3;
-  $self->initialize;
-
-  return { $param1 => $p1, $param2 => $p2, $param3 => $p3 };
 }
 
 sub description {

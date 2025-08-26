@@ -440,4 +440,8 @@ sub getPredictor {
   return $self->{predictor};
 }
 
+sub resetTemperatureCalibration {
+  return;
+}
+
 1;

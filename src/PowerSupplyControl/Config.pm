@@ -1,5 +1,7 @@
 package PowerSupplyControl::Config;
 
+use Carp qw(confess);
+
 =head1 NAME
 
 PowerSupplyControl::Config
@@ -77,11 +79,61 @@ sub _load_file {
 
   my $ypp = getYamlParser();
 
+  my $depth = _path_push($pathstring);
   my $result = $ypp->load_file($pathstring);
+  _path_pop($depth);
 
   $path_cache{refaddr($result)} = $pathstring;
   
   return $result;
+}
+
+my @path_stack = ();
+
+sub _path_push {
+  my ($path) = @_;
+  my $rc = scalar @path_stack;
+
+  push @path_stack, $path;
+
+  return $rc;
+}
+
+sub _path_peek {
+  return $path_stack[-1];
+}
+
+sub _resolve_child_filename {
+  my ($filename) = @_;
+
+  if ($filename =~ /^\//) {
+    return $filename;
+  }
+
+  croak "Path stack is empty" unless scalar @path_stack;
+
+  my $parent = path(_path_peek())->parent;
+  if ($parent->is_dir) {
+    my $child = $parent->child($filename);
+    if ($child->is_file) {
+      return $child->stringify;
+    }
+  }
+
+  return _resolve_file_path($filename);
+}
+
+sub _path_pop {
+  my ($depth) = @_;
+
+  my $rc = pop @path_stack;
+  my $actual = scalar @path_stack;
+
+  if ($actual != $depth) {
+    croak "Unbalanced path stack operations. Depth=$actual, Expected=$depth";
+  }
+
+  return $rc;
 }
 
 =head2 _resolve_file_path($filename)
@@ -361,8 +413,19 @@ Return the path from which this configuration was loaded.
 =cut
 
 sub getPath {
-  my ($self) = @_;
-  return $path_cache{refaddr($self)};
+  my ($self, @keys) = @_;
+
+  my $node = $self;
+  if (@keys) {
+    eval {
+      $node = $self->_descend(0, @keys);
+    };
+    if ($@) {
+      return;
+    }
+  }
+  
+  return $path_cache{refaddr($node)};
 }
 
 sub DESTROY {
@@ -371,7 +434,25 @@ sub DESTROY {
 }
 
 sub getYamlParser {
-  my $include = YAML::PP::Schema::Include->new;
+  my $include = YAML::PP::Schema::Include->new(
+        loader => sub {
+                    my ($yp, $filename) = @_;
+
+                    my $full_path = _resolve_child_filename($filename);
+
+                    #print "INFO: include loader loading filename: $filename, full_path: $full_path\n";
+
+                    my $result = $yp->load_file($full_path);
+
+                    if (reftype($result) eq 'HASH') {
+                      $path_cache{refaddr($result)} = $filename;
+                      bless $result, 'PowerSupplyControl::Config';
+                    }
+
+                    return $result;
+                  }
+      );
+
   my $ypp = YAML::PP->new(schema => ['+', $include]);
   $include->yp($ypp);
 

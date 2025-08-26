@@ -215,5 +215,18 @@ eval {
 ok($@ =~ /include_circular2.yaml/, 'Error message should be correct') || diag($@);
 ok(!defined $circular_cfg);
 
+# Test include with subdirectory
+note("Testing include with subdirectory");
+my $subdir_cfg = PowerSupplyControl::Config->new('include_subdir.yaml');
+is($subdir_cfg->{test}, 'value', 'test');
+is($subdir_cfg->{list}->[0], 'item 1', 'list 1');
+is($subdir_cfg->{list}->[1], 'item 2', 'list 2');
+is($subdir_cfg->{command}->{config}->{'command-value-1'}, 100, 'command-value-1');
+is($subdir_cfg->{command}->{config}->{'command-value-2'}, 'red', 'command-value-2');
+is($subdir_cfg->{controller}->{thermal_offset}, 34.56, 'controller->thermal_offset');
+is($subdir_cfg->getPath, 't/include_subdir.yaml');
+is($subdir_cfg->getPath('controller'), 't/controller.yaml');
+is($subdir_cfg->getPath('command', 'config'), 't/command/test.yaml');
+
 done_testing;
 

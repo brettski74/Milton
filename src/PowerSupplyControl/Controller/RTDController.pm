@@ -123,7 +123,7 @@ sub getTemperature {
 
   # If the estimator is empty, give it some sane defaults assuming a copper heating element
   if ($est->length() == 0 && !$self->{reset}) {
-    my $ambient = getAmbient($status);
+    my $ambient = $self->getAmbient($status);
     $est->addPoint($resistance, $ambient);
   }
   

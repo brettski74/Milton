@@ -63,9 +63,9 @@ subtest 'constructor with 2-point calibration' => sub {
 
 subtest 'empty estimator' => sub {
   my $rtd_empty = PowerSupplyControl::Controller::RTDController->new({}, $interface);
-  is($rtd_empty->getTemperature({ voltage => 12.0, current => 10.0 }), float(20.0, tolerance => $EPS), 'empty estimator cold');
-  is($rtd_empty->getTemperature({ voltage => 11.34, current => 7.0 }), float(109.0585242, tolerance => $EPS), 'empty estimator midpoint');
-  is($rtd_empty->getTemperature({ voltage => 12.24, current => 6.0 }), float(198.1170483, tolerance => $EPS), 'empty estimator hot');
+  is($rtd_empty->getTemperature({ voltage => 12.0, current => 10.0 }), float(25.0, tolerance => $EPS), 'empty estimator cold');
+  is($rtd_empty->getTemperature({ voltage => 11.34, current => 7.0 }), float(115.8085242, tolerance => $EPS), 'empty estimator midpoint');
+  is($rtd_empty->getTemperature({ voltage => 12.24, current => 6.0 }), float(206.6170483, tolerance => $EPS), 'empty estimator hot');
 };
 
 subtest 'one point estimator' => sub {

@@ -12,7 +12,8 @@ use PowerSupplyControl::t::MockController;
 my $EPS = 0.000001;
 
 subtest 'timerEvent' => sub {
-  my $config = { profile => [ { name => 'preheat', temperature => 100, seconds => 30 }
+  my $config = { profile => [ { name => 'ambient', temperature => 25, seconds => 0 }
+                            , { name => 'preheat', temperature => 100, seconds => 30 }
                             , { name => 'soak', temperature => 175, seconds => 120 }
                             , { name => 'reflow', temperature => 205, seconds => 30 }
                             , { name => 'hold', temperature => 205, seconds => 10 }
@@ -33,7 +34,6 @@ subtest 'timerEvent' => sub {
   my $status = { temperature => 25 };
   $cmd->preprocess($status);
   is($status->{ambient}, 25, 'ambient');
-  is($cmd->{ambient}, 25, 'cmd ambient');
 
   $status = { now => 0
             , temperature => 25

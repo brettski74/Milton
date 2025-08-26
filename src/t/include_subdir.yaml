@@ -1,0 +1,7 @@
+test: value
+list:
+  - item 1
+  - item 2
+command:
+  config: !include command/test.yaml
+controller: !include controller.yaml

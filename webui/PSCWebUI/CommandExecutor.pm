@@ -9,7 +9,7 @@ use POSIX qw(:sys_wait_h);
 
 use Mojo::IOLoop::ReadWriteFork;
 
-use PowerSupplyControl::Config::Utils qw(getDeviceNames);
+use PowerSupplyControl::Config::Utils qw(getDeviceNames findDeviceFile);
 
 sub new {
   my ($class, $logger) = @_;
@@ -84,39 +84,15 @@ sub initializeCommand {
   }
 
   if (defined $params->{device}) {
-    push @cmd, '--device', $params->{device}
+    my $device = $params->{device};
+    if (! -f $device) {
+      $device = findDeviceFile($device);
+    }
+    push @cmd, '--device', $device
              , '--log', 'device-temperature:.1f';
   }
 
   return @cmd;
-}
-
-sub executeDelaycal {
-  my ($self, $params) = @_;
-
-  if (!defined $params->{device}) {
-    croak 'Device name is required';
-  }
-
-  my @cmd = $self->initializeCommand($params);
-
-  push @cmd, 'delaycal';
-
-  return $self->executeCommand('delaycal', @cmd);
-}
-
-sub executeCalibrate {
-  my ($self, $params) = @_;
-
-  if (!defined $params->{device}) {
-    croak 'Device name is required';
-  }
-
-  my @cmd = $self->initializeCommand($params);
-  
-  push @cmd, 'calibrate';
-
-  return $self->executeCommand('calibrate', @cmd);
 }
 
 sub executeReflow {
@@ -128,6 +104,24 @@ sub executeReflow {
 
   if (defined $params->{tune}) {
     push @cmd, '--tune', $params->{tune};
+  }
+  
+  return $self->executeCommand('reflow', @cmd);
+}
+
+sub executeSetup {
+  my ($self, $params) = @_;
+  
+  my @cmd = $self->initializeCommand($params);
+  
+  push @cmd, '--reset', 'reflow';
+
+  if (defined $params->{'predictor-calibration'}) {
+    push @cmd, '--tune', $params->{'predictor-calibration'};
+  }
+
+  if (defined $params->{'rtd-calibration'}) {
+    push @cmd, '--rtdtune', $params->{'rtd-calibration'};
   }
   
   return $self->executeCommand('reflow', @cmd);
@@ -362,6 +356,12 @@ sub commandFinished {
   $self->{status} = 'idle';
   delete $self->{columnNames};
   delete $self->{latestData};
+}
+
+sub getConfigPath {
+  my ($self, @keys) = @_;
+
+  return PowerSupplyControl::Config::Utils::getConfigPath('psc.yaml', @keys);
 }
 
 sub executeCommand {

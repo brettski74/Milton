@@ -174,6 +174,25 @@ sub replaceFile {
   return $fh;
 }
 
+=head2 writeHash($fh, $hash)
+
+Write the contents of a flat hash to a file handle.
+
+=cut
+
+sub writeHash {
+  my ($self, $fh, $hash, $echo) = @_;
+
+  foreach my $key (sort keys %$hash) {
+    print $fh "$key: $hash->{$key}\n";
+    if ($echo) {
+      $self->info("$echo: $key: $hash->{$key}");
+    }
+  }
+
+  return $self;
+}
+
 =head2 initialize()
 
 Initialize the command.
@@ -354,6 +373,7 @@ sub setLogger {
   my ($self, $logger) = @_;
   $self->{logger} = $logger;
   $self->{logger}->addColumns(@{$self->{config}->{logging}->{columns}});
+  $self->{logger}->debugLevel($self->{config}->{logging}->{'debug-level'} || 0);
 }
 
 sub startupCurrent {
@@ -363,7 +383,7 @@ sub startupCurrent {
     my $interface = $self->{interface};
     my ($vmin, $vmax) = $interface->getVoltageLimits();
     $self->{interface}->setVoltage($self->{config}->{voltage}->{startup} || $vmin);
-    sleep(1.5);
+    sleep(2.0);
     $self->{interface}->poll($status);
     $self->{controller}->getTemperature($status);
     $self->{controller}->getAmbient($status);

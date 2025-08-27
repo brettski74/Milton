@@ -4,7 +4,7 @@ use strict;
 use warnings qw(all -uninitialized);
 
 use Exporter qw(import);
-our @EXPORT_OK = qw(getReflowProfiles getDeviceNames getYamlParser);
+our @EXPORT_OK = qw(getReflowProfiles getDeviceNames findDeviceFile getYamlParser);
 
 use YAML::PP;
 use YAML::PP::Schema::Include;
@@ -54,6 +54,16 @@ sub getDeviceNames {
   return findConfigFilesByPath('device');
 }
 
+sub findDeviceFile {
+  my ($name) = @_;
+
+  my @files = findConfigFilesByPath('device');
+  foreach my $file (@files) {
+    return $file->{value} if $file->{displayName} eq $name;
+  }
+  return $name;
+}
+
 sub findConfigFilesByPath {
   my ($path, $validate) = @_;
 
@@ -91,6 +101,25 @@ sub findConfigFilesByPath {
   }
 
   return @files;
+}
+
+sub standardSearchPath {
+  PowerSupplyControl::Config->addSearchDir(split(/:/, $ENV{PSC_CONFIG_PATH})
+                                         , '.'
+                                         , "$ENV{HOME}/.config/psc"
+                                         , "$ENV{HOME}/.local/share/psc"
+                                         , '/usr/local/share/psc'
+                                         , '/usr/share/psc'
+                                         );
+}
+
+sub getConfigPath {
+  my ($filename, @keys) = @_;
+
+  PowerSupplyControl::Config->clearSearchPath();
+  PowerSupplyControl::Config::Utils::standardSearchPath();
+  my $config = PowerSupplyControl::Config->new($filename);
+  return $config->getPath(@keys);
 }
 
 sub _readConfigMetadata {

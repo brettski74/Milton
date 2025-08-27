@@ -283,6 +283,10 @@ sub addSearchDir {
   return @search_path;
 }
 
+sub clearSearchPath {
+  @search_path = ( '.' );
+}
+
 =head2 searchPath
 
 Return the current list of directories that will be searched for configuration files.

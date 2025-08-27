@@ -18,7 +18,7 @@ sub new {
 }
 
 sub options {
-  return qw( tune=s );
+  return qw( tune=s rtdtune=s );
 }
 
 sub _buildProfile {
@@ -126,6 +126,23 @@ sub writeHistory {
 
 sub postprocess {
   my ($self, $status, $history) = @_;
+
+  if ($self->{rtdtune}) {
+    my $filename = $self->{rtdtune};
+    if ($filename !~ /\.yaml$/) {
+      $filename .= '.yaml';
+    }
+    my $fh = $self->replaceFile($filename);
+    my @calibration = $self->{controller}->getTemperaturePoints;
+    $fh->print("temperatures:\n");
+    foreach my $point (@calibration) {
+      my $line = "- resistance: $point->[0]\n  temperature: $point->[1]\n";
+      $fh->print($line);
+      $self->info($line);
+    }
+    $fh->close;
+  }
+
   if ($self->{tune}) {
     my $parallel = $self->{config}->{tuning}->{parallel} || 1;
     my $predictor = $self->{controller}->getPredictor;
@@ -148,10 +165,7 @@ sub postprocess {
     my $results = $predictor->tune($history, parallel => $parallel);
 
     my $fh = $self->replaceFile($filename);
-    foreach my $key (keys %$results) {
-      print $fh "$key: $results->{$key}\n";
-      $self->info("Tune: $key: $results->{$key}");
-    }
+    $self->writeHash($fh, $results, 'Tune');
     $fh->close;
 
     $predictor->initialize;

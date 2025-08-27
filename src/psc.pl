@@ -5,6 +5,7 @@ use Term::ReadKey;
 use Getopt::Long qw(:config no_ignore_case bundling require_order);
 use PowerSupplyControl::Config;
 use PowerSupplyControl::EventLoop;
+use PowerSupplyControl::Config::Utils;
 
 my $args = { config => 'psc.yaml' };
 GetOptions($args, qw( config=s
@@ -22,14 +23,8 @@ GetOptions($args, qw( config=s
                      ));
 
 my $command = shift;
-PowerSupplyControl::Config->addSearchDir(@{$args->{library}}
-                       , split(/:/, $ENV{PSC_CONFIG_PATH})
-                       , '.'
-                       , "$ENV{HOME}/.config/psc"
-                       , "$ENV{HOME}/.local/share/psc"
-                       , '/usr/local/share/psc'
-                       , '/usr/share/psc'
-                       );
+PowerSupplyControl::Config->addSearchDir(@{$args->{library}});
+PowerSupplyControl::Config::Utils::standardSearchPath();
 
 my $config = PowerSupplyControl::Config->new($args->{config});
 

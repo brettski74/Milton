@@ -184,7 +184,7 @@ Get the list of temperature calibration points.
 
 sub getTemperaturePoints {
   my ($self) = @_;
-  return $self->{rt_estimator}->points();
+  return $self->{rt_estimator}->getPoints();
 }
 
 =head2 temperatureEstimatorLength()

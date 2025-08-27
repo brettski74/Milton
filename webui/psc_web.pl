@@ -106,7 +106,7 @@ group {
                                                        , { name => 'tune'
                                                          , type => 'text'
                                                          , required => 0
-                                                         , description => 'File to save tuning results to (optional)'
+                                                         , description => 'If specified, tunes the temperature prediction and saves to the specified file name (optional)'
                                                          }
                                                        , { name => 'device'
                                                          , type => 'pdlist'
@@ -116,17 +116,36 @@ group {
                                                          }
                                                        ]
                                        }
-                                     , { name => 'replay'
-                                       , description => 'Replay log file for testing'
-                                       , parameters => [ { name => 'file'
-                                                         , type => 'text'
-                                                         , required => 1
-                                                         , description => 'Log file to replay'
-                                                         }
-                                                       , { name => 'speed'
+                                     , { name => 'setup'
+                                       , description => 'Set up a new hotplate PCB'
+                                       , parameters => [ { name => 'ambient'
                                                          , type => 'number'
                                                          , required => 0
-                                                         , description => 'Speed of replay (optional)'
+                                                         , description => 'Ambient temperature in °C'
+                                                         }
+                                                       , { name => 'profile'
+                                                         , type => 'pdlist'
+                                                         , required => 0
+                                                         , description => 'Reflow Profile (optional)'
+                                                         , url => '/api/reflow/profiles'
+                                                         }
+                                                       , { name => 'device'
+                                                         , type => 'pdlist'
+                                                         , required => 0
+                                                         , description => 'Calibration device to use (optional)'
+                                                         , url => '/api/devices'
+                                                         }
+                                                       , { name => 'rtd-calibration'
+                                                         , type => 'text'
+                                                         , required => 1
+                                                         , description => 'The name of the file where the RTD calibration data will be written'
+                                                         , default => $command_executor->getConfigPath('controller', 'calibration')
+                                                         }
+                                                       , { name => 'predictor-calibration'
+                                                         , type => 'text'
+                                                         , required => 0
+                                                         , description => 'The name of the file where the predictor calibration data will be written'
+                                                         , default => $command_executor->getConfigPath('controller', 'predictor')
                                                          }
                                                        ]
                                        }
@@ -162,13 +181,14 @@ group {
                                                          , description => 'Duration of temperature application in seconds (optional)'
                                                          , order => 6
                                                          }
-                                                       , monitor => { type => 'number'
+                                                       , { name => 'monitor'
                                                          , type => 'number'
                                                          , required => 0
                                                          , description => 'Duration in seconds to monitor temperature after shutdown (optional)'
                                                          , order => 7
                                                          }
-                                                       , unsafe => { type => 'boolean'
+                                                       , { name => 'unsafe'
+                                                         , type => 'boolean'
                                                          , required => 0
                                                          , description => 'Disable safety limits (optional)'
                                                          , order => 8

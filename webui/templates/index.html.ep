@@ -199,8 +199,14 @@
 
       <!-- Console Output -->
       <div class="bg-white rounded-lg shadow-md p-6">
-        <h2 class="text-xl font-semibold mb-4">Console Output</h2>
-        <div id="consoleOutput" class="bg-gray-900 text-green-400 p-4 rounded-md console-container overflow-y-auto font-mono text-sm">
+        <div class="flex justify-between items-center mb-4">
+          <h2 class="text-xl font-semibold">Console Output</h2>
+          <button id="clearConsoleBtn" class="bg-gray-500 text-white px-3 py-1 rounded text-sm hover:bg-gray-600">
+            Clear
+          </button>
+        </div>
+        <div id="consoleOutput" class="bg-gray-900 text-green-400 p-4 rounded font-mono text-sm h-64 overflow-y-auto">
+          <div class="text-gray-400">Console ready...</div>
         </div>
       </div>
     </div>
@@ -629,6 +635,9 @@
 
     // Stop button
     document.getElementById('stopBtn').addEventListener('click', stopCommand);
+
+    // Clear console button
+    document.getElementById('clearConsoleBtn').addEventListener('click', clearConsole);
   }
 
   // Show command parameters
@@ -790,6 +799,13 @@
       console.error('Failed to stop command:', error);
       addConsoleMessage('Error stopping command', 'error');
     }
+  }
+
+  // Clear console
+  function clearConsole() {
+    const consoleOutput = document.getElementById('consoleOutput');
+    consoleOutput.innerHTML = '<div class="text-gray-400">Console ready...</div>';
+    consoleOutput.scrollTop = consoleOutput.scrollHeight;
   }
 </script>
 </body>

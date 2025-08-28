@@ -106,6 +106,7 @@ sub poll {
     }
   }
 
+  $status->{ambient} = $self->{ambient} if defined $self->{ambient};
   $self->{controller}->getTemperature($status);
 
   # Make previous values available

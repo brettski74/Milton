@@ -260,6 +260,7 @@
                                                      , borderColor: 'rgb(139, 92, 246)'
                                                      , backgroundColor: 'rgba(139, 92, 246, 0.1)'
                                                      , tension: 0.1
+                                                     , hidden: true // Start hidden, will be shown if data is available
                                                      }
                                                    , { label: 'Profile'
                                                      , data: []
@@ -512,6 +513,24 @@
       
       dataset.data.push(value);
     });
+
+    // Handle External dataset visibility based on deviceTemperature data
+    const externalDataset = dataChart.data.datasets.find(dataset => dataset.label === 'External');
+    if (externalDataset) {
+      if (data.deviceTemperature !== undefined && data.deviceTemperature !== null && data.deviceTemperature > 0) {
+        // Show External dataset if we have deviceTemperature data
+        if (externalDataset.hidden) {
+          externalDataset.hidden = false;
+          console.log('Showing External dataset');
+        }
+      } else {
+        // Hide External dataset if no deviceTemperature data
+        if (!externalDataset.hidden) {
+          externalDataset.hidden = true;
+          console.log('Hiding External dataset');
+        }
+      }
+    }
 
     dataChart.update('none');
   }

@@ -19,6 +19,7 @@ our @EXPORT_OK = qw(
   minimumSearch
   setDebug
   setDebugWriter
+  sgn
 );
 
 my $DEBUG = 0;
@@ -165,6 +166,40 @@ sub meanSquaredError {
   }
 
   return $sum / scalar(@samples);
+}
+
+=head2 sgn($x)
+
+Return a value indicating the sign of the specified number.
+
+=over
+
+=item $x
+
+The number for which the sign is to be determined.
+
+=item Return Value
+
+Returns 1 if $x is greater than 0, -1 if $x is less than 0, 0 if $x is 0 or undef otherwise.
+
+=back
+
+=cut
+
+sub sgn {
+  my $x = shift;
+
+  if ($x > 0) {
+    return 1;
+  }
+  if ($x < 0) {
+    return -1;
+  }
+  if (defined $x) {
+    return 0;
+  }
+
+  return;
 }
 
 =head2 mean($values, $key1, $val1{, $key2, $val2, ...})

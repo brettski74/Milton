@@ -54,6 +54,14 @@ sub getRequiredPower {
   # Anti-windup correction
   $integral += $self->{kaw} * ($power_sat - $power_unsat);
 
+  # Clamp the integral if we're still too big.
+  my $imax = 0.2 * $pmax;
+  if ($integral > $imax) {
+    $integral = $imax;
+  } elsif ($integral < -$imax) {
+    $integral = -$imax;
+  }
+
   $self->{integral} = $integral;
 
   return $power_sat;

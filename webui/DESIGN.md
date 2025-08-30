@@ -43,7 +43,7 @@ webui/
 - Main Mojolicious application
 - Routes configuration
 - WebSocket setup
-- Integration with existing PowerSupplyControl modules
+- Integration with existing Milton modules
 
 #### 2. CommandExecutor.pm
 - Manages command lifecycle (start, stop, status)

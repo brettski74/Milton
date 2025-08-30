@@ -3,9 +3,9 @@
 use AnyEvent;
 use Term::ReadKey;
 use Getopt::Long qw(:config no_ignore_case bundling require_order);
-use PowerSupplyControl::Config;
-use PowerSupplyControl::EventLoop;
-use PowerSupplyControl::Config::Utils;
+use Milton::Config;
+use Milton::EventLoop;
+use Milton::Config::Utils;
 
 my $args = { config => 'psc.yaml' };
 GetOptions($args, qw( config=s
@@ -23,26 +23,26 @@ GetOptions($args, qw( config=s
                      ));
 
 my $command = shift;
-PowerSupplyControl::Config->addSearchDir(@{$args->{library}});
-PowerSupplyControl::Config::Utils::standardSearchPath();
+Milton::Config->addSearchDir(@{$args->{library}});
+Milton::Config::Utils::standardSearchPath();
 
-my $config = PowerSupplyControl::Config->new($args->{config});
+my $config = Milton::Config->new($args->{config});
 
 if ($args->{logger}) {
    $config->{logger}->{package} = $args->{logger};
 }
 
-if (PowerSupplyControl::Config->configFileExists('command/defaults.yaml')) {
+if (Milton::Config->configFileExists('command/defaults.yaml')) {
   $config->merge('command/defaults.yaml', 'command', $command);
 }
 
 # Merge in command configuration
-if (PowerSupplyControl::Config->configFileExists("command/$command.yaml")) {
+if (Milton::Config->configFileExists("command/$command.yaml")) {
   $config->merge("command/$command.yaml", 'command', $command);
 }
 
 # Merge in any command configuration overrides
-if (PowerSupplyControl::Config->configFileExists("command/$command-override.yaml")) {
+if (Milton::Config->configFileExists("command/$command-override.yaml")) {
   $config->merge("command/$command-override.yaml");
 }
 
@@ -72,7 +72,7 @@ if ($args->{device}) {
   }
 
   # Search in the device subdirectory, first, then try the current directory as a fallback
-  if (PowerSupplyControl::Config->configFileExists("device/$filename")) {
+  if (Milton::Config->configFileExists("device/$filename")) {
     $filename = "device/$filename";
   }
 
@@ -86,12 +86,12 @@ if ($args->{profile}) {
     $filename .= '.yaml';
   }
 
-  if (PowerSupplyControl::Config->configFileExists("command/profile/$filename")) {
+  if (Milton::Config->configFileExists("command/profile/$filename")) {
     $filename = "command/profile/$filename";
   }
   
   # Overwrite any existing profile. Don't merge. That appends onto the default profile.
-  $config->{command}->{$command}->{profile} = PowerSupplyControl::Config->new($filename);
+  $config->{command}->{$command}->{profile} = Milton::Config->new($filename);
 }
 
 # Add any extra logging columns
@@ -106,7 +106,7 @@ if ($args->{log}) {
   }
 }
 
-my $evl = PowerSupplyControl::EventLoop->new($config, $command, @ARGV);
+my $evl = Milton::EventLoop->new($config, $command, @ARGV);
 
 my $controller = $evl->getController;
 

@@ -1,4 +1,4 @@
-package: PowerSupplyControl::Controller::BangBang
+package: Milton::Controller::BangBang
 
 # Hysteresis band
 # How far do we let the temperature go above the setpoint before turning off?

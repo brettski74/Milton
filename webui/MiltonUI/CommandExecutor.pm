@@ -9,7 +9,7 @@ use POSIX qw(:sys_wait_h);
 
 use Mojo::IOLoop::ReadWriteFork;
 
-use PowerSupplyControl::Config::Utils qw(getDeviceNames findDeviceFile);
+use Milton::Config::Utils qw(getDeviceNames findDeviceFile);
 
 sub new {
   my ($class, $logger) = @_;
@@ -38,7 +38,7 @@ sub info {
 }
 
 sub discoverDevices {
-  return PowerSupplyControl::Config::Utils::getDeviceNames();
+  return Milton::Config::Utils::getDeviceNames();
 }
 
 sub initializeCommand {
@@ -50,7 +50,7 @@ sub initializeCommand {
   }
 
   my @cmd = qw(psc
-               --logger PowerSupplyControl::WebDataLogger
+               --logger Milton::WebDataLogger
                --log set-power:.1f
                --log predict-temperature:.1f
                --log device-temperature:.1f
@@ -379,7 +379,7 @@ sub commandFinished {
 sub getConfigPath {
   my ($self, @keys) = @_;
 
-  return PowerSupplyControl::Config::Utils::getConfigPath('psc.yaml', @keys);
+  return Milton::Config::Utils::getConfigPath('psc.yaml', @keys);
 }
 
 sub executeCommand {

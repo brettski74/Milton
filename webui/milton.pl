@@ -3,7 +3,7 @@
 use strict;
 use warnings qw(all -uninitialized);
 
-use PowerSupplyControl::Config::Utils qw(getReflowProfiles getDeviceNames);
+use Milton::Config::Utils qw(getReflowProfiles getDeviceNames);
 
 # Make sure that we can find our libraries.
 BEGIN {

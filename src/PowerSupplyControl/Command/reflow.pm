@@ -82,7 +82,7 @@ sub timerEvent {
   $status->{'now-temperature'} = $profile->estimate($now);
   $status->{'stage'} = $stage;
 
-  my $power = $self->{controller}->getRequiredPower($status);
+  my $power = $self->{controller}->getPowerLimited($status);
   $status->{'set-power'} = $power;
 
   if ($stage ne $self->{'last-stage'}) {
@@ -144,7 +144,6 @@ sub postprocess {
   }
 
   if ($self->{tune}) {
-    my $parallel = $self->{config}->{tuning}->{parallel} || 1;
     my $predictor = $self->{controller}->getPredictor;
 
     PowerSupplyControl::Math::Util::setDebug(255);
@@ -162,7 +161,7 @@ sub postprocess {
     $rawfile =~ s/\.yaml$/.raw.csv/;
     $self->writeHistory($history, $rawfile);
 
-    my $results = $predictor->tune($history, parallel => $parallel);
+    my $results = $predictor->tune($history, parallel => $self->{config}->{tuning}->{parallel});
 
     my $fh = $self->replaceFile($filename);
     $self->writeHash($fh, $results, 'Tune');

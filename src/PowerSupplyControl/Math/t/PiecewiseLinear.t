@@ -338,4 +338,13 @@ my ($y_empty_named, $seg_empty_named) = $pwl_named_empty_names->estimate(5);
 is($y_empty_named, 5, 'Interpolate at x=5 should be y=5');
 is($seg_empty_named, '', 'Segment name should be empty string');
 
+$pwl = PowerSupplyControl::Math::PiecewiseLinear->new();
+$pwl->addPoint(0, 0, 10, 10);
+$pwl->addPoint(20, 15);
+$pwl->addPoint(10, 8);
+is($pwl->length(), 3, 'Should have 3 points - no duplicates');
+is($pwl->estimate(5), 4, 'Interpolate at x=5 should be y=4');
+is($pwl->estimate(15), 11.5, 'Interpolate at x=15 should be y=11.5');
+is($pwl->estimate(25), 18.5, 'Interpolate at x=25 should be y=18.5');
+
 done_testing(); 

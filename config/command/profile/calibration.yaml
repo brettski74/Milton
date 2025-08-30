@@ -36,10 +36,3 @@
 - name: cool
   seconds: 180
   temperature: 100
-- name: off
-  seconds: 1
-  temperature: 15
-- name: monitor
-  fan: 1
-  seconds: 179
-  temperature: 15

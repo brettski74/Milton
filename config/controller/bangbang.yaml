@@ -1,0 +1,17 @@
+package: PowerSupplyControl::Controller::BangBang
+
+# Hysteresis band
+# How far do we let the temperature go above the setpoint before turning off?
+# How far do we let the temperature go below the setpoint before turning on?
+hysteresis:
+  low: 0.5
+  high: 0.5
+
+limits: !include controller-limits.yaml
+
+# Calibration data - best to load from a separate file so that you can easily update via calibration.
+calibration: !include al-resistance.yaml
+
+predictor: !include al-tune.yaml
+
+

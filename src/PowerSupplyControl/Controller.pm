@@ -32,16 +32,13 @@ sub new {
 
   $config->{interface} = $interface;
 
-  bless $config, $class;
+  my $self = bless $config, $class;
 
-  if (exists $config->{calibration}->{'thermal-resistance'}) {
-    my $ttr = $config->{calibration}->{'thermal-resistance'};
-    $config->{'ttr-estimator'} = PowerSupplyControl::Math::PiecewiseLinear->new->addHashPoints(temperature => 'thermal-resistance', @$ttr);
-  }
-
-  if (exists $config->{calibration}->{'heat-capacity'}) {
-    my $tch = $config->{calibration}->{'heat-capacity'};
-    $config->{'tch-estimator'} = PowerSupplyControl::Math::PiecewiseLinear->new->addHashPoints(temperature => 'heat-capacity', @$tch);
+  my $limits = $config->{limits};
+  if ($limits && exists $limits->{'power-limits'}) {
+    foreach my $point (@{$limits->{'power-limits'}}) {
+      $self->setPowerLimit($point->{temperature}, $point->{power});
+    }
   }
 
   if (exists $config->{predictor}) {
@@ -52,12 +49,12 @@ sub new {
       croak "Failed to load predictor $config->{predictor}->{package}: $@";
     }
 
-    $config->{predictor} = $config->{predictor}->{package}->new(%{$config->{predictor}});
+    $self->{predictor} = $config->{predictor}->{package}->new(%{$config->{predictor}});
   } else {
-    $config->{predictor} = PowerSupplyControl::Predictor->new;
+    $self->{predictor} = PowerSupplyControl::Predictor->new;
   }
 
-  return $config;
+  return $self;
 }
 
 =head2 getTemperature($status)
@@ -127,27 +124,33 @@ The ambient temperature in degrees celsius.
 sub getAmbient {
   my ($self, $status) = @_;
   my $ambient = $status->{ambient};
+  $self->debug(10, "getAmbient: ambient: $ambient");
 
   if (!defined $ambient) {
-    my $default = $self->{ambient} // 25;
+    my $default = $self->{limits}->{ambient} // 25;
 
-    $ambient = $status->{temperature};
+    my $temperature = $status->{temperature};
     my $device_temperature = $status->{'device-temperature'};
     my $device_ambient = $status->{'device-ambient'};
+    $self->debug(10, "default: $default, ambient: $ambient, device-temp: $device_temperature, device-ambient: $device_ambient");
 
+    # If we have a temperature device but no device temperature, then maybe we need to poll it
     if (!defined($device_temperature) && defined($self->hasTemperatureDevice)) {
       ($device_temperature, $device_ambient) = $self->getDeviceTemperature;
+      $self->debug(10, "Getting device temperature: device-temp: $device_temperature, device-ambient: $device_ambient");
     }
 
-    if (!defined($ambient) || (defined($device_temperature) && $device_temperature < $ambient)) {
+    $ambient = $device_ambient;
+
+    if (defined($device_temperature) && $device_temperature < ($default+5) && (!defined($ambient) || $device_temperature < $ambient)) {
       $ambient = $device_temperature;
     }
 
-    if (!defined($ambient) || (defined($device_ambient) && $device_ambient < $ambient)) {
-      $ambient = $device_ambient;
+    if (!defined($ambient) && defined($temperature) && $temperature < ($default+5)) {
+      $ambient = $temperature;
     }
 
-    if (!defined($ambient) || $ambient > $default + 5) {
+    if (!defined($ambient)) {
       $ambient = $default;
     }
 
@@ -156,48 +159,6 @@ sub getAmbient {
   }
 
   return $ambient;
-}
-
-=head2 predictTemperature($status)
-
-Provide a prediction of the hotplate temperature based on the current status data. This usually
-requires having some kind of measured temperature already in the status hash - most likely from
-a previous call to getTemperature.
-
-The purpose of this method is to predict the temperature of the surface of the hotplate, which is
-what we're really interested in controlling. The temperature measurement is usually a temperature
-measured based on the heating element resistance - basically using the heating element as an RTD.
-Since this is also the source of heating, this temperature often leads and the temperature at the
-surface of the hotplate lags behind. The default implementation of this method will use a simple
-single pole low pass filter to predict a delay in heat getting to the hotplate. This filter can
-be tuned to produce good results for a specific scenario - such as a solder reflow cycle. You can
-tune the filter to the behaviour of your hotplate when unloaded using the calibrate command.
-Alternatively, you can guess. For a 100mm square hotplate, values in the range of about 15-27
-seconds work well. Since loaded hotplate will probably slow the response further, you should
-probably tend toward the higher end of that range.
-
-This delay filter can be configured by setting the 'predict-time-constant' parameter in the
-controller configuration. Setting it to 0 disabled the delay filter.
-
-=cut
-
-sub predictTemperature {
-  my ($self, $status) = @_;
-
-  return $self->{predictor}->predictTemperature($status);
-}
-
-=head2 setPredictedTemperature($temperature)
-
-Set the current temperature prediction. This is primarily used for testing to give the internal
-IIR filter a known state.
-
-=cut
-
-sub setPredictedTemperature {
-  my ($self, $temperature) = @_;
-
-  $self->{predictor}->setPredictedTemperature($temperature);
 }
 
 =head2 getRequiredPower($status)
@@ -223,160 +184,38 @@ The power to be applied to the hotplate to achieve the target temperature.
 =cut
 
 sub getRequiredPower {
-  return;
+  my ($self, $status) = @_;
+
+  # Just return the value provided in the status - useful only for testing.
+  return $status->{'set-power'} // $status->{power};
 }
 
-=head2 setAmbient($temperature)
+=head2 getPowerLimited($power)
 
-Set the current ambient temperature.
-
-=over
-
-=item $temperature
-
-The current ambient temperature in degrees celsius.
-
-=item Return Value
-
-The previously set value of ambient temperature, if any.
-
-=back
+Get the required power, but with safe limits applied based on the safety limits specified in the
+controller configuration.
 
 =cut
 
-sub setAmbient {
-  my ($self, $temperature) = @_;
+sub getPowerLimited {
+  my ($self, $status) = @_;
 
-  my $rc = $self->{ambient};
-  $self->{ambient} = $temperature;
+  my $power = $self->getRequiredPower($status);
+  my $temperature = $status->{temperature};
 
-  return $rc;
-}
+  if (!exists $self->{'limits-disabled'} && defined $temperature) {
+    my $cutoff = $self->{limits}->{'cut-off-temperature'};
 
-=head2 setThermalResistancePoint($temperature, $thermal_resistance)
-
-Set a thermal resistance calibration point for the RTD estimator.
-
-=over
-
-=item $temperature
-
-The temperature at which the thermal resistance was measured.
-
-=item $thermal_resistance
-
-The effective thermal resistance at the given temperature.
-
-=back
-
-=cut
-
-sub setThermalResistancePoint {
-  my ($self, $temperature, $thermal_resistance) = @_;
-
-  if (exists $self->{'ttr-estimator'}) {
-    $self->{'ttr-estimator'} = PowerSupplyControl::Math::PiecewiseLinear->new;
+    if (defined $cutoff && $temperature >= $cutoff) {
+      # Set it to zero and let the interface deal with minimum power settings
+      $power = 0;
+    } elsif (exists $self->{'power-limits'}) {
+      my $limit = $self->{'power-limits'}->estimate($temperature);
+      $power = $limit if $power > $limit;
+    }
   }
 
-  $self->{'ttr-estimator'}->addPoint($temperature, $thermal_resistance);
-}
-
-=head2 thermalResistanceEstimatorLength()
-
-Get the number of thermal resistance calibration points in the thermal resistance estimator.
-
-=cut
-
-sub thermalResistanceEstimatorLength {
-  my ($self) = @_;
-
-  if (exists $self->{'ttr-estimator'}) {
-    return $self->{'ttr-estimator'}->length();
-  }
-
-  return 0;
-}
-
-=head2 getThermalResistance($temperature)
-
-Get the thermal resistance at the given temperature.
-
-=over
-
-=item $temperature
-
-The temperature at which to get the thermal resistance.
-
-=cut
-
-sub getThermalResistance {
-  my ($self, $temperature) = @_;
-
-  if (exists $self->{'ttr-estimator'}) {
-    return $self->{'ttr-estimator'}->estimate($temperature);
-  }
-
-  return;
-}
-
-=head2 setHeatCapacityPoint($temperature, $heat_capacity)
-
-Set a heat capacity calibration point for the RTD estimator.
-
-=over
-
-=item $temperature
-
-The temperature at which the heat capacity was measured.
-
-=item $heat_capacity
-
-The effective heat capacity at the given temperature.
-
-=back
-
-=cut
-
-sub setHeatCapacityPoint {
-  my ($self, $temperature, $heat_capacity) = @_;
-
-  if (exists $self->{'tch-estimator'}) {
-    $self->{'tch-estimator'} = PowerSupplyControl::Math::PiecewiseLinear->new;
-  }
-
-  $self->{'tch-estimator'}->addPoint($temperature, $heat_capacity);
-}
-
-=head2 heatCapacityEstimatorLength()
-
-Get the number of heat capacity calibration points in the heat capacity estimator.
-
-=cut
-
-sub heatCapacityEstimatorLength {
-  my ($self) = @_;
-
-  if (exists $self->{'tch-estimator'}) {
-    return $self->{'tch-estimator'}->length();
-  }
-
-  return 0;
-}
-
-=head2 getHeatCapacity($temperature)
-
-Get the effective heat capacity at the given temperature.
-
-=cut
-
-sub getHeatCapacity {
-  my ($self, $temperature) = @_;
-
-  if (exists $self->{'tch-estimator'}) {
-    return $self->{'tch-estimator'}->estimate($temperature);
-  }
-
-  return;
+  return $power;
 }
 
 sub hasTemperatureDevice {
@@ -399,18 +238,36 @@ sub shutdown {
   return;
 }
 
-sub disableSafety {
-  return;
+sub enableLimits {
+  my ($self, $flag) = @_;
+
+  if (@_ > 1 && !$flag) {
+    $self->{'limits-disabled'} = 1;
+  } else {
+    delete $self->{'limits-disabled'};
+  }
+}
+
+sub disableLimits {
+  my ($self) = @_;
+
+  return $self->enableLimits(0);
 }
 
 sub setCutoffTemperature {
   my ($self, $temperature) = @_;
 
-  $self->{'cut-off-temperature'} = $temperature;
+  $self->{temperature}->{'cut-off-temperature'} = $temperature;
 }
 
 sub setPowerLimit {
-  return;
+  my ($self, $temperature, $power) = @_;
+
+  if (!exists $self->{'power-limits'}) {
+    $self->{'power-limits'} = PowerSupplyControl::Math::PiecewiseLinear->new;
+  }
+
+  $self->{'power-limits'}->addPoint($temperature, $power);
 }
 
 sub info {

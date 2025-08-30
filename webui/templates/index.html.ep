@@ -206,7 +206,6 @@
           </button>
         </div>
         <div id="consoleOutput" class="bg-gray-900 text-green-400 p-4 rounded font-mono text-sm h-64 overflow-y-auto">
-          <div class="text-gray-400">Console ready...</div>
         </div>
       </div>
     </div>
@@ -823,7 +822,7 @@
   // Clear console
   function clearConsole() {
     const consoleOutput = document.getElementById('consoleOutput');
-    consoleOutput.innerHTML = '<div class="text-gray-400">Console ready...</div>';
+    consoleOutput.innerHTML = '';
     consoleOutput.scrollTop = consoleOutput.scrollHeight;
   }
 </script>

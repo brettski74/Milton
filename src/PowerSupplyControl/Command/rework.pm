@@ -96,7 +96,7 @@ sub preprocess {
   $self->{profile} = $profile;
 
   if ($self->{unsafe}) {
-    $self->{controller}->disableSafety;
+    $self->{controller}->disableLimits;
     $self->warning('Hotplate safety limits disabled. Use with caution. Do not leave hotplate unattended.');
   }
 
@@ -144,7 +144,7 @@ sub timerEvent {
     $status->{'now-temperature'} = $self->{profile}->estimate($status->{now});
     $status->{'then-temperature'} = $self->{profile}->estimate($status->{now} + $status->{period});
 
-    my $power = $self->{controller}->getRequiredPower($status);
+    my $power = $self->{controller}->getPowerLimited($status);
     $status->{'set-power'} = $power;
     $self->{interface}->setPower($power);
 

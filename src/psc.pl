@@ -112,6 +112,7 @@ my $controller = $evl->getController;
 
 if ($args->{ambient}) {
   $evl->setAmbient($args->{ambient});
+  $evl->{logger}->info("User supplied ambient temperature: $args->{ambient} °C");
 }
 
 if ($args->{reset}) {
@@ -132,7 +133,7 @@ if ($args->{r0}) {
 }
 
 if ($args->{cutoff}) {
-  $evl->{logger}->info("Setting cutoff temperature to $args->{cutoff} celsius");
+  $evl->{logger}->info("Setting cutoff temperature to $args->{cutoff} °C");
   $controller->setCutoffTemperature($args->{cutoff});
 }
 

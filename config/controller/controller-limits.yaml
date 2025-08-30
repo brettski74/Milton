@@ -1,0 +1,26 @@
+# Set default ambient temperature in degrees celsius. Does not automatically apply.
+# Precedence for ambient temperature is:
+#   1. User specified ambient temperature on the command-line (or web form)
+#   2. If we have a calibration device:
+#      a. Measured cold junction temperature if lower than hot junction temperature
+#      b. Measured hot junction temperature if lower than cold junction temperature
+#      c. Measured device temperature if within 5 celsius of default and no cold junction temperature available
+#   3. Measured heating element temperature if within 5 celsius of the default temperature
+#   4. Default value specified here
+# Set this to the most common ambient temperature where the hotplate will be operating.
+ambient: 27
+
+# Define power limits for different temperatures.
+# Used to ensure a safe and gradual approach to the maximum temperatures but can be used for
+# other purposes as well. If the calculated power is above the limits set by this piecewise
+# linear interpolator, then power will be clamped to this limit.
+power-limits:
+  - temperature: 20
+    power: 120
+  - temperature: 220
+    power: 120
+  - temperature: 230
+    power: 50
+
+# If the heating element temperature is above this, turn off the power so we don't blow our fuse!
+cut-off-temperature: 227

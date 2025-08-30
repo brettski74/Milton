@@ -95,6 +95,24 @@ sub initializeCommand {
   return @cmd;
 }
 
+sub executeTune {
+  my ($self, $params) = @_;
+
+  my @cmd = $self->initializeCommand($params);
+
+  push @cmd, 'tune';
+
+  if (defined $params->{'predictor-calibration'}) {
+    push @cmd, '--tune', $params->{'predictor-calibration'};
+  }
+
+  if (defined $params->{'controller-calibration'}) {
+    push @cmd, '--ctrltune', $params->{'controller-calibration'};
+  }
+
+  return $self->executeCommand('tune', @cmd);
+}
+
 sub executeReflow {
   my ($self, $params) = @_;
   

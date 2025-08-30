@@ -57,7 +57,23 @@ get '/' => sub { my $c = shift;
 # API endpoints
 group {
   # API routes go here
-  
+  my $PARAM_AMBIENT = { name => 'ambient'
+                      , type => 'number'
+                      , required => 0
+                      , description => 'Ambient temperature in °C (optional)'
+                      };
+  my $PARAM_DEVICE = { name => 'device'
+                     , type => 'pdlist'
+                     , required => 0
+                     , description => 'Calibration device to use (optional)'
+                     , url => '/api/devices'
+                     };
+  my $PARAM_PROFILE = { name => 'profile'
+                      , type => 'pdlist'
+                      , required => 0
+                      , description => 'Reflow Profile (optional)'
+                      , url => '/api/reflow/profiles'
+                      };
   # List available commands
   get '/api/commands' => sub {
     my $c = shift;
@@ -76,13 +92,9 @@ group {
                                                        , { name => 'r0'
                                                          , type => 'text'
                                                          , required => 0
-                                                         , description => 'Cold resistance:temperature in ohms or milliohms and degrees Celsius (optional)'
+                                                         , description => 'Cold resistance:temperature in Ω or mΩ and °C (optional)'
                                                          }
-                                                       , { name => 'ambient'
-                                                         , type => 'number'
-                                                         , required => 0
-                                                         , description => 'Ambient temperature in degrees Celsius (optional)'
-                                                         }
+                                                       , $PARAM_AMBIENT
                                                        , { name => 'resetCalibration'
                                                          , type => 'boolean'
                                                          , required => 0
@@ -92,49 +104,21 @@ group {
                                        }
                                      , { name => 'reflow'
                                        , description => 'Execute reflow profile'
-                                       , parameters => [ { name => 'profile'
-                                                         , type => 'pdlist'
-                                                         , required => 0
-                                                         , description => 'Reflow Profile (optional)'
-                                                         , url => '/api/reflow/profiles'
-                                                         }
-                                                       , { name => 'ambient'
-                                                         , type => 'number'
-                                                         , required => 0
-                                                         , description => 'Ambient temperature in °C (optional)'
-                                                         }
+                                       , parameters => [ $PARAM_PROFILE
+                                                       , $PARAM_AMBIENT
+                                                       , $PARAM_DEVICE
                                                        , { name => 'tune'
                                                          , type => 'text'
                                                          , required => 0
                                                          , description => 'If specified, tunes the temperature prediction and saves to the specified file name (optional)'
                                                          }
-                                                       , { name => 'device'
-                                                         , type => 'pdlist'
-                                                         , required => 0
-                                                         , description => 'Calibration device to use (optional)'
-                                                         , url => '/api/devices'
-                                                         }
                                                        ]
                                        }
                                      , { name => 'setup'
                                        , description => 'Set up a new hotplate PCB'
-                                       , parameters => [ { name => 'ambient'
-                                                         , type => 'number'
-                                                         , required => 0
-                                                         , description => 'Ambient temperature in °C'
-                                                         }
-                                                       , { name => 'profile'
-                                                         , type => 'pdlist'
-                                                         , required => 0
-                                                         , description => 'Reflow Profile (optional)'
-                                                         , url => '/api/reflow/profiles'
-                                                         }
-                                                       , { name => 'device'
-                                                         , type => 'pdlist'
-                                                         , required => 0
-                                                         , description => 'Calibration device to use (optional)'
-                                                         , url => '/api/devices'
-                                                         }
+                                       , parameters => [ $PARAM_AMBIENT
+                                                       , $PARAM_PROFILE
+                                                       , $PARAM_DEVICE
                                                        , { name => 'rtd-calibration'
                                                          , type => 'text'
                                                          , required => 1
@@ -149,12 +133,31 @@ group {
                                                          }
                                                        ]
                                        }
+                                     , { name => 'tune'
+                                       , description => 'Tune a Hybrid PI controller'
+                                       , parameters => [ $PARAM_AMBIENT
+                                                       , $PARAM_DEVICE
+                                                       , $PARAM_PROFILE
+                                                       , { name => 'predictor-calibration'
+                                                         , type => 'text'
+                                                         , required => 1
+                                                         , description => 'The name of the file where the predictor calibration data will be written'
+                                                         , default => $command_executor->getConfigPath('controller', 'predictor')
+                                                         }
+                                                       , { name => 'controller-calibration'
+                                                         , type => 'text'
+                                                         , required => 0
+                                                         , description => 'The name of the file where the controller calibration data will be written'
+                                                         , default => $command_executor->getConfigPath('controller')
+                                                         }
+                                                       ]
+                                       }
                                      , { name => 'rework'
                                        , description => 'Constant temperature (Rework or Preheat)'
                                        , parameters => [ { name => 'temperature'
                                                          , type => 'number'
                                                          , required => 1
-                                                         , description => 'Temperature to apply in degrees Celsius'
+                                                         , description => 'Temperature to apply in °C'
                                                          , order => 2
                                                          }
                                                        , { name => 'ramp'
@@ -166,13 +169,13 @@ group {
                                                        , { name => 'cutoff'
                                                          , type => 'number'
                                                          , required => 0
-                                                         , description => 'Heating element cutoff temperature in celsius (optional)'
+                                                         , description => 'Heating element cutoff temperature in °C (optional)'
                                                          , order => 4
                                                          }
                                                        , { name => 'limit'
                                                          , type => 'text'
                                                          , required => 0
-                                                         , description => 'Heating element limit temperature:power in celsius:watts (optional)'
+                                                         , description => 'Heating element limit temperature:power in °C:W (optional)'
                                                          , order => 5
                                                          }
                                                        , { name => 'duration'

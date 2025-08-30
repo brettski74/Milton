@@ -552,6 +552,23 @@ sub _shutdownChildren {
   return;
 }
 
+sub countCores {
+  my $fh = IO::File->new('/proc/cpuinfo');
+  return 1 if !$fh;
+
+  my $cores = 0;
+  while (my $line = $fh->getline) {
+    chomp $line;
+
+    # Only count cores that have a floating point unit
+    if ($line =~ /^fpu\s*: yes/) {
+      $cores++;
+    }
+  }
+
+  return $cores || 1;
+}
+
 sub minimumSearch {
   my ($fn, $bounds, %options) = @_;
 
@@ -594,8 +611,10 @@ sub minimumSearch {
   my $worst_y;
   my @children;
 
-  if ($options{parallel} > 1) {
-    @children = _spawnChildren($search, $fn, $options{parallel});
+  my $parallel = $options{parallel} // countCores();
+
+  if ($parallel > 1) {
+    @children = _spawnChildren($search, $fn, $parallel);
   }
 
   while ($depth > 0) {

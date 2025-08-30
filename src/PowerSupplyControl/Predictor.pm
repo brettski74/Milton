@@ -55,7 +55,7 @@ sub _tune {
   my $prediction = $options{prediction} // 'predict-temperature';
   my $expected = $options{expected} // 'device-temperature';
 
-  my $time_cut_off = $self->{'time-cut-off'} // 180;
+  my $time_cut_off = $self->{'time-cut-off'} // 240;
   my $temperature_cut_off = $self->{'temperature-cut-off'} // 120;
 
   delete $options{prediction};
@@ -140,6 +140,7 @@ sub error {
 
 sub debug {
   my ($self, $level, $message) = @_;
+  print "Log level: $level\n";
 
   $self->{'logger'}->debug($level, $message) if $self->{'logger'};
 }

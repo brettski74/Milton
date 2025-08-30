@@ -63,7 +63,7 @@ sub tune {
 
   my $tuned = $self->_tune($samples
                            , [ 'inner-tau', 'outer-offset', 'outer-gradient' ]
-                           , [ [ 0, 100 ], [ 100, 1500 ], [ -5, 0 ] ]
+                           , [ [ 0, 30 ], [ 500, 4000 ], [ -20, 0 ] ]
                            , 'lower-constraint' => [ 0, 0, undef ]
                            , threshold => [ 0.001, 0.01, 0.0001 ]
                            , steps => [ 32, 64, 32 ]

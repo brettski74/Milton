@@ -267,60 +267,27 @@ sub getRequiredPower {
 
   my $on = $self->{on};
   my $target_temp = $status->{'then-temperature'};
-  my $temperature = $self->predictTemperature($status);
+  my $temperature = $self->{predictor}->predictTemperature($status);
   my $hyst_lo = -$self->{hysteresis}->{low};
   my $hyst_hi = $self->{hysteresis}->{high};
 
-  if (exists $self->{'cut-off-temperature'} && $status->{temperature} >= $self->{'cut-off-temperature'}) {
-    $self->{on} = 0;
-  } else {
-    my $error = $temperature - $target_temp;
+  my $error = $temperature - $target_temp;
 
-    if ($error < $hyst_lo) {
-      $self->{on} = 1;
-    } elsif ($error >= $hyst_hi) {
-      $self->{on} = 0;
-    }
+  if ($error < $hyst_lo) {
+    $self->{on} = 1;
+  } elsif ($error >= $hyst_hi) {
+    $self->{on} = 0;
   }
 
-  return $self->{'on-power'}->estimate($status->{temperature}) if $self->{on};
+  return $self->{'on-power'}->estimate($temperature) if $self->{on};
+  #return $self->{'on-power'}->estimate($status->{temperature}) if $self->{on};
   return $self->{'min-power'};
 }
 
-sub disableSafety {
-  my ($self) = @_;
-
-  # Remove any cut-off temperature that may have been set
-  delete $self->{'cut-off-temperature'};
-  
-  # Remove any power fall-off that may have been set
-  my ($pmin, $pmax) = $self->{interface}->getPowerLimits();
-  $self->{'on-power'} = PowerSupplyControl::Math::PiecewiseLinear->new(20, $pmax);
-
-  return;
-}
-
-sub setPowerLimit {
+sub setPowerLevel {
   my ($self, $temperature, $power) = @_;
 
-  # Get current maximum power - assume this this applies at 25 celsius
-  my $pmax = $self->{'on-power'}->estimate(25);
-
-  # If we don't have power specified, assume 1/3 of max
-  if (!defined $power) {
-    $power = $pmax / 3;
-  }
-
-  my $cutoff = $self->{'cut-off-temperature'};
-  if (!defined $cutoff) {
-    # Assume limiting applies over a 15 celsius range
-    $cutoff = $temperature + 15;
-  }
-
-  # Allow maximum power up to the limit temperature, then drop to the specified power by cut-off temperature
-  $self->{'on-power'} = PowerSupplyControl::Math::PiecewiseLinear->new(20, $pmax)
-    ->addPoint($temperature, $pmax)
-    ->addPoint($cutoff, $power);
+  $self->{'on-power'}->addPoint($temperature, $power);
 
   return;
 }

@@ -1,0 +1,18 @@
+#profile: !include modified-jedec.yaml
+profile: !include profile/brettski-special.yaml
+#profile: !include profile/slow-power.yaml
+
+logging:
+  columns:
+    - key: now-temperature
+      format: .2f
+    - key: then-temperature
+      format: .2f
+    - key: set-power
+      format: .3f
+    - key: back-prediction
+      format: .5f
+    - key: weight
+      format: .5f
+    - key: lpf-prediction
+      format: .5f

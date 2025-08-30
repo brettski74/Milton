@@ -148,10 +148,19 @@ sub addPoint {
 
     my $entry = [ $x, $y ];
 
-    push @new, $entry;
-  }
+    my $i;
+    for ($i=0; $i<@$self; $i++) {
+      if ($self->[$i]->[0] >= $x) {
+        last;
+      }
+    }
 
-  @$self = sort { $a->[0] <=> $b->[0] } (@$self, @new);
+    if ($i < @$self && $self->[$i]->[0] == $x) {
+      $self->[$i] = $entry;
+    } else {
+      splice @$self, $i, 0, $entry;
+    }
+  }
 
   return $self;
 }

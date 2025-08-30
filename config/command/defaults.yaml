@@ -1,0 +1,25 @@
+# Default configuration for all commands. Can be overridden by command-specific configuration.
+
+# Current levels - minimum, default and maximum in amps.
+current:
+  startup: 2
+
+# Current levels - minimum, default and maximum in amps.
+voltage:
+  startup: 2
+
+# Should default to the number of floating point cores, but uncomment to set explicitly
+#tuning:
+#  parallel: 1
+
+logging:
+  columns:
+    - key: device-temperature
+      format: .1f
+    - key: set-power
+      format: .1f
+    - key: now-temperature
+      format: .1f
+    - key: predict-temperature
+      format: .1f
+

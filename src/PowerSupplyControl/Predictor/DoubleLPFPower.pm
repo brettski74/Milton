@@ -21,10 +21,17 @@ sub predictTemperature {
   my $power = $status->{power};
   my $ambient = $status->{ambient};
   my $temperature = $status->{temperature};
+  my $last_heating_element = $self->{'last-heating-element'};
 
-  if (defined $self->{'last-heating-element'}) {
+  if (defined $last_heating_element) {
     my $alpha = $period / ($period + $self->{'power-tau'});
-    my $rel_temp = $temperature - $ambient;
+    my $rel_temp;
+    if (!defined $temperature) {
+      $rel_temp = $last_heating_element - $ambient;
+    } else {
+      $rel_temp = $temperature - $ambient;
+    }
+
     my $gain = $self->{'power-gain'} + $self->{'power-gradient'} * $rel_temp;
     my $ss_temp = $ambient + $power * $gain;
     $status->{'predict-heating-element'} = $self->{'last-heating-element'} * (1-$alpha) + $alpha * $ss_temp;
@@ -33,8 +40,9 @@ sub predictTemperature {
   }
 
   $self->{'last-heating-element'} = $status->{'predict-heating-element'};
-  
-  if (!exists $status->{'device-temperature'}) {
+  if (!defined $status->{temperature}) {
+    $status->{temperature} = $status->{'predict-heating-element'};
+  } elsif (!exists $status->{'device-temperature'}) {
     $status->{'device-temperature'} = $status->{'predict-heating-element'};
   }
 
@@ -66,17 +74,9 @@ sub predictPower {
   return $power;
 }
 
-  
-  # First predict the hotplate temperature required to reach the target temperature.
-  # Need inner and outer loop alphas.
-  my $inner_alpha = $status->{period} / ($status->{period} + $self->{'inner-tau'});
-}
-
 sub initialize {
   my ($self) = @_;
   delete $self->{'last-heating-element'};
-
-  return $self->SUPER::initialize;
 }
 
 sub description {
@@ -86,10 +86,8 @@ sub description {
                  $self->{'power-tau'}, $self->{'power-gain'}, $self->{'power-gradient'});
 }
 
-sub tune {
+sub _tunePI {
   my ($self, $samples, %args) = @_;
-
-  my $tuned = $self->SUPER::tune($samples, %args);
 
   my $ptuned = $self->_tune($samples
                             , [ 'power-tau', 'power-gain', 'power-gradient' ]
@@ -103,6 +101,15 @@ sub tune {
                             , expected => 'temperature'
                             , %args
                             );
+
+  return $ptuned;
+}
+
+sub tune {
+  my ($self, $samples, %args) = @_;
+
+  my $tuned = $self->SUPER::tune($samples, %args);
+  my $ptuned = $self->_tunePI($samples, %args);
 
   return { %$tuned, %$ptuned };
 }

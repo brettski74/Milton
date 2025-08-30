@@ -5,7 +5,7 @@ use warnings qw(all -uninitialized -digit);
 use Carp qw(croak);
 use base qw(Exporter);
 
-our @EXPORT_OK = qw(boolify checkMinimum checkMaximum checkMinMax dirname hexToNumber readCSVData timestamp);
+our @EXPORT_OK = qw(boolify checkMinimum checkMaximum checkMinMax dirname hexToNumber readCSVData writeCSVData timestamp);
 
 =head1 NAME
 
@@ -217,6 +217,27 @@ sub dirname {
   $path =~ s/\/[^\/]+$//;
 
   return $path;
+}
+
+sub writeCSVData {
+  my ($filename, $data) = @_;
+
+  my $fh = IO::File->new($filename, 'w') || croak "Failed to open $filename: $!";
+  my @columns = ();
+  my $testrow = $data->[2];
+  foreach my $key (sort keys %$testrow) {
+    if (!ref $testrow->{$key}) {
+      push @columns, $key;
+    }
+  }
+  $fh->print(join(',', @columns), "\n");
+
+  foreach my $record(@$data) {
+    my @values = map { $record->{$_} } @columns;
+    $fh->print(join(',', @values), "\n");
+  }
+
+  $fh->close;
 }
 
 =head1 AUTHOR

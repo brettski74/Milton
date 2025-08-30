@@ -1,4 +1,4 @@
-package PSCWebUI::CommandExecutor;
+package MiltonUI::CommandExecutor;
 
 use strict;
 use warnings qw(all -uninitialized);

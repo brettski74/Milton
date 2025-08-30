@@ -12,7 +12,7 @@ TEMPLATES_DIR=$(SHAREDIR)/webui/templates
 .PHONY: install install-dirs check-perl clean
 
 # Perl scripts to install
-PERL_SCRIPTS=psc_web.pl
+PERL_SCRIPTS=milton.pl
 
 REL_PERL_SCRIPTS=$(patsubst %.pl,$(BINDIR)/%,$(PERL_SCRIPTS))
 

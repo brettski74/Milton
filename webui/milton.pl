@@ -13,7 +13,7 @@ BEGIN {
 }
 
 use Mojolicious::Lite;
-use PSCWebUI::CommandExecutor;
+use MiltonUI::CommandExecutor;
 
 # Enable debug mode for development
 app->log->level('debug');
@@ -31,7 +31,7 @@ app->config(
 # app->websocket_timeout(300);  # 5 minutes WebSocket timeout
 
 # Create command executor
-my $command_executor = PSCWebUI::CommandExecutor->new();
+my $command_executor = MiltonUI::CommandExecutor->new();
 
 # Serve static files from shared/public directories (user/local/system) with app-local as fallback
 app->static->paths([

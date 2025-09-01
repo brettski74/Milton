@@ -52,7 +52,9 @@ sub tune {
 
   my $parallel = $self->{tuning}->{parallel} // 1;
 
-  my $tuned = $self->_tune($samples
+  my $filtered = $self->filterSamples($samples);
+
+  my $tuned = $self->_tune($filtered
                            , [ 'tau', 'loss-factor' ]
                            , [ [ 0, 100 ], [ 0.8, 1 ] ]
                            , 'lower-constraint' => [ 0, 0.8 ]

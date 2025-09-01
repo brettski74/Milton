@@ -3,6 +3,8 @@ package Milton::Predictor;
 use strict;
 use warnings qw(all -uninitialized);
 
+use POSIX qw(floor);
+
 use Milton::Math::Util qw(minimumSearch);
 
 sub new {
@@ -49,14 +51,126 @@ sub initialize {
   return;
 }
 
+# break the history into bands based on temperature ranges.
+sub buildSampleBands {
+  my ($self, $samples, $bands) = @_;
+  
+  $bands //= [ { min => 0, max => 110, samples => [] }
+             , { min => 90, max => 160, samples => [] }
+             , { min => 140, max => 210, samples => [] }
+             , { min => 190, max => 260, samples => [] }
+             ];
+
+  # First find the peak of the reflow curve
+  my $peak_idx = 0;
+  my $peak_temp = -9999999999999;
+  my $stage_bands = 0;
+  for (my $i = 0; $i < @$samples; $i++) {
+    if ($samples->[$i]->{temperature} > $peak_temp) {
+      $peak_idx = $i;
+      $peak_temp = $samples->[$i]->{temperature};
+    }
+
+    if ($samples->[$i]->{stage} =~ /^band(\d+)-(\d+)$/) {
+      my $idx = $1 + 0;
+      if (@$bands > $idx) {
+        $stage_bands = 1;
+        $bands->[$idx]->{centre} = $2 + 0;
+      }
+    }
+  }
+
+  $self->info("Stage Bands: $stage_bands");
+
+  # Figure out the bounds for each band
+  if (!$stage_bands) {
+    for (my $i=0; $i<@$samples; $i++) {
+      foreach my $band (@$bands) {
+        if ($samples->[$i]->{temperature} >= $band->{min} && $samples->[$i]->{temperature} <= $band->{max}) {
+          if ($i < $peak_idx) {
+            if (!exists $band->{'rising_start'}) {
+              $band->{'rising_start'} = $i;
+            }
+            $band->{'rising_end'} = $i;
+          } else {
+            if (!exists $band->{'falling_start'}) {
+              $band->{'falling_start'} = $i;
+            }
+            $band->{'falling_end'} = $i;
+          }
+        }
+      }
+    }
+  }
+
+  # Gather the samples into bands based on the detected bounds
+  for (my $i=0; $i<@$samples; $i++) {
+    next if $samples->[$i]->{event} ne 'timerEvent';
+    my $sample = $samples->[$i];
+
+    if ($stage_bands) {
+      if ($sample->{stage} =~ /^band(\d+)-(\d+)$/) {
+        my $idx = $1 + 0;
+        if (@$bands > $idx) {
+          push @{$bands->[$idx]->{samples}}, $sample;
+        }
+      }
+    } else {
+      foreach my $band (@$bands) {
+        if (exists $band->{'rising_start'} && $i >= $band->{'rising_start'} && $i <= $band->{'rising_end'}) {
+          push @{$band->{samples}}, $sample;
+        }
+        if (exists $band->{'falling_start'} && $i >= $band->{'falling_start'} && $i <= $band->{'falling_end'}) {
+          push @{$band->{samples}}, $sample;
+        }
+      }
+    }
+  }
+
+  return $bands;
+}
+
+sub filterSamples {
+  my ($self, $samples, $filter) = @_;
+
+  my $tmco = $self->{'time-cut-off'} // 240;
+  my $tpco = $self->{'temperature-cut-off'} // 120;
+
+  if (!defined $filter || !ref($filter)) {
+    my $expected = $filter // 'device-temperature';
+
+    $filter //= sub {
+      return $_[0]->{now} < $tmco || $_[0]->{$expected} > $tpco;
+    };
+  }
+
+  # Find the last sample that meets the filter criteria
+  my $last = 0;
+  for (my $i = 0; $i < @$samples; $i++) {
+    my $sample = $samples->[$i];
+    if ($sample->{event} eq 'timerEvent' && $filter->($sample)) {
+      $last = $i;
+    }
+  }
+
+  my $result = [];
+  for (my $i = 0; $i < $last; $i++) {
+    my $sample = $samples->[$i];
+    if ($sample->{event} eq 'timerEvent') {
+      push @$result, $sample;
+    }
+  }
+
+  return $result;
+}
+
 sub _tune {
   my ($self, $samples, $params, $bounds, %options) = @_;
 
   my $prediction = $options{prediction} // 'predict-temperature';
   my $expected = $options{expected} // 'device-temperature';
 
-  my $time_cut_off = $self->{'time-cut-off'} // 240;
-  my $temperature_cut_off = $self->{'temperature-cut-off'} // 120;
+  my $bias_scale = delete($options{'bias-scale'}) // 20;
 
   delete $options{prediction};
   delete $options{expected};
@@ -73,18 +187,19 @@ sub _tune {
       if (!exists($sample->{event}) || $sample->{event} eq 'timerEvent') {
         $self->predictTemperature($sample);
 
-        # Avoid using the long cool-down tail samples. We don't care about them and want the
-        # prediction to best match the important/active sections of the profile.
-        if ($sample->{now} < $time_cut_off || $sample->{$expected} > $temperature_cut_off) {
-          my $error = $sample->{$prediction} - $sample->{$expected};
-          my $err2 = $error * $error;
+        my $error = $sample->{$prediction} - $sample->{$expected};
+        my $err2 = $error * $error;
 
-          if ($options{bias}) {
-            $err2 = $err2 * ($sample->{$expected} - $sample->{ambient});
+        if ($options{bias}) {
+          my $rel_temp = $sample->{$expected} - $sample->{ambient};
+          my $bias = floor($rel_temp / $bias_scale);
+          if ($bias < 1) {
+              $bias = 1;
           }
-          
-          $sum2 += $err2;
+          $err2 = $err2 * $bias;
         }
+          
+        $sum2 += $err2;
       }
     }
 

@@ -8,14 +8,12 @@ use base qw(Milton::Command);
 sub new {
   my ($class, $config, $interface, $controller, @args) = @_;
 
+  $config->{samples} //= 10;
+  $config->{filename} //= 'power_supply_calibration.yaml';
+
   my $self = $class->SUPER::new($config, $interface, $controller, @args);
 
   return $self;
-}
-
-sub defaults {
-  return { samples => 10
-         , filename => 'power_supply_calibration.yaml' };
 }
 
 sub _handleSignals {

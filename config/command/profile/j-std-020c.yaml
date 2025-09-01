@@ -1,5 +1,6 @@
-#@ description: Derived from JEDEC J-STD-020C recommendations
-# Modified solder profile loosely based on JEDEC J-STD-020C recommendations
+#@ description: Solder profile based on JEDEC J-STD-020C SnPb recommendations
+# A solder profile based on JEDEC J-STD-020C recommendations
+#
 # For SnPb solder. It calls for
 #
 #   - a soak stage between 100 and 150 celsius for 60 to 120 seconds
@@ -29,13 +30,13 @@
   seconds: 120
   temperature: 150
 - name: reflow
-  seconds: 60
-  temperature: 220
+  seconds: 35
+  temperature: 225
 - name: hold
-  seconds: 12
-  temperature: 220
+  seconds: 25
+  temperature: 225
 - name: cool
-  seconds: 180
+  seconds: 120
   temperature: 100
 - name: off
   seconds: 1

@@ -40,13 +40,11 @@ sub new {
 
   my $self = { controller => $controller
              , interface => $interface
+             , config => $config
              , args => \@args
              };
 
   bless $self, $class;
-
-  my $merge = Hash::Merge->new('LEFT_PRECEDENT');
-  $self->{config} = $merge->merge($config, $self->defaults);
 
   my @options = $self->options;
   push @options, 'debug=i';

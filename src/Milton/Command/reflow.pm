@@ -6,6 +6,7 @@ use Math::Round qw(round);
 use Carp qw(croak);
 use IO::File;
 use Milton::Math::Util qw(setDebug setDebugWriter);
+use Milton::Config qw(getYamlParser);
 
 use base qw(Milton::Command);
 
@@ -13,6 +14,12 @@ sub new {
   my ($class, $config, $interface, $controller, @args) = @_;
 
   my $self = $class->SUPER::new($config, $interface, $controller, @args);
+
+  my $stages_hash = {};
+  foreach my $stage (@{$self->{config}->{profile}}) {
+    $stages_hash->{$stage->{name}} = $stage;
+  }
+  $self->{stages} = $stages_hash;
 
   return $self;
 }
@@ -76,14 +83,28 @@ sub timerEvent {
   my $then = $status->{then} = $status->{now} + $period;
   my $profile = $self->{profile};
 
-
   my ($target_temp, $stage) = $self->{profile}->estimate($then);
   $status->{'then-temperature'} = $target_temp;
   $status->{'now-temperature'} = $profile->estimate($now);
   $status->{'stage'} = $stage;
 
+  # Anticipation!
+  my $anticipation = $self->{config}->{anticipation};
+  my $ant_period = ($anticipation + 1) * $period;
+  $status->{'anticipate-temperature'} = $profile->estimate($now + $ant_period);
+  $status->{'anticipate-period'} = $ant_period;
+
   my $power = $self->{controller}->getPowerLimited($status);
   $status->{'set-power'} = $power;
+
+  # Make sure we have an event loop - may not be the case in some unit tests!
+  if ($status->{'event-loop'}) {
+    if ($self->{stages}->{$stage}->{fan}) {
+      $status->{'event-loop'}->fanStart($status);
+    } else {
+      $status->{'event-loop'}->fanStop($status);
+    }
+  }
 
   if ($stage ne $self->{'last-stage'}) {
     $self->beep;
@@ -164,8 +185,11 @@ sub postprocess {
     my $results = $predictor->tune($history, parallel => $self->{config}->{tuning}->{parallel});
 
     my $fh = $self->replaceFile($filename);
-    $self->writeHash($fh, $results, 'Tune');
+    my $ypp = getYamlParser();
+    my $tuned_yaml = $ypp->dump_string($results);
+    $fh->print($tuned_yaml);
     $fh->close;
+    $self->info($tuned_yaml);
 
     $predictor->initialize;
     foreach my $sample (@$history) {

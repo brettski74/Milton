@@ -280,6 +280,17 @@ sub addSearchDir {
       push @search_path, $dir;
     }
   }
+
+  # Remove duplicates
+  my %seen;
+  for (my $i = 0; $i < @search_path; $i++) {
+    if ($seen{$search_path[$i]}) {
+      splice @search_path, $i, 1;
+    } else {
+      $seen{$search_path[$i]} = 1;
+    }
+  }
+
   return @search_path;
 }
 

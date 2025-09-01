@@ -16,11 +16,11 @@ ambient: 27
 # linear interpolator, then power will be clamped to this limit.
 power-limits:
   - temperature: 20
-    power: 120
-  - temperature: 220
-    power: 120
-  - temperature: 230
-    power: 50
+    power: 155
+  - temperature: 219
+    power: 155
+  - temperature: 232
+    power: 70
 
 # If the heating element temperature is above this, turn off the power so we don't blow our fuse!
-cut-off-temperature: 227
+cut-off-temperature: 230

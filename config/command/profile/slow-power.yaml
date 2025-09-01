@@ -17,6 +17,10 @@
 - name: cool
   seconds: 180
   temperature: 100
+- name: off
+  seconds: 1
+  temperature: 15
 - name: monitor
-  seconds: 180
-  temperature: 25
+  seconds: 179
+  fan: true
+  temperature: 15

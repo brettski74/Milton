@@ -47,9 +47,11 @@ sub postprocess {
   }
 
   my $fh = $self->replaceFile($self->{ctrltune}) || croak "Failed to open file $self->{ctrltune} for writing";
-  my $ypp = $config->getYamlParser();
-  $fh->print($ypp->dump_string($tuned));
+  my $ypp = getYamlParser();
+  my $tuned_yaml = $ypp->dump_string($tuned);
+  $fh->print($tuned_yaml);
   $fh->close();
+  $self->info($tuned_yaml);
 
   return;
 }

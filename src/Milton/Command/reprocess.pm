@@ -9,6 +9,9 @@ use Milton::ValueTools qw(readCSVData);
 
 sub new {
   my ($class, $config, $interface, $controller, $filename, $command, @args) = @_;
+
+  $config->{'link-records'} //= 1;
+
   my $self = $class->SUPER::new($config, $interface, $controller);
 
   my $package = "Milton::Command::$command";
@@ -23,10 +26,6 @@ sub new {
   $self->{args} = [ @args ];
 
   return $self;
-}
-
-sub defaults {
-  return { 'link-records' => 1 };
 }
 
 sub preprocess {

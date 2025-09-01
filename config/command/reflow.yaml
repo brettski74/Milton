@@ -1,6 +1,12 @@
 #profile: !include modified-jedec.yaml
-profile: !include profile/brettski-special.yaml
+#profile: !include profile/brettski-special.yaml
+profile: !include profile/j-std-020c.yaml
 #profile: !include profile/slow-power.yaml
+
+# Number of extra samples to look ahead to anticipate required power.
+# By default we look ahead 1 sample, which corresponds to an anticipation of 0.
+# Setting this to 1, means to look ahead an extra sample - ie. 2 samples total.
+anticipation: 1
 
 logging:
   columns:

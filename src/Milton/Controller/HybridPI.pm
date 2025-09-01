@@ -16,35 +16,78 @@ sub new {
 
   my $self = $class->SUPER::new($config, $interface);
 
-  $self->{kp} //= 2.47;
-  $self->{ki} //= 0.1;
-  $self->{kaw} //= $self->{ki} / $self->{kp};
+  $self->{gains}->{kp} //= 2.47;
+  $self->{gains}->{ki} //= 0.1;
+  $self->{gains}->{kaw} //= $self->{gains}->{ki} / ($self->{gains}->{kp} || 1);
+
+  # No low-pass filtering on the control signal by default.
+  $self->{'control-tau'} //= 0;
+  $self->{'feed-forward-tau'} //= 0;
+
+  # By default, use the full feed-forward signal.
+  $self->{'feed-forward-gain'} //= 1;
 
   # Only designed to work with the DoubleLPFPower predictor.
   if (!defined $self->{predictor}) {
     $self->{predictor} = Milton::Predictor::DoubleLPFPower->new;
-  } else {
-    croak 'DoubleLPFPower predictor is required' unless $self->{'predictor'}->isa('Milton::Predictor::DoubleLPFPower');
+  } elsif ($self->{'feed-forward-gain'} > 0 && ! $self->{predictor}->can('predictPower')) {
+    croak 'Feed-forward control requires a predictor that supports the predictPower method. '. ref($self->{predictor}) .' does not. Either set feed-forward-gain to 0 or use a different predictor or controller.';
   }
 
   return $self;
 }
 
+sub description {
+  my ($self) = @_;
+
+  return sprintf('HybridPI (ff-gain: %.3f, ff-tau: %.3f, kp: %.3f, ki: %.3f, control-tau: %.3f)'
+               , $self->{'feed-forward-gain'}
+               , $self->{'feed-forward-tau'}
+               , $self->{kp}
+               , $self->{ki}
+               , $self->{'control-tau'}
+               );
+}
+
 sub getRequiredPower {
   my ($self, $status) = @_;
 
-  my $ff_power = $self->{predictor}->predictPower($status);
+  my $period = $status->{period};
+  $status->{'predict-temperature'} = $self->{predictor}->predictTemperature($status);
+
+  my $ff_power = 0;
+  my $ff_gain = $self->{'feed-forward-gain'};
+  if ($ff_gain > 0) {
+    $ff_power = $self->{predictor}->predictPower($status) * $self->{'feed-forward-gain'};
+
+    my $ff_tau = $self->{'feed-forward-tau'};
+    if ($ff_tau > 0) {
+      if (exists $self->{'last-ff-power'}) {
+        my $ff_alpha = $period / ($period + $ff_tau);
+        $ff_power = $ff_power * $ff_alpha + (1 - $ff_alpha) * $self->{'last-ff-power'};
+      }
+      $self->{'last-ff-power'} = $ff_power;
+    }
+  }
+
   my ($pmin, $pmax) = $self->{interface}->getPowerLimits();
+
+  my $ki = $self->{gains}->{ki};
+  my $kp = $self->{gains}->{kp};
+  my $kaw = $self->{gains}->{kaw};
 
   # Note that predict-temperature is the temperature we're trying to control and now-temperature is the
   # expected temperature for *now* as per the reflow profile.
-  my $error = $status->{'predict-temperature'} - $status->{'now-temperature'};
+  my $error = $status->{'then-temperature'} - $status->{'predict-temperature'};
 
   my $integral = $self->{integral} //= 0;
-  my $iterm = $error * $self->{ki} * $status->{period};
+  my $iterm = $error * $ki * $period;
   $integral += $iterm;
+  $status->{integral} = $integral;
+  $status->{iterm} = $iterm;
+  $status->{'ff-power'} = $ff_power;
 
-  my $power_unsat = $ff_power + $self->{kp} * $error + $self->{ki} * $integral;
+  my $power_unsat = $ff_power + $kp * $error + $integral;
   my $power_sat = $power_unsat;
 
   if ($power_unsat > $pmax) {
@@ -60,10 +103,11 @@ sub getRequiredPower {
   }
 
   # Anti-windup correction
-  $integral += $self->{kaw} * ($power_sat - $power_unsat);
+  $integral += $kaw * ($power_sat - $power_unsat);
 
   # Clamp the integral if we're still too big.
-  my $imax = 0.2 * $pmax;
+  my $anti_windup_clamp = $self->{'anti-windup-clamp'};
+  my $imax = $anti_windup_clamp / 100 * $pmax;
   if ($integral > $imax) {
     $integral = $imax;
   } elsif ($integral < -$imax) {
@@ -72,7 +116,18 @@ sub getRequiredPower {
 
   $self->{integral} = $integral;
 
-  return $power_sat;
+  # Low-pass filter the control signal if required.
+  my $control_tau = $self->{'control-tau'};
+  my $power = $power_sat;
+  if ($control_tau > 0) {
+    if (exists $self->{'last-power'}) {
+      my $control_alpha = $period / ($period + $control_tau);
+      $power = $power_sat * $control_alpha + (1 - $control_alpha) * $self->{'last-power'};
+    }
+    $self->{'last-power'} = $power;
+  }
+
+  return $power;
 }
 
 sub initialize {

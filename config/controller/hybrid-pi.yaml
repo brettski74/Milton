@@ -1,0 +1,41 @@
+package: Milton::Controller::HybridPI
+
+# Hysteresis band
+# How far do we let the temperature go above the setpoint before turning off?
+# How far do we let the temperature go below the setpoint before turning on?
+gains: !include hybrid-pi-gains.yaml
+
+# Low-pass filter time constant on the feed-forward signal.
+# The default is 0 - ie. no low-pass filtering. This will probably produce the lowest mean-squared error
+# but it also may produce a wildly oscillating control signal. Setting this to a small, positive value
+# will reduce the oscillations in the control signal but at the expense of slightly higher mean-squared
+# error and larger overshoot/undershoot where there are discontinuities in the reflow profile gradient.
+feed-forward-tau: 1.5
+
+# Low-pass filter time constant on the control signal. This is similar to the feed-forward-tau parameter
+# but applies to the entire control signal (ie. feed-forward + PI). The PI controller is less likely to
+# need filtering, so you probably want to leave this at zero.
+control-tau: 0
+
+# Gain on the feed-forward signal.
+# By default we use the full feed-forward signal (ie. a gain of 1);
+# Values above 1 are probably a bad idea.
+# Values under 1 will reduce the feed-forward signal and require the PI controller to play a larger role
+# in temperature control. 
+# A value of 0 disables feed-forward control entirely and turns this controller into a pure PI controller.
+feed-forward-gain: 0
+
+# The percentage of maximum power at which to clamp the output of the integral term of the PI controller.
+# Integral windup protection is implemented in two ways. First is the anti-windup gain (kaw) which will
+# unwind the integral as the control signal exceeds the maximum power. The second is a hard clamp which
+# prevents the integral term from contributing more to the control signal than a certain fixed amount,
+# specified here as a percentage of the maximum power. If this is set to 30 and maximum power is 150W,
+# then the integral term can contribute at more +/-45W to the control signal.
+anti-windup-clamp: 30
+
+limits: !include controller-limits.yaml
+
+# Calibration data - best to load from a separate file so that you can easily update via calibration.
+calibration: !include al-resistance.yaml
+
+predictor: !include banded-lpf.yaml

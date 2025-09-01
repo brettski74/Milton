@@ -43,10 +43,6 @@ sub new {
     return $self;
 }
 
-sub defaults {
-    return { current => { startup => 2 } };
-}
-
 =head1 OPTIONS
 
 The following command line options are supported:

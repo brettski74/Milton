@@ -12,6 +12,6 @@ limits: !include controller-limits.yaml
 # Calibration data - best to load from a separate file so that you can easily update via calibration.
 calibration: !include al-resistance.yaml
 
-predictor: !include al-tune.yaml
+predictor: !include banded-lpf.yaml
 
 

@@ -42,16 +42,36 @@ sub new {
   }
 
   if (exists $config->{predictor}) {
-    eval "use $config->{predictor}->{package}";
+    my $package = $config->{predictor}->{package};
 
-
-    if ($@) {
-      croak "Failed to load predictor $config->{predictor}->{package}: $@";
+    if (!defined $package) {
+      croak "Predictor package not defined! Cannot create predictor.";
     }
 
-    $self->{predictor} = $config->{predictor}->{package}->new(%{$config->{predictor}});
+    eval "use $package";
+
+    if ($@) {
+      if ($package !~ /^Milton::Predictor::/) {
+        $package = "Milton::Predictor::$package";
+        my $error = $@;
+
+        # Try again with the namespace prefix added
+        eval "use $package";
+
+        if ($@) {
+          croak "Failed to load predictor package $config->{predictor}->{package}: $error\nFailed to load predictor package $package: $@";
+        }
+      }
+    }
+
+    $self->{predictor} = $package->new(%{$config->{predictor}});
   } else {
     $self->{predictor} = Milton::Predictor->new;
+  }
+
+  # If the controller needs the interface, provide it
+  if ($self->{predictor}->can('setInterface')) {
+    $self->{predictor}->setInterface($interface);
   }
 
   return $self;

@@ -61,9 +61,11 @@ sub tune {
 
   my $parallel = $self->{tuning}->{parallel} // 1;
 
-  my $tuned = $self->_tune($samples
+  my $filtered = $self->filterSamples($samples);
+
+  my $tuned = $self->_tune($filtered
                            , [ 'inner-tau', 'outer-offset', 'outer-gradient' ]
-                           , [ [ 0, 30 ], [ 500, 4000 ], [ -20, 0 ] ]
+                           , [ [ 0, 30 ], [ 200, 4000 ], [ -20, 0 ] ]
                            , 'lower-constraint' => [ 0, 0, undef ]
                            , threshold => [ 0.001, 0.01, 0.0001 ]
                            , steps => [ 32, 64, 32 ]

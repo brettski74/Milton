@@ -202,6 +202,7 @@ sub fanStart {
 
     boolify($fanConfig->{enabled});
     if (!$fanConfig->{enabled}) {
+      $self->{logger}->info("Fan disabled, No fan cooling for you!");
       return;
     }
 
@@ -214,12 +215,14 @@ sub fanStart {
       }
 
       if ($status->{temperature} <= $fan->{'finish-temperature'}) {
+        $self->{logger}->info("Temperature below finish temperature, no fan cooling required.");
         return;
       }
     }
 
     # Must have a fan duration so we don't sit waiting forever!
     if ($fanConfig->{'duration'} <= 0) {
+      $self->{logger}->info("No fan duration, no fan cooling for you!");
       return;
     }
     $fan->{'finish-time'} = $fan->{started} + $fanConfig->{'duration'};
@@ -240,6 +243,7 @@ sub fanStart {
 
     # Turn on the fan!
     $self->{fan} = $fan;
+    $self->{logger}->info("Starting fan");
     $fan->{interface}->setVoltage($fanConfig->{voltage}, $fanConfig->{current} || 10);
     return 1;
   }
@@ -276,26 +280,38 @@ sub fanComplete {
   }
 
   my $fan = $self->{fan};
+  my $stop = 0;
 
   # Have we reached the finish time?
   if ($fan->{'finish-time'} <= $status->{now}) {
-    $fan->{interface}->off(1);
-    return 1;
+    $stop = 1;
   }
 
   # Have we reached the finish temperature?
   if (exists($fan->{'finish-temperature'}) && $status->{temperature} <= $fan->{'finish-temperature'}) {
-    $fan->{interface}->off(1);
-    return 1;
+    $stop = 1;
   }
 
   # Have we reached the ambient temperature?
   if ($status->{temperature} <= $fan->{ambient}) {
-    $fan->{interface}->off(1);
-    return 1;
+    $stop = 1;
   }
 
-  return;
+  if ($stop) {
+    $self->fanStop;
+  }
+
+  return $stop;
+}
+
+sub fanStop {
+  my ($self, $status) = @_;
+
+  if (exists $self->{fan}) {
+    $self->{logger}->info("Stopping fan");
+    $self->{fan}->{interface}->on(0);
+    delete $self->{fan};
+  }
 }
 
 sub isLineBuffering {
@@ -386,6 +402,7 @@ sub _signalWatcher {
   $self->_eventsDone;
 
   $self->{interface}->shutdown;
+  $self->{fan}->{interface}->shutdown if $self->{fan};
 
   # Trash our objects so they get destroyed.
   $self->{interface} = undef;
@@ -578,7 +595,7 @@ sub run {
 
   $self->{interface}->shutdown;
   $self->{controller}->shutdown;
-  $self->{fan}->shutdown if $self->{fan};
+  $self->{fan}->{interface}->shutdown if $self->{fan};
 }
 
 =head2 getHistory

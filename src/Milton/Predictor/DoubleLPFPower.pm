@@ -8,8 +8,25 @@ sub new {
   my $self = $class->SUPER::new(%options);
 
   $self->{'power-tau'} //= 60;
-  $self->{'power-gain'} //= 2.47;
-  $self->{'power-gradient'} //= 0;
+  
+  my $power_gain = Milton::Math::PiecewiseLinear->new;
+  my $power_tau  = Milton::Math::PiecewiseLinear->new;
+
+  if (exists $self->{power} && ref($self->{power})) {
+    $power_gain->addHashPoints('temperature', 'gain', @{$self->{power}});
+    $power_tau->addHashPoints('temperature', 'tau', @{$self->{power}});
+  }
+
+  if ($power_gain->length <= 0) {
+    $power_gain->addPoint(25, 2.8);
+  }
+
+  if ($power_tau->length <= 0) {
+    $power_tau->addPoint(25, 90);
+  }
+
+  $self->{'power-gain'} = $power_gain;
+  $self->{'power-tau'} = $power_tau;
 
   return $self;
 }
@@ -22,9 +39,11 @@ sub predictTemperature {
   my $ambient = $status->{ambient};
   my $temperature = $status->{temperature};
   my $last_heating_element = $self->{'last-heating-element'};
+  my $reference_temperature = $temperature // $last_heating_element // $ambient;
 
   if (defined $last_heating_element) {
-    my $alpha = $period / ($period + $self->{'power-tau'});
+    my $tau = $self->{'power-tau'}->estimate($reference_temperature);
+    my $alpha = $period / ($period + $tau);
     my $rel_temp;
     if (!defined $temperature) {
       $rel_temp = $last_heating_element - $ambient;
@@ -32,11 +51,11 @@ sub predictTemperature {
       $rel_temp = $temperature - $ambient;
     }
 
-    my $gain = $self->{'power-gain'} + $self->{'power-gradient'} * $rel_temp;
+    my $gain = $self->{'power-gain'}->estimate($reference_temperature);
     my $ss_temp = $ambient + $power * $gain;
     $status->{'predict-heating-element'} = $self->{'last-heating-element'} * (1-$alpha) + $alpha * $ss_temp;
   } else {
-    $status->{'predict-heating-element'} = $temperature // $ambient;
+    $status->{'predict-heating-element'} = $reference_temperature;
   }
 
   $self->{'last-heating-element'} = $status->{'predict-heating-element'};
@@ -57,7 +76,8 @@ sub predictPower {
   my $ambient = $status->{ambient};
   my $period = $status->{period};
   my $inner_alpha = $period / ($period + $self->{'inner-tau'});
-  my $power_alpha = $period / ($period + $self->{'power-tau'});
+  my $power_tau = $self->{'power-tau'}->estimate($hotplate_now);
+  my $power_alpha = $period / ($period + $power_tau);
 
   # Need pre_pre, but requires knowing the required hotplate temperature. Approximate it by
   # applying the delta between now and then to the current hotplate temperature.
@@ -69,7 +89,8 @@ sub predictPower {
   my $hotplate_then = ($target_temp - $outer_alpha * $ambient) / (1 - $outer_alpha) / $inner_alpha - (1 - $inner_alpha) * $temperature / $inner_alpha;
 
   # Now we can calculate the required power
-  my $power = ($hotplate_then - $hotplate_now * (1 - $power_alpha) - $power_alpha * $ambient) / $power_alpha / $self->{'power-gain'};
+  my $power_gain = $self->{'power-gain'}->estimate($hotplate_now);
+  my $power = ($hotplate_then - $hotplate_now * (1 - $power_alpha) - $power_alpha * $ambient) / $power_alpha / $power_gain;
 
   return $power;
 }
@@ -77,6 +98,15 @@ sub predictPower {
 sub initialize {
   my ($self) = @_;
   delete $self->{'last-heating-element'};
+
+  # Tuning will just stick numbers in here, we need to make those into estimators so that power prediction doesn't break!
+  if (! ref $self->{'power-tau'}) {
+    $self->{'power-tau'} = Milton::Math::PiecewiseLinear->new->addPoint(25, $self->{'power-tau'});
+  }
+
+  if (! ref $self->{'power-gain'}) {
+    $self->{'power-gain'} = Milton::Math::PiecewiseLinear->new->addPoint(25, $self->{'power-gain'});
+  }
 }
 
 sub description {
@@ -86,32 +116,48 @@ sub description {
                  $self->{'power-tau'}, $self->{'power-gain'}, $self->{'power-gradient'});
 }
 
-sub _tunePI {
-  my ($self, $samples, %args) = @_;
+sub _tunePower {
+  my ($self, $samples, %options) = @_;
 
-  my $ptuned = $self->_tune($samples
-                            , [ 'power-tau', 'power-gain', 'power-gradient' ]
-                            , [ [ 0, 1000 ], [ 0, 10 ], [ -5, 5 ] ]
-                            , 'lower-constraint' => [ 0, 0, undef ]
-                            , threshold => [ 0.01, 0.001, 0.001 ]
-                            , steps => [ 32, 64, 32 ]
-                            , bias => 2
-                            , depth => 512
-                            , prediction => 'predict-heating-element'
-                            , expected => 'temperature'
-                            , %args
-                            );
+  # Build a temperature dependent estimator for power gain
+  my $subs = $self->_buildSubHistories($samples);
 
-  return $ptuned;
+  my $tuned = [];
+  foreach my $sub (@$subs) {
+    my $t = $self->_tune($sub->{samples}
+                       , [ 'power-tau', 'power-gain' ]
+                       , [ [ 0, 1000 ], [ 0, 10 ] ]
+                       , 'lower-constraint' => [ 0, 0 ]
+                       , threshold => [ 0.01, 0.001 ]
+                       , steps => [ 100, 100 ]
+                       , bias => 1
+                       , depth => 100
+                       , prediction => 'predict-heating-element'
+                       , expected => 'temperature'
+                       , %options
+                       );
+
+    # flatten the curves at the bottom
+    if (! @$tuned) {
+      push @$tuned, { temperature => 25, %$t };
+    }
+
+    $t->{temperature} = ($sub->{min} + $sub->{max}) / 2;
+
+    push @$tuned, $t;
+  }
+
+  return $tuned;
 }
 
 sub tune {
   my ($self, $samples, %args) = @_;
 
   my $tuned = $self->SUPER::tune($samples, %args);
-  my $ptuned = $self->_tunePI($samples, %args);
 
-  return { %$tuned, %$ptuned };
+  $tuned->{power} = $self->_tunePower($samples, %args);
+
+  return $tuned;
 }
 
 1;

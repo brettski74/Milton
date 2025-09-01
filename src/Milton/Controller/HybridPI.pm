@@ -43,8 +43,8 @@ sub description {
   return sprintf('HybridPI (ff-gain: %.3f, ff-tau: %.3f, kp: %.3f, ki: %.3f, control-tau: %.3f)'
                , $self->{'feed-forward-gain'}
                , $self->{'feed-forward-tau'}
-               , $self->{kp}
-               , $self->{ki}
+               , $self->{gains}->{kp}
+               , $self->{gains}->{ki}
                , $self->{'control-tau'}
                );
 }

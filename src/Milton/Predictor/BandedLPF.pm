@@ -29,6 +29,34 @@ sub new {
   return $self;
 }
 
+sub description {
+  my ($self) = @_;
+
+  if (!exists $self->{description}) {
+    my ($itmin, $itmax);
+    my ($otmin, $otmax);
+    my ($ptmin, $ptmax);
+    my ($pgmin, $pgmax);
+
+    foreach my $band (@{$self->{bands}}) {
+      $itmin = $band->{'inner-tau'} if !defined $itmin || $band->{'inner-tau'} < $itmin;
+      $itmax = $band->{'inner-tau'} if !defined $itmax || $band->{'inner-tau'} > $itmax;
+      $otmin = $band->{'outer-tau'} if !defined $otmin || $band->{'outer-tau'} < $otmin;
+      $otmax = $band->{'outer-tau'} if !defined $otmax || $band->{'outer-tau'} > $otmax;
+      $ptmin = $band->{'power-tau'} if !defined $ptmin || $band->{'power-tau'} < $ptmin;
+      $ptmax = $band->{'power-tau'} if !defined $ptmax || $band->{'power-tau'} > $ptmax;
+      $pgmin = $band->{'power-gain'} if !defined $pgmin || $band->{'power-gain'} < $pgmin;
+      $pgmax = $band->{'power-gain'} if !defined $pgmax || $band->{'power-gain'} > $pgmax;
+    }
+
+    $self->{description} = sprintf('BandedLPF (inner-tau: [%.3f-%.3f], outer-tau: [%.3f-%.3f], power-tau: [%.3f-%.3f], power-gain: [%.3f-%.3f])'
+                                 , $itmin, $itmax, $otmin, $otmax, $ptmin, $ptmax, $pgmin, $pgmax
+                                 );
+  }
+
+  return $self->{description};
+}
+
 sub setInterface {
   my ($self, $interface) = @_;
   $self->{interface} = $interface;
@@ -184,11 +212,6 @@ sub initialize {
       $self->{$key} = Milton::Math::PiecewiseLinear->new->addPoint(25, $self->{$key});
     }
   }
-}
-
-sub description {
-  my ($self) = @_;
-  return 'BandedLPF(parameters...)';
 }
 
 sub tune {

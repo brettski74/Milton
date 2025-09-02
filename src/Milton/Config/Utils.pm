@@ -104,12 +104,12 @@ sub findConfigFilesByPath {
 }
 
 sub standardSearchPath {
-  Milton::Config->addSearchDir(split(/:/, $ENV{PSC_CONFIG_PATH})
+  Milton::Config->addSearchDir(split(/:/, $ENV{MILTON_CONFIG_PATH})
                                          , '.'
                                          , "$ENV{HOME}/.config/milton"
                                          , "$ENV{HOME}/.local/share/milton"
-                                         , '/usr/local/share/psc'
-                                         , '/usr/share/psc'
+                                         , '/usr/local/share/milton'
+                                         , '/usr/share/milton'
                                          );
 }
 

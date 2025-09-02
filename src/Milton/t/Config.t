@@ -33,6 +33,21 @@ ok(!Milton::Config->configFileExists('nonexistent.yaml'), 'nonexistent.yaml does
 ok(Milton::Config->configFileExists('command/test.yaml'), 'command/test.yaml does exist');
 ok(!Milton::Config->configFileExists('command/are_you_serious.yaml'), 'command/are_you_serious.yaml does not exist');
 
+subtest 'Environment variable expansion' => sub {
+  my $env = Milton::Config->new('t/environment.yaml');
+
+  is($env->{user}, $ENV{LOGNAME}, 'user');
+  is($env->{logging}->{enabled}, 1, 'logging->enabled');
+  is($env->{logging}->{filename}, $ENV{HOME} . '/.config/milton/milton.log', 'logging->filename');
+  is($env->{logging}->{suffixed}, 'Hostname is ' . $ENV{HOSTNAME}, 'logging->suffixed');
+  is($env->{logging}->{middle}, 'UID is ' . $ENV{UID} . ' you know', 'logging->middle');
+  is($env->{logging}->{multi}, $ENV{LOGNAME} . ' and ' . $ENV{HOSTNAME} . ' and ' . $ENV{UID} . ' and ' . $ENV{USER}, 'logging->multi');
+  is($env->{logging}->{undefined}, 'Undefined ' . $ENV{UNDEFINED} . ' Value', 'logging->undefined');
+
+  is($env->{include}->{shell}, $ENV{SHELL}, 'include->shell');
+  is($env->{include}->{message}, 'The process id of my shell (' . $ENV{SHELL} . ') is probably ' . $ENV{PPID}, 'include->message');
+};
+
 # Test findKey method
 note("Testing findKey method");
 subtest 'findKey method' => sub {

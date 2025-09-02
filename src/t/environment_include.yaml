@@ -1,0 +1,2 @@
+shell: !ENV ${SHELL}
+message: !ENV The process id of my shell (${SHELL}) is probably ${PPID}

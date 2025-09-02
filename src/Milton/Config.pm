@@ -16,6 +16,7 @@ use strict;
 use warnings qw(all -uninitialized);
 use YAML::PP;
 use YAML::PP::Schema::Include;
+use YAML::PP::Schema::Env;
 use Path::Tiny;
 use Carp;
 use Scalar::Util qw(reftype refaddr);
@@ -468,7 +469,7 @@ sub getYamlParser {
                   }
       );
 
-  my $ypp = YAML::PP->new(schema => ['+', $include]);
+  my $ypp = YAML::PP->new(schema => ['+', $include, 'Env', 'defval=' ]);
   $include->yp($ypp);
 
   return $ypp;

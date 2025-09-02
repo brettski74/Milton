@@ -1,0 +1,10 @@
+user: !ENV ${LOGNAME}
+logging:
+  enabled: true
+  filename: !ENV ${HOME}/.config/milton/milton.log
+  suffixed: !ENV Hostname is ${HOSTNAME}
+  middle: !ENV UID is ${UID} you know
+  multi: !ENV ${LOGNAME} and ${HOSTNAME} and ${UID} and ${USER}
+  undefined: !ENV Undefined ${UNDEFINED} Value
+
+include: !include environment_include.yaml

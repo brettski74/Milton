@@ -272,6 +272,22 @@ sub enableLimits {
   }
 }
 
+sub disableCutoff {
+  my ($self) = @_;
+
+  return $self->enableCutoff(0);
+}
+
+sub enableCutoff {
+  my ($self, $flag) = @_;
+
+  if (@_ > 1 && !$flag) {
+    $self->{'cutoff-disabled'} = 1;
+  } else {
+    delete $self->{'cutoff-disabled'};
+  }
+}
+
 sub disableLimits {
   my ($self) = @_;
 

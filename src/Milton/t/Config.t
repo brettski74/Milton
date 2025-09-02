@@ -1,6 +1,10 @@
 #!/usr/bin/perl
 
 use lib '.';
+
+use strict;
+use warnings qw(all -uninitialized);
+
 use Test2::V0;
 use Milton::Config;
 
@@ -34,6 +38,8 @@ ok(Milton::Config->configFileExists('command/test.yaml'), 'command/test.yaml doe
 ok(!Milton::Config->configFileExists('command/are_you_serious.yaml'), 'command/are_you_serious.yaml does not exist');
 
 subtest 'Environment variable expansion' => sub {
+  no warnings 'uninitialized';
+
   my $env = Milton::Config->new('t/environment.yaml');
 
   is($env->{user}, $ENV{LOGNAME}, 'user');

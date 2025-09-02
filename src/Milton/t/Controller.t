@@ -105,9 +105,9 @@ subtest getPowerLimited => sub {
                  , [ 121, 220, 120, 121 ]
                  , [ 120, 225, 85, 120 ]
                  , [ 84, 225, 84 ]
-                 , [ 50, 227, 0, 50 ]
-                 , [ 90, 227, 0, 90 ]
-                 , [ 50, 230, 0, 50 ]
+                 , [ 50, 227, 0, 50, 0 ]
+                 , [ 90, 227, 0, 90, 0 ]
+                 , [ 50, 230, 0, 50, 0 ]
                  );
 
   foreach my $test (@testdata) {
@@ -115,10 +115,16 @@ subtest getPowerLimited => sub {
                          , "power = $test->[0], temperature = $test->[1]"
     );
     $c->disableLimits;
-    is($c->getPowerLimited({ power => $test->[0], temperature => $test->[1] }), $test->[3] // $test->[2]
+    is($c->getPowerLimited({ power => $test->[0], temperature => $test->[1] }), $test->[4] // $test->[3] // $test->[2]
                          , "power = $test->[0], temperature = $test->[1], limits off"
     );
+    $c->disableCutoff;
+    is($c->getPowerLimited({ power => $test->[0], temperature => $test->[1] }), $test->[3] // $test->[2]
+                         , "power = $test->[0], temperature = $test->[1], cutoff off"
+    );
+
     $c->enableLimits;
+    $c->enableCutoff;
 
   }
 

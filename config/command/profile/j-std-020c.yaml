@@ -31,10 +31,10 @@
   temperature: 150
 - name: reflow
   seconds: 35
-  temperature: 225
+  temperature: 222
 - name: hold
   seconds: 25
-  temperature: 225
+  temperature: 222
 - name: cool
   seconds: 120
   temperature: 100

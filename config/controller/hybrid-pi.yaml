@@ -10,7 +10,7 @@ gains: !include hybrid-pi-gains.yaml
 # but it also may produce a wildly oscillating control signal. Setting this to a small, positive value
 # will reduce the oscillations in the control signal but at the expense of slightly higher mean-squared
 # error and larger overshoot/undershoot where there are discontinuities in the reflow profile gradient.
-feed-forward-tau: 1.5
+feed-forward-tau: 0
 
 # Low-pass filter time constant on the control signal. This is similar to the feed-forward-tau parameter
 # but applies to the entire control signal (ie. feed-forward + PI). The PI controller is less likely to
@@ -23,7 +23,7 @@ control-tau: 0
 # Values under 1 will reduce the feed-forward signal and require the PI controller to play a larger role
 # in temperature control. 
 # A value of 0 disables feed-forward control entirely and turns this controller into a pure PI controller.
-feed-forward-gain: 0
+feed-forward-gain: 1
 
 # The percentage of maximum power at which to clamp the output of the integral term of the PI controller.
 # Integral windup protection is implemented in two ways. First is the anti-windup gain (kaw) which will
@@ -33,9 +33,31 @@ feed-forward-gain: 0
 # then the integral term can contribute at more +/-45W to the control signal.
 anti-windup-clamp: 30
 
+# Disable safety limits and/or cutoff. The controller class has two mechanisms to soft-limit power into
+# the hotplate which are enabled by default but either or both can be disabled here. Not that disabling
+# cutoff also disables the limits. Both of these are controlled by the getPowerLimited method in the
+# Controller class, which first calls getRequiredPower and then applies these limits if and as necessary.
+#
+# The safety limit is a temperature dependent power profile that must not be exceeded when enabled. If
+# the main control algorithm commands more power than this, power can be limited to this value instead.
+limits-disabled: 0
+
+# The cutoff is a temperature threshold at and above which the power is set to virtually zero. In
+# actuality, it will be set to the minimum power configured for the interface, but this is essentially
+# power off for this system, since we always need a little current flowing in order to measure
+# temperature.
+# Cutoff is considered a final hard limit before hardware thermal fuse cutout, so disabling cutoff also
+# disables the safety limit.
+cutoff-disabled: 0
+
+# Controller limits - the safety limit and cutoff are defined in here. Defined in a sub-hash to allow
+# the limits to be shared between multiple controllers, since these limits are typically related to the
+# nature of the hotplate assembly in use and the components used to build it.
 limits: !include controller-limits.yaml
 
 # Calibration data - best to load from a separate file so that you can easily update via calibration.
 calibration: !include al-resistance.yaml
 
+# Predictor configuration - typically loaded from a separate file to allow for easier update during
+# calibration and use by different controllers.
 predictor: !include banded-lpf.yaml

@@ -4,7 +4,7 @@ use strict;
 use warnings qw(all -uninitialized);
 
 use Exporter qw(import);
-our @EXPORT_OK = qw(getReflowProfiles getDeviceNames findDeviceFile getYamlParser);
+our @EXPORT_OK = qw(getReflowProfiles getDeviceNames findDeviceFile getYamlParser standardSearchPath);
 
 use YAML::PP;
 use YAML::PP::Schema::Include;
@@ -106,8 +106,8 @@ sub findConfigFilesByPath {
 sub standardSearchPath {
   Milton::Config->addSearchDir(split(/:/, $ENV{PSC_CONFIG_PATH})
                                          , '.'
-                                         , "$ENV{HOME}/.config/psc"
-                                         , "$ENV{HOME}/.local/share/psc"
+                                         , "$ENV{HOME}/.config/milton"
+                                         , "$ENV{HOME}/.local/share/milton"
                                          , '/usr/local/share/psc'
                                          , '/usr/share/psc'
                                          );

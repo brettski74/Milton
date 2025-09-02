@@ -8,6 +8,9 @@ use IO::File;
 use Milton::Math::Util qw(setDebug setDebugWriter);
 use Milton::Config qw(getYamlParser);
 
+use Exporter qw(import);
+our @EXPORT_OK = qw(buildProfile);
+
 use base qw(Milton::Command);
 
 sub new {
@@ -28,17 +31,15 @@ sub options {
   return qw( tune=s rtdtune=s );
 }
 
-sub _buildProfile {
-  my ($self) = @_;
+sub buildProfile {
+  my ($profile, $ambient) = @_;
 
-  my $profile = $self->{config}->{profile};
   my $stages = Milton::Math::PiecewiseLinear->new;
   my $seconds = 0;
   
   # Add a zero-time point if not explicitly specified in the configuraton
   if ($profile->[0]->{seconds} > 0) {
-    $stages->addNamedPoint(0, $self->{ambient}, $profile->[0]->{name});
-    $self->debug(10, "Adding point 0: $self->{ambient} $profile->[0]->{name}");
+    $stages->addNamedPoint(0, $ambient, $profile->[0]->{name});
   }
 
   for(my $i=0; $i<@$profile; $i++) {
@@ -50,7 +51,6 @@ sub _buildProfile {
                          , $stage->{temperature}
                          , $name
                          );
-    $self->debug(10, "Adding point $seconds: $stage->{temperature} $name");
   }
 
   return $stages;
@@ -71,7 +71,7 @@ sub preprocess {
                             )
               );
 
-  $self->{profile} = $self->_buildProfile();
+  $self->{profile} = buildProfile($self->{config}->{profile}, $ambient);
 }
 
 sub timerEvent {

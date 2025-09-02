@@ -125,11 +125,11 @@ sub predictPower {
   }
 
   # Set up state for predicting temperature for a given power level
-  my $target_temp = $status->{'then-temperature'};
+  my $target_temp = $status->{'anticipate-temperature'} // $status->{'then-temperature'};
   my $last_prediction = $status->{'predict-temperature'};
   my $last_heating_element = $status->{'temperature'};
   my $next_status = { ambient => $status->{ambient}
-                    , period => $status->{period}
+                    , period => $status->{'anticipate-period'} // $status->{period}
                     };
 
   # Start with a high guess and a low guess

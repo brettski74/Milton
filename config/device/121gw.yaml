@@ -1,0 +1,26 @@
+
+package: Milton::Controller::Device::EEVBlog121GW
+name: 121gw
+description: EEV Blog 121GW Multimeter
+
+# Maximum offset from the previous reading that is considered realistic. Used to avoid
+# potential errors in communication. It's unlikely that the temperature will change by
+# a very large margin between two readings. Readings typically come about 2-3 times per
+# second. The typical value for this is 10 since a jump or drop in temperature of 10
+# degrees celsius in less than a second is highly unliklely.
+max-offset: 10
+
+# Minimum and maximum values for the temperature reading. Again, these are used to avoid
+# erroneous readings.
+# It's unlikely that the temperature will go below ambient room temperature, so setting
+# this to a value lower than the room is every likely to be tells the software that
+# there's an error. The typical minimum value is 5 degrees celsius. This is probably
+# adequate unless you live in a fridge or work outside at some Antarctic station or
+# something.
+min-value: 5
+
+# The maximum value should be set to a value that is reasonably higher than the hotplate
+# is ever likely to be under normal use. The typical value is 250 celsius, which should be
+# higher than you'll even be operating your hotplate - at least for hotplates that include
+# a DIY thermal fuse made from readily available solder alloys.
+max-value: 250

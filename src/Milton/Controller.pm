@@ -222,16 +222,20 @@ sub getPowerLimited {
 
   my $power = $self->getRequiredPower($status);
   my $temperature = $status->{temperature};
+  my $no_limits = $self->{'limits-disabled'};
+  my $no_cutoff = $self->{'cutoff-disabled'};
 
-  if (!exists $self->{'limits-disabled'} && defined $temperature) {
+  if (!$no_cutoff && defined $temperature) {
     my $cutoff = $self->{limits}->{'cut-off-temperature'};
 
     if (defined $cutoff && $temperature >= $cutoff) {
       # Set it to zero and let the interface deal with minimum power settings
-      $power = 0;
-    } elsif (exists $self->{'power-limits'}) {
+      return 0;
+    }
+
+    if (!$no_limits && exists $self->{'power-limits'}) {
       my $limit = $self->{'power-limits'}->estimate($temperature);
-      $power = $limit if $power > $limit;
+      return $limit if $power > $limit;
     }
   }
 

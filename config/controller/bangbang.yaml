@@ -7,11 +7,33 @@ hysteresis:
   low: 0.5
   high: 0.5
 
+# Disable safety limits and/or cutoff. The controller class has two mechanisms to soft-limit power into
+# the hotplate which are enabled by default but either or both can be disabled here. Not that disabling
+# cutoff also disables the limits. Both of these are controlled by the getPowerLimited method in the
+# Controller class, which first calls getRequiredPower and then applies these limits if and as necessary.
+#
+# The safety limit is a temperature dependent power profile that must not be exceeded when enabled. If
+# the main control algorithm commands more power than this, power can be limited to this value instead.
+limits-disabled: 0
+
+# The cutoff is a temperature threshold at and above which the power is set to virtually zero. In
+# actuality, it will be set to the minimum power configured for the interface, but this is essentially
+# power off for this system, since we always need a little current flowing in order to measure
+# temperature.
+# Cutoff is considered a final hard limit before hardware thermal fuse cutout, so disabling cutoff also
+# disables the safety limit.
+cutoff-disabled: 0
+
+# Controller limits - the safety limit and cutoff are defined in here. Defined in a sub-hash to allow
+# the limits to be shared between multiple controllers, since these limits are typically related to the
+# nature of the hotplate assembly in use and the components used to build it.
 limits: !include controller-limits.yaml
 
 # Calibration data - best to load from a separate file so that you can easily update via calibration.
 calibration: !include al-resistance.yaml
 
+# Predictor configuration - typically loaded from a separate file to allow for easier update during
+# calibration and use by different controllers.
 predictor: !include banded-lpf.yaml
 
 

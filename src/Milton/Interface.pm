@@ -151,10 +151,22 @@ sub deviceName {
   croak ref($_[0]) .': deviceName not implemented.';
 }
 
+sub noOffOnShutdown {
+  my ($self, $flag) = @_;
+
+  if ($flag) {
+    $self->{'no-off-on-shutdown'} = 1;
+  } else {
+    delete $self->{'no-off-on-shutdown'};
+  }
+}
+
 sub shutdown {
   my ($self) = @_;
 
-  $self->on(0);
+  if (!defined($self->{'no-off-on-shutdown'}) || !$self->{'no-off-on-shutdown'}) {
+    $self->on(0);
+  }
   $self->_disconnect;
 
   return $self;

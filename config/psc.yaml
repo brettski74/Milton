@@ -1,0 +1,95 @@
+# The sampling period is the time between successive readings from and updates to the
+# power supply. This value should as short as possible but must also be long enough that
+# the software can reliably read the current state of the power supply, send commands to
+# modify it state (eg. voltage setpoint, on-state, etc) and perform any calculations
+# required for this. There also needs to be enough time for things like reading temperature
+# data from a temperature calibration device as well.
+#
+# The default value is 1.5 seconds, which should be adequate for most systems. This allows
+# enough time for a power supply with about a 600ms round-trip-time for communications to
+# do one state read, one update, make some calculations and still have some time left over
+# for communcations with other things like a calibration sensor or web interface.
+#
+# If you're finding that seems to be falling behind at times and not being able to keep
+# to precise sample periods, you can try increasing this value. Note that doing so *could*
+# mess with some of your calibrations for temperature prediction or control. In theory, it
+# shouldn't, but this is not well tested, so there may be places where parameters have not
+# been properly scaled for the time between samples.
+period: 1.5
+
+# Logging configuration. Controls logging of operational data to log files for later analysis
+# or review. By default, this will be logged to a file, but can also be sent to the standard
+# output.
+logging:
+  # Enable or disable logging of data. Note that the graph and status panes in the web UI require
+  # this to be enabled in order to work.
+  enabled: true
+
+  # Enable or disable logging to the standard output. Note that the graph and status panes in the
+  # web UI require this to be enabled in order to work.
+  tee: true
+
+  # Debug level. Controls whether or not specific types of debug messages are logged or suppressed.
+  # Higher values generally mean more debug output, although debug output is not well thought out
+  # at this point.
+  debug-level: 255
+
+  # File name for the data files produces during each command run.
+  # %c can be used to represent the command name.
+  # %d can be used to represent a timestamp in yyyymmddHHMMSS format.
+  filename: /home/blg/dev/hp-controller/log/hp-log.%c.%d.csv
+
+  # Columns to include in the data files. These are global and will apply to all commands. Each
+  # command may also specify additional columns to log. Each column is specified by a key (name)
+  # and a format string that is similar to those used in printf statements.
+  columns:
+    - key: now
+      format: .3f
+    - key: event
+    - key: power
+      format: .3f
+    - key: voltage
+      format: .3f
+    - key: current
+      format: .3f
+    - key: resistance
+      format: .5f
+    - key: temperature
+      format: .1f
+    - key: stage
+
+# Controller configuration. This is typically loaded from a separate file to allow for easier
+# modification during calibration.
+#controller: !include controller/bangbang.yaml
+controller: !include controller/hybrid-pi.yaml
+
+# Interface configuration. This is typically loaded from a separate file to make it easier to swap
+# to different power supplies without losing your old configuration.
+interface: !include interface/udp6721.yaml
+
+# Fan configuration. This can be used to control a fan for colling purposes at the end of a reflow
+# cycle. Current fan support assumes that you have a second power supply with Modbus or SCPI control
+# capabilities that is powering your fan.
+fan:
+  # Fan interface configuration.
+  interface:
+    package: Milton::Interface::DPS
+    baudrate: 19200
+    address: 1
+  # Voltage set point to use for the fan.
+  voltage: 11.5
+  # Current set point to use for the fan.
+  current: 1.0
+
+  # Maximum duration that the fan should be left running. This must be set to a non-zero value otherwise
+  # the fan will not turn on.
+  duration: 600
+
+  # Boolean flag indicating whether the fan should be turned off when the command exits due to a signal.
+  # By default this is true, but you can set it to false if you need to for automation purposes where you
+  # may be killing the command early and will control fan power off by some other means.
+  shutdown-on-signal: false
+
+  # Boolean flag indicating whether the fan should be enabled. Setting this to false overrides all other
+  # settings and ensures that the software does not turn on the fan under normal circumstances.
+  enabled: true

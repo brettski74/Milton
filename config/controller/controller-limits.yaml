@@ -17,10 +17,10 @@ ambient: 27
 power-limits:
   - temperature: 20
     power: 155
-  - temperature: 219
+  - temperature: 222
     power: 155
   - temperature: 232
     power: 70
 
 # If the heating element temperature is above this, turn off the power so we don't blow our fuse!
-cut-off-temperature: 230
+cut-off-temperature: 232

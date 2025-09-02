@@ -241,6 +241,13 @@ sub fanStart {
       return;
     }
 
+    if (defined($fanConfig->{'shutdown-on-signal'})) {
+      boolify($fanConfig->{'shutdown-on-signal'});
+      if (!$fanConfig->{'shutdown-on-signal'}) {
+        $fan->{interface}->noOffOnShutdown(1);
+      }
+    }
+
     # Turn on the fan!
     $self->{fan} = $fan;
     $self->{logger}->info("Starting fan");
@@ -305,7 +312,7 @@ sub fanComplete {
 }
 
 sub fanStop {
-  my ($self, $status) = @_;
+  my ($self) = @_;
 
   if (exists $self->{fan}) {
     $self->{logger}->info("Stopping fan");
@@ -402,7 +409,14 @@ sub _signalWatcher {
   $self->_eventsDone;
 
   $self->{interface}->shutdown;
-  $self->{fan}->{interface}->shutdown if $self->{fan};
+  if ($self->{fan}) {
+    my $shutdown_on_signal = $self->{config}->{fan}->{'shutdown-on-signal'};
+    if (!defined($shutdown_on_signal) || $shutdown_on_signal) {
+      $self->fanStop;
+    } else {
+      $self->{logger}->info("Fan shutdown on signal disabled");
+    }
+  }
 
   # Trash our objects so they get destroyed.
   $self->{interface} = undef;

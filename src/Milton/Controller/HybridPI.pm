@@ -213,48 +213,84 @@ sub _tune {
   return $tuned;
 }
 
-sub _copyHistory {
-  my ($self, $history) = @_;
-  my $copy = [];
-  my $last = undef;
+sub tuningPass {
+  my ($self, $kp, $tau_i, $period, $profile, $fn) = @_;
+  $self->{gains}->{kp} = $kp;
+  $self->{gains}->{ki} = $kp / $tau_i;
+  $self->{gains}->{kaw} = $self->{gains}->{ki} / $kp;
 
-  foreach my $sample (@$history) {
-    my $new_sample = { %$sample };
-    
-    if (defined $last) {
-      $new_sample->{last} = $last;
-      $last->{next} = $new_sample;
+  my $sum2 = 0;
+  my $now = 0;
+  my $end = $profile->end;
+  my $ambient = 27;
+  my $heating_element = $ambient;
+  my $sample = { ambient => $ambient, period => $period };
+  my $power = 0;
+  my $hotplate = $heating_element;
+
+  while ($now < $end) {
+    $sample->{now} = $now;
+    $sample->{then} = $now+$period;
+    $sample->{'now-temperature'} = $profile->estimate($now);
+    $sample->{'then-temperature'} = $profile->estimate($now+$period);
+    $sample->{power} = $power;
+    delete $sample->{temperature};
+    delete $sample->{'predict-temperature'};
+    delete $sample->{'predict-heating-element'};
+    delete $sample->{integral};
+    delete $sample->{iterm};
+    delete $sample->{'ff-power'};
+
+    $self->{predictor}->predictHeatingElement($sample, $heating_element);
+    $self->{predictor}->predictTemperature($sample);
+    $power = $self->getRequiredPower($sample);
+
+    if (defined $fn) {
+      $fn->($sample);
     }
-    $last = $new_sample;
-    push @$copy, $new_sample;
+
+    my $error = $sample->{'then-temperature'} - $sample->{'predict-temperature'};
+    my $err2 = $error * $error;
+    $sum2 += $err2;
+
+    $now += $period;
   }
 
-  return $copy;
+  return $sum2;
 }
 
 sub tune {
-  my ($self, $history, %options) = @_;
+  my ($self, %options) = @_;
 
-  # PI tuning alters the sample data, so let's make a copy.
-  my $copy = $self->_copyHistory($history);
+  # We don't need a history. Everything is simulated.
+  my $period = $options{period} // 1.5;
+  my $profile = $options{profile};
 
-  writeCSVData("hybrid-pi-history.$$.dat", $copy);
+  # Tune kp and ki as if pure PI controller only.
+  my $ff_gain_saved = $self->{'feed-forward-gain'};
+  $self->{'feed-forward-gain'} = 0;
 
-  # Tune based on tai_i rather than ki as the search will be move uniform rather than hyperbolic.
-  my $tuned = $self->_tune($copy
-                         , [ 'kp', 'tau_i' ]
-                         , [ [ 0.1, 10 ], [ 0.1, 10000 ] ]
-                         , depth => 512
-                         , bias => 1
-                         , 'lower-constraint' => [ 0.1, 0.1 ]
-                         , threshold => [ 0.001, 0.001 ]
-                         , %options
-                         );
+  my $fn = sub {
+    return $self->tuningPass(@_, $period, $profile);
+  };
+  my ($kp, $tau_i) = minimumSearch($fn
+                                 , [ [ 0.0001, 100 ], [ 0.0001, 1000 ] ]
+                                 , depth => 150
+                                 , threshold => [ 0.001, 0.0001 ]
+                                 , 'lower-constraint' => [ 0.001, 0.001 ]
+                                 , %options
+                                 );
+
+  my $ki = $kp / $tau_i;
+  my $tuned = { kp => $kp
+              , ki => $ki
+              , kaw => 1 / $tau_i
+              };
+
+  # Restore the feed-forward gain.
+  $self->{'feed-forward-gain'} = $ff_gain_saved;
 
   # Update the tuned parameters to reflect what we actually want to store.
-  $tuned->{ki} = $self->{ki};
-  $tuned->{kaw} = $self->{kaw};
-  delete $tuned->{tau_i};
   delete $self->{tau_i};
 
   return $tuned;

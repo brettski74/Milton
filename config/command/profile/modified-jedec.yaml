@@ -31,7 +31,7 @@
 - name: reflow
   seconds: 60
   temperature: 220
-- name: hold
+- name: dwell
   seconds: 12
   temperature: 220
 - name: cool

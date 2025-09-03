@@ -89,17 +89,18 @@ that of the heating element, which can then be fed into the hotplate template pr
 hotplate temperatures. The mathematical model can be summarised as:
 
     # Estimate steady-state temperature for give power level
-    power_gain = power_gain_estimator(power)
+    power_gain = power_gain_estimator(heating_element_temperature)
     ss_temp = ambient + power_gain * power
     
     # Apply low-pass filter to model delay between power input and temperature response
-    power_tau = power_tau_estimator(power)
+    power_tau = power_tau_estimator(heating_element_temperature)
     alpha_power = period / (period + power_tau)
     prediction = ss_temp * alpha_power + (1 - alpha_power) * last_hotplate_temperature
 
 Where the last_hotplate_temperature can either be drawn from various sources. In feed-forward control, this
 will use the most recent measurement of hotplate temperature. In simulation, this will use the most recent
-prediction of hotplate temperature.
+prediction of hotplate temperature. Note that the low-pass filter here models the steady-state temperature
+as pulling the current hotplate temperature towards the steady-state temperature.
 
 or the most recent 
 
@@ -248,18 +249,53 @@ Updates C<last-heating-element> in this object and C<predict-heating-element> in
 
 =head2 predictPower($status)
 
-Predicts the power required to achieve a target temperature. Uses binary search to find the 
-optimal power level.
+Predicts the power required to achieve a target temperature at a specified time in the future. 
+Uses binary search to find the optimal power level, taking into account the current thermal 
+state and system dynamics.
+
+This method is primarily used in feed-forward control to provide stable control signals and 
+anticipate upcoming changes in heating requirements from reflow profiles. By looking ahead 
+multiple sample periods, it helps avoid abrupt changes in power input and reduces over/undershoot 
+that may occur at sudden changes in the required heating rate.
 
 =over
 
 =item C<$status>
 
-Status hash containing target temperature and system state
+Status hash containing target temperature and system state.  The following keys are used:
+
+=over
+
+=item C<anticipate-temperature>
+
+Target temperature to achieve (°C). If not specified, falls back to C<then-temperature>.
+
+=item C<anticipate-period>
+
+The number of seconds to look ahead. This is usually an integer multiple of the C<period>.
+If not specified, falls back to C<period>.
+
+=item C<predict-temperature>
+
+Current predicted hotplate temperature (°C)
+
+=item C<temperature>
+
+Current heating element temperature (°C)
+
+=item C<ambient>
+
+Ambient temperature (°C)
+
+=item C<period>
+
+Time period between samples (seconds)
+
+=back
 
 =item Return Value
 
-Required power level (W) or 0 if power parameters not available
+Required power level (W) to achieve the target temperature, or 0 if power parameters not available
 
 =item Side Effects
 
@@ -267,15 +303,48 @@ None
 
 =back
 
+=head3 Anticipation Feature
+
+The anticipation feature allows the predictor to look ahead multiple sample periods when 
+calculating required power. This is particularly useful in feed-forward control for:
+
+=over
+
+=item * **Stable Control**:
+
+Looking further ahead helps smooth the control signal by increasing the time and/or temperature
+difference from the current state to the target state. This reduces variability in the control
+signal due to small offset errors in previous predictions and spreads the correction for those
+errors over more sample periods.
+
+=item * **Profile Following**:
+
+Abrupt changes in the required heating rate can cause undershoot or overshoot for a variety of
+reasons including thermal inertia and the power limitations of the supply. By looking further
+ahead, the feed forward controller can better anticipate the required power changes and start
+adjusting the behaviour of the supply ahead of time to dampen the effects of thermal inertia
+and spread power increases over more sample periods.
+
+=back
+
+Anticipation is enabled by setting the C<anticipate-temperature> and C<anticipate-period> values
+in the status hash. The current implementation does this in the L<Milton::Command> class currently
+executing, although future implementations may clean up this design so that this feature can be
+controlled from the L<Milton::Controller> class, which is probably a more appropriate place for
+it.
+
 =head2 initialize()
 
 Resets the predictor's internal state and ensures all parameters are properly initialized as 
-piecewise linear estimators.
+piecewise linear estimators. This is primarily used during tuning, since the main tuning algorithm
+doesn't understand piecewise linear estimators and expects to try sets of parameter values by setting
+scalar class attributes. This method transforms those scalar parameter values into the piecewise
+linear estimator objects that the class expects to have.
 
 =head2 tune($samples, %args)
 
 Tunes the predictor parameters using historical temperature data. This method automatically 
-generates temperature bands based on the data and tunes parameters for each band.
+generates temperature bands based as described above and tunes parameters for each band separately.
 
 =over
 
@@ -293,7 +362,7 @@ Hash reference with tuned band definitions
 
 =item Side Effects
 
-Updates the temperature bands and all piecewise linear estimators
+Updates the temperature bands and all piecewise linear estimators to the tuned values.
 
 =back
 
@@ -336,8 +405,8 @@ Returns a human-readable description of the predictor with parameter ranges acro
 
   # Predict power required for target temperature
   my $status = {
-    'anticipate-temperature' => 200,  # Target temperature
-    'predict-temperature'    => 150,  # Current prediction
+    'then-temperature'       => 200,  # Target temperature
+    'predict-temperature'    => 150,  # Current hotplate temperature
     temperature              => 180,  # Current heating element temp
     ambient                  => 25,   # Ambient temperature
     period                   => 1.5   # Time period
@@ -345,6 +414,21 @@ Returns a human-readable description of the predictor with parameter ranges acro
   
   my $required_power = $predictor->predictPower($status);
   print "Required power: ${required_power}W\n";
+
+=head2 Power Prediction with Anticipation
+
+  # Predict power required for target temperature 3 periods ahead
+  my $status = {
+    'anticipate-temperature' => 190,  # Target temperature 6 seconds from now
+    'anticipate-period'      => 6,    # Look ahead 6 seconds
+    'predict-temperature'    => 177,  # Current hotplate temperature
+    temperature              => 180,  # Current heating element temp
+    ambient                  => 25,  # Ambient temperature
+    period                   => 1.5   # Time period
+  };
+  
+  my $required_power = $predictor->predictPower($status);
+  print "Required power for 6 second anticipation: ${required_power}W\n";
 
 =head2 Tuning Parameters
 

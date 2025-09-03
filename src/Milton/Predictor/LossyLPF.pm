@@ -67,9 +67,20 @@ The mathematical model uses the following formula:
                   (1 - alpha) * (T_previous_prediction - T_ambient)
 
 Where:
-- C<alpha> = period / (period + tau)
-- C<tau> is the time constant of the low pass filter
-- C<loss_factor> accounts for thermal losses between heating element and hotplate
+
+=over
+
+=item C<alpha> = period / (period + tau)
+
+=item C<tau>
+
+The time constant of the low pass filter
+
+=item C<loss_factor>
+
+Accounts for thermal losses between heating element and hotplate
+
+=back
 
 =head1 PARAMETERS
 
@@ -267,9 +278,13 @@ The LossyLPF predictor models the thermal system as a first-order system with lo
 =over
 
 =item * **Heating Element**: The primary heat source with measured temperature.
+
 =item * **Thermal Losses**: Accounted for by the loss factor
+
 =item * **Hotplate**: The target whose temperature is being predicted.
+
 =item * **Thermal Mass**: Modeled by the time constant, tau.
+
 =item * **Rate of Heat Flow to Ambient Environment**: Modeled by the time constant, tau.
 
 =back
@@ -284,7 +299,9 @@ The model assumes:
 =over
 
 =item * Does not account for variation in effective thermal mass versus temperature
+
 =item * Does not account for variation in effective thermal resistance versus temperature
+
 =item * Requires current ambient temperature measurement
 
 =back
@@ -294,9 +311,13 @@ The model assumes:
 =over
 
 =item * L<Milton::Predictor> - Base predictor class
+
 =item * L<Milton::Predictor::DoubleLPF> - An improved model that models losses to the ambient environment differently
+
 =item * L<Milton::Predictor::BandedLPF> - An improved model that models variation in thermal properties across the operating temperature range
+
 =item * L<Milton::Math::Util> - Mathematical utilities used for tuning
+
 =item * L<Milton::Controller> - Controller classes that use this predictor
 
 =back

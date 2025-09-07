@@ -324,7 +324,7 @@ The model assumes:
 
 =head1 AUTHOR
 
-Milton Controller Development Team
+Brett Gersekowski
 
 =head1 COPYRIGHT AND LICENSE
 

@@ -38,19 +38,20 @@ sub buildProfile {
   my $seconds = 0;
   
   # Add a zero-time point if not explicitly specified in the configuraton
-  if ($profile->[0]->{seconds} > 0) {
-    $stages->addNamedPoint(0, $ambient, $profile->[0]->{name});
-  }
+#  if ($profile->[0]->{seconds} > 0) {
+#
+#    $stages->addHashPoints('when', 'temperature',
+#    $stages->addHashPoints(0, $ambient, $profile->[0]);
+#  }
 
   for(my $i=0; $i<@$profile; $i++) {
     my $stage = $profile->[$i];
     $seconds += $stage->{seconds};
-    my $name = exists($profile->[$i+1]) ? $profile->[$i+1]->{name} : 'end';
+    $stage->{when} = $seconds;
+    #my $name = exists($profile->[$i+1]) ? $profile->[$i+1]->{name} : 'end';
 
-    $stages->addNamedPoint($seconds
-                         , $stage->{temperature}
-                         , $name
-                         );
+    #$stages->addHashPoints('when' , 'temperature' , $profile->[$i+1]);
+    $stages->addHashPoints('when' , 'temperature' , $stage);
   }
 
   return $stages;
@@ -76,6 +77,7 @@ sub preprocess {
 
 sub timerEvent {
   my ($self, $status) = @_;
+  my $controller = $self->{controller};
 
   # Get the expected time of the next sample
   my $now = $status->{now};
@@ -83,18 +85,33 @@ sub timerEvent {
   my $then = $status->{then} = $status->{now} + $period;
   my $profile = $self->{profile};
 
-  my ($target_temp, $stage) = $self->{profile}->estimate($then);
+  my ($target_temp, $attributes) = $self->{profile}->estimate($then);
+  my $stage = $attributes->{name};
   $status->{'then-temperature'} = $target_temp;
   $status->{'now-temperature'} = $profile->estimate($now);
-  $status->{'stage'} = $stage;
+  $status->{stage} = $stage;
 
   # Anticipation!
-  my $anticipation = $self->{config}->{anticipation};
-  my $ant_period = ($anticipation + 1) * $period;
-  $status->{'anticipate-temperature'} = $profile->estimate($now + $ant_period);
-  $status->{'anticipate-period'} = $ant_period;
+  my $anticipation = $controller->getAnticipation;
+  if ($anticipation) {
+    my $ant_period = ($anticipation + 1) * $period;
+    $status->{'anticipate-temperature'} = $profile->estimate($now + $ant_period);
+    $status->{'anticipate-period'} = $ant_period;
+  }
 
-  my $power = $self->{controller}->getPowerLimited($status);
+  if ($attributes->{'disable-limits'}) {
+    $controller->disableLimits;
+  } else {
+    $controller->enableLimits;
+  }
+
+  if ($attributes->{'disable-cutoff'}) {
+    $controller->disableCutoff;
+  } else {
+    $controller->enableCutoff;
+  }
+
+  my $power = $controller->getPowerLimited($status);
   $status->{'set-power'} = $power;
 
   # Make sure we have an event loop - may not be the case in some unit tests!

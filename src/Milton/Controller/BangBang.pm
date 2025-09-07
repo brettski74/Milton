@@ -5,208 +5,337 @@ use warnings qw(all -uninitialized);
 
 use base qw(Milton::Controller::RTDController);
 
+=encoding utf8
+
 =head1 NAME
 
-Milton::Controller::BangBang - Bang-bang controller for hotplate temperature control
+Milton::Controller::BangBang - Bang-bang controller with optional modulation
 
 =head1 SYNOPSIS
 
-    use Milton::Controller::BangBang;
-    
-    my $controller = Milton::Controller::BangBang->new($config, $interface);
-    my $power = $controller->getRequiredPower($status, $target_temp);
+  use Milton::Controller::BangBang;
+  
+  # Create controller based on configuration settings
+  my $controller = Milton::Controller::BangBang->new($config, $interface);
+  
+  # Create controller with modulated power levels
+  my $config = {
+    'power-levels' => [
+      { temperature => 25,  power => 80 },
+      { temperature => 100, power => 60 },
+      { temperature => 200, power => 40 }
+    ],
+    hysteresis => { low => 1.0, high => 0.5 }
+  };
+  
+  my $controller = Milton::Controller::BangBang->new($config, $interface);
 
 =head1 DESCRIPTION
 
-Milton::Controller::BangBang implements a simple bang-bang (on/off) control strategy
-for hotplate temperature control. This controller switches between maximum and
-minimum power output based on whether the current temperature is below or above
-the target temperature.
+C<Milton::Controller::BangBang> implements a bang-bang (on/off) control strategy for hotplate 
+temperature control. This controller switches between high and low power states based on 
+temperature error, with optional power modulation to reduce overshoot and improve control 
+stability.
 
-=head1 THEORY
+The controller supports both simple on/off control and modulated bang-bang control, where 
+the "on" power level varies with temperature to provide smoother control characteristics.
 
-Bang-bang control is the simplest form of feedback control. The controller has
-only two states:
-- B<ON>: Output maximum power when temperature is below target
-- B<OFF>: Output minimum power when temperature is at or above target
+=head1 CONTROL ALGORITHM
 
-This creates a simple hysteresis loop where the temperature oscillates around
-the target value. The amplitude of oscillation depends on the thermal inertia
-of the system and the difference between maximum and minimum power levels.
+Bang-bang control is the simplest form of feedback control with two states:
 
-=head2 Advantages
-- Simple to implement and understand
-- No tuning parameters required
-- Robust and reliable
-- Fast response to large temperature deviations
+=over
 
-=head2 Disadvantages
-- Continuous oscillation around setpoint
-- No fine control near the target temperature
-- May cause excessive wear on heating elements
-- Higher energy consumption due to overshooting
+=item * **ON State**: Apply high power when temperature is below target
+
+=item * **OFF State**: Apply minimum power when temperature is at or above target
+
+=back
+
+The controller uses hysteresis to prevent rapid switching around the target temperature. 
+The hysteresis bands are configurable and can be asymmetric.
+
+=head2 Modulated Bang-Bang Control
+
+When power-level mappings are configured, the controller uses modulated bang-bang control:
+
+=over
+
+=item * **ON State**: Apply temperature-dependent power level (interpolated from power-levels)
+
+=item * **OFF State**: Apply minimum power (from interface power limits)
+
+=back
+
+This may reduce overshoot and oscilation around the target temperature and provide smoother
+control, especially at higher temperatures 
+where full power would cause excessive heating.
+
+=head1 PARAMETERS
+
+=head2 power-levels
+
+Array of temperature/power mappings for modulated control. When specified, the controller 
+interpolates between these points to determine the power level for the ON state based on the current
+temperature.
+
+=over
+
+=item C<temperature>
+
+Temperature at which the power level applies (°C)
+
+=item C<power>
+
+Power level to use at this temperature (W)
+
+=back
+
+=over
+
+=item * Default
+
+Uses maximum interface power for all temperatures
+
+=item * Typical Values
+
+50W at 25°C, 70W at 100°C, 90W at 200°C
+
+Note this is intended for control purposes not safety purposes, so you would normally require higher power
+levesl at higher temperatures due to the faster rates of heat loss to the ambient environment at higher
+temperatures. While this could also be used to implement safety limtis - and at one time it was - safety
+limits are a separately configurable mechanism that can apply to all controllers, not just bang-bang.
+
+=back
+
+=head2 hysteresis
+
+Hysteresis configuration to prevent rapid switching around target temperature.
+
+=over
+
+=item C<low>
+
+Negative hysteresis band (°C) - controller turns ON when error < -low
+
+=item C<high>
+
+Positive hysteresis band (°C) - controller turns OFF when error >= high
+
+=back
+
+=over
+
+=item * Default
+
+low: 0.5°C, high: 0°C
+
+=item * Typical Values
+
+low: 1.0°C, high: 0.5°C for stable control
+
+=back
+
+=head1 CONSTRUCTOR
+
+=head2 new($config, $interface)
+
+Creates a new BangBang controller instance.
+
+=over
+
+=item C<$config>
+
+Configuration hash containing:
+
+=over
+
+=item C<power-levels>
+
+Optional array of temperature/power mappings for modulated control
+
+=item C<hysteresis>
+
+Optional hysteresis configuration (default: {low => 0.5, high => 0})
+
+=item Standard RTDController configuration parameters
+
+=back
+
+=item C<$interface>
+
+Interface object for power supply communication
+
+=back
+
+=head1 METHODS
+
+=head2 getRequiredPower($status)
+
+Calculates the required power using bang-bang control logic.
+
+=over
+
+=item C<$status>
+
+Status hash containing:
+
+=over
+
+=item C<then-temperature>
+
+Target temperature (°C)
+
+=item C<predict-temperature>
+
+Current predicted temperature (°C)
+
+=back
+
+=item Return Value
+
+Power level to apply (W)
+
+=item Side Effects
+
+Updates internal ON/OFF state based on hysteresis logic
+
+=back
+
+=head2 setPowerLevel($temperature, $power)
+
+Adds or updates a power level mapping for modulated control.
+
+=over
+
+=item C<$temperature>
+
+Temperature at which the power level applies (°C)
+
+=item C<$power>
+
+Power level to use at this temperature (W)
+
+=back
+
+=head1 USAGE EXAMPLES
+
+=head2 Basic Bang-Bang Control
+
+  use Milton::Controller::BangBang;
+  
+  # Simple on/off control
+  my $config = {
+    hysteresis => { low => 1.0, high => 0.5 }
+  };
+  
+  my $controller = Milton::Controller::BangBang->new($config, $interface);
+  
+  # Control loop
+  while ($running) {
+    my $status = $interface->getStatus();
+    $status->{'then-temperature'} = 100;  # Target 100°C
+    
+    my $power = $controller->getRequiredPower($status);
+    $interface->setPower($power);
+    
+    sleep(1);
+  }
+
+=head2 Modulated Bang-Bang Control
+
+  # Modulated control with temperature-dependent power levels
+  my $config = {
+    'power-levels' => [
+      { temperature => 25,  power => 50 },
+      { temperature => 100, power => 70 },
+      { temperature => 200, power => 90 }
+    ],
+    hysteresis => { low => 1.0, high => 0.5 }
+  };
+  
+  my $controller = Milton::Controller::BangBang->new($config, $interface);
+
+=head1 ADVANTAGES
+
+=over
+
+=item * Simple to implement and understand
+
+=item * No complex tuning parameters required
+
+=item * Robust and reliable operation
+
+=item * Fast response to large temperature deviations
+
+=item * Modulated control can reduce overshoot
+
+=back
+
+=head1 DISADVANTAGES
+
+=over
+
+=item * Continuous oscillation around setpoint
+
+=item * Limited fine control near target temperature
+
+=item * May cause higher wear on heating elements due to switching
+
+=back
+
+=head1 TUNING GUIDELINES
+
+Realistically, there's really no tuning required, although if your power supply is capable of
+very high power levels for your hotplate, you may wish to limit the power levels to keep the
+oscillations down to more manageable levels. For a 100mm x 100mm aluminium PCB hotplate, 120W
+is plenty of power for the on-state for most purposes. While it's possible to use lower power
+at low temperatures, empirical experience suggests that it's not worth the extra effort.
+
+=head2 Hysteresis Tuning
+
+=over
+
+=item * Larger hysteresis reduces switching frequency
+
+=item * Larger hysteresis band increases amplitude of oscillation around the target temperature.
+
+=item * Typical range: 0.5-2.0°C total hysteresis
+
+Note that for a typical setup with a 100mm x 100mm alumninium PCB hotplate, 1.5 second sample
+period and 120W of on-state power, the oscillations will likely favour the high side of the
+reflow profile. For this reason, you probably want to set the high-side hysteresis to zero and
+the low side hysteresis to something like 0.0-1.0°C depending on your hotplate and power supply.
+
+=back
 
 =head1 INHERITANCE
 
 This class inherits from L<Milton::Controller::RTDController>, which provides:
-- Temperature conversion from RTD resistance values
-- Interface management for power supply communication
-- Configuration handling
-
-=head1 METHODS
-
-=head2 new($config, $interface)
-
-Constructor for the bang-bang controller.
-
-=over 4
-
-=item * C<$config> - Configuration hash reference containing controller parameters
-
-=item * C<$interface> - Interface object for communicating with the power supply
-
-=back
-
-Returns a new Milton::Controller::BangBang instance.
-
-=head2 getRequiredPower($status, $target_temp)
-
-Calculates the required power output using bang-bang control logic.
-
-=over 4
-
-=item * C<$status> - Hash reference containing current system status
-  - C<temperature> - Current temperature in degrees Celsius
-
-=item * C<$target_temp> - Target temperature in degrees Celsius
-
-=back
-
-Returns the power level to apply:
-- Maximum power if current temperature < target temperature
-- Minimum power if current temperature >= target temperature
-
-=head1 USAGE EXAMPLE
-
-    use Milton::Controller::BangBang;
-    use Milton::Interface::DPS;
-    
-    # Create interface
-    my $interface = Milton::Interface::DPS->new($dps_config);
-    
-    # Create controller
-    my $controller = Milton::Controller::BangBang->new($config, $interface);
-    
-    # Control loop
-    while ($running) {
-        my $status = $interface->getStatus();
-        my $target_temp = 100.0;  # 100°C target
-        
-        my $power = $controller->getRequiredPower($status, $target_temp);
-        $interface->setPower($power);
-        
-        sleep(1);  # Control update rate
-    }
-
-=head1 CONFIGURATION
-
-The controller inherits configuration from L<Milton::Controller::RTDController>.
-No additional configuration parameters are required for bang-bang control. Bang-bang control
-is one of the simplest control schemes. The controller varies between on and off states based
-on whether the hotplate temperature is above the target temperature or not. Because we need
-some current flowing to measure the resistance and derive the temperature, the off state is
-actually a minimum power state, but otherwise the controller is very simple and can be used
-with minimal or even no calibration. On the down side, the controller is less accurate, will
-produce a temperature curve that oscillates around the target temperature and may cause
-greater wear on the hotplate. For a smoother temperature, you can use a feed-forward or PID
-controller, but both of these require much more calibration and tuning to work well.
-
-While this controller can be used with no calibration or tuning, the following options can
-be used to improve the performance of the controller.
-
-=head2 Resistance-Temperature Mapping
-
-The controller can use a resistance-temperature mapping to more accurately derive the temperature
-of the hotplate. Note that "accurately" can be a very subjective term when measuring the
-temperature of something like a hotplate. The construction of the hotplate assembly, the
-the placement of the sensor relative to the working surface and other factors can affect how
-well the measured temperature matches the temperature of the working surface of the hotplate
-or the current hotplate load (ie. your PCB being reflowed).
-
-This controller measures the temperature of the hotplate using the heating element itself.
-The heating element has very low thermal inertia, which means that its temperature varies
-relatively quickly in response to changes in power. It takes time for this heat to be soaked
-up by the surrounding materials such as the FR4 substrate, a heat spreader if used and the 
-hotplate load. As a result, the temperature measured at the surface of the hotplate may be 
-lower than that of the heating element. While temperature is varying slowly - which it the
-case for most of the reflow cycle - this temperature offset should be relatively small but
-will vary with temperature. Calibrating the hotplate temperature by measuring the temperature
-of the working surface of the hotplate at several temperatures may allow better control of
-the temperature subjected to the hotplate load. You can produce a resistance-temperature
-mapping using the rtcal or rampcal commands. These produce a separate configuration file
-that you can include in your controller configuration.
-
-Note that this behaviour is inherited from the L<Milton::Controller::RTDController>
-base class, so it works the same way for all RTD-based controllers.
-
-=head2 Power-Temperature Mappings
-
-Bang-bang control can produce large temperature overshoots - especially at lower temperatures.
-This is due to the use of maximum output power in the on state. This effect can be mitigated
-by providing a power-temperature mapping that tells the controller to use different power
-levels at different temperatures. It still switches between on and off states, but the power
-level used in the on state varies based on the target temperature of the hotplate.
-
-There is currently no calibration process for this, so you'll have to wing it a bit. As a
-general guideline for a 100mm square hotplate, you probably don't want to use less than 20W
-of heating at room temperature and you probably want to aim for about 100W at 200 celsius.
-
-=head2 Configuration Attributes
 
 =over
 
-=item power-levels
+=item * Temperature measurement using heating element as RTD
 
-An array of temperature/power mappings. The controller will interpolate between these points
-to derive a power level to use for the on state of the controller.
+=item * Resistance-temperature calibration support
 
-=over
+=item * Safety limits and cutoff features
 
-=item temperature
-
-The temperature at which a particualr power level should apply for the on state.
-
-=item power
-
-The power in watts that will apply at the corresponding temperature.
-
-=back
-
-=item temperatures
-
-=pver
-
-=item resistance
-
-The resistance of the heating element at a given temperature.
-
-=item temperature
-
-The temperature at which the heating element should be at the corresponding resistance.
-
-=back
+=item * Interface management
 
 =back
 
 =head1 SEE ALSO
 
-=over 4
+=over
 
 =item * L<Milton::Controller::RTDController> - Base class for RTD-based controllers
 
-=item * L<Milton::Controller::FeedForward> - Alternative controller with feed-forward compensation
+=item * L<Milton::Controller::HybridPI> - Advanced PI control with feed-forward
 
 =item * L<Milton::Controller> - Controller base class
+
+=item * L<Milton::Math::PiecewiseLinear> - Power level interpolation
 
 =back
 
@@ -216,7 +345,11 @@ Brett Gersekowski
 
 =head1 COPYRIGHT AND LICENSE
 
-Copyright (c) 2025 Brett Gersekowski. All rights reserved.
+Copyright (c) 2025 Brett Gersekowski
+
+This module is part of Milton - The Makeshift Melt Master! - a system for controlling solder reflow hotplates.
+
+This software is licensed under an MIT licence. The full licence text is available in the LICENCE.md file distributed with this project.
 
 =cut
 

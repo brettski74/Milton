@@ -11,21 +11,466 @@ use Milton::ValueTools qw(writeCSVData);
 
 use Milton::Math::Util qw(sgn minimumSearch);
 
+=encoding utf8
+
+=head1 NAME
+
+Milton::Controller::HybridPI - Hotplate controller with both PI and feed-forward control
+
+=head1 SYNOPSIS
+
+  use Milton::Controller::HybridPI;
+  
+  # Create controller with default PI gains
+  my $controller = Milton::Controller::HybridPI->new($config, $interface);
+  
+  # Create controller with custom gains and feed-forward
+  my $config = { gains => { kp => 2.5,
+                          , ki => 15
+                          }
+               , 'feed-forward-gain' => 1
+               , anticipation => 3
+               };
+  
+  my $controller = Milton::Controller::HybridPI->new($config, $interface);
+
+=head1 DESCRIPTION
+
+C<Milton::Controller::HybridPI> implements a hybrid control strategy combining proportional-integral 
+(PI) feedback control with optional feed-forward compensation. This controller provides superior 
+performance compared to simple bang-bang control, with the ability to operate in pure PI mode, 
+pure feed-forward mode, or any combination of both.
+
+The controller is designed to work with predictors that support power prediction (primarily 
+L<Milton::Predictor::BandedLPF>) to provide feed-forward compensation based on anticipated 
+heating requirements.
+
+=head1 CONTROL ALGORITHM
+
+The hybrid controller combines three control components:
+
+=over
+
+=item * **Feed-Forward Component**: Predicts required power based on target temperature profile
+
+=item * **Proportional Component**: Responds to current temperature error
+
+=item * **Integral Component**: Eliminates steady-state error through integral action
+
+=back
+
+The total control output is:
+
+    power = feed_forward_power + kp * error + integral_term
+
+Where the integral term includes anti-windup protection and the feed-forward component can be 
+filtered for stability.
+
+=head2 Feed-Forward Control
+
+Feed-forward control uses the predictor to anticipate power requirements based on the target 
+temperature profile. This provides:
+
+=over
+
+=item * **Proactive Control**: Starts heating before temperature error occurs
+
+=item * **Profile Following**: Better tracking of rapid temperature changes
+
+=item * **Reduced Overshoot**: Smoother control during profile transitions
+
+=back
+
+=head2 PI Control
+
+The PI controller provides feedback compensation for:
+
+=over
+
+=item * **Model Errors**: Corrections for predictor inaccuracies
+
+=item * **Disturbances**: Response to unexpected temperature changes
+
+=item * **Steady-State Accuracy**: Elimination of offset errors
+
+=back
+
+=head1 PARAMETERS
+
+=head2 gains
+
+PI controller gains configuration:
+
+=over
+
+=item C<kp>
+
+Proportional gain (W/°C) - determines response to temperature error
+
+=item C<ki>
+
+Integral gain (W/°C/s) - determines steady-state error elimination rate
+
+=item C<kaw>
+
+Anti-windup gain (1/s) - mitigates integral windup during saturation
+
+=back
+
+=over
+
+=item * Default
+
+kp: 25, ki: 15, kaw: 0.6
+
+=item * Typical Range
+
+kp: 1-100, ki: 1-100, kaw:0.01-100
+
+=back
+
+=head2 feed-forward-gain
+
+Feed-forward controller gain (0.0 to 1.0). Controls the contribution of feed-forward 
+prediction to the total control output.
+
+=over
+
+=item * 0.0: Pure PI control (no feed-forward)
+
+=item * 1.0: Full feed-forward compensation
+
+=item * 0.5-1.0: Typical values for hybrid control
+
+=back
+
+=head2 anticipation
+
+The number of additional samples to look ahead when predicting the required power. This is
+only used for feed-forward control. It provides smoother output from the feed-forward controller
+and reduces overshoot/undershoot. If your feed-forward controller oscillates a lot, adding a few
+samples worth of anticipation will usually fix that and reduce overshoot/undershoot at gradient
+discontinuities. It generally does a better job than using a low-pass filter.
+
+=head2 anti-windup-clamp
+
+Anti-windup integral clamping limit as percentage of maximum power.
+
+=over
+
+=item * Default: 30% of maximum power
+
+=item * Range: 0-100% of maximum power
+
+=back
+
+=head1 CONSTRUCTOR
+
+=head2 new($config, $interface)
+
+Creates a new HybridPI controller instance.
+
+=over
+
+=item C<$config>
+
+Configuration hash containing:
+
+=over
+
+=item C<gains>
+
+PI controller gains (kp, ki, kaw)
+
+=item C<feed-forward-gain>
+
+Feed-forward compensation gain (default: 1.0)
+
+=item C<anti-windup-clamp>
+
+Anti-windup integral limit percentage (default: 30)
+
+=item Standard RTDController configuration parameters
+
+=back
+
+=item C<$interface>
+
+Interface object for power supply communication
+
+=back
+
+=head1 METHODS
+
+=head2 getRequiredPower($status)
+
+Calculates the required power using hybrid PI control with optional feed-forward.
+
+=over
+
+=item C<$status>
+
+Status hash containing:
+
+=over
+
+=item C<anticipate-temperature> or C<then-temperature>
+
+Target temperature (°C). If available, C<anticipate-temperature> is used, otherwise falls back to using C<then-temperature>.
+
+=item C<predict-temperature>
+
+Current predicted temperature (°C)
+
+=item C<anticipate-period> or C<period>
+
+Control period (seconds). If available, C<anticipate-period> is used, otherwise falls back to using C<period>.
+
+=back
+
+=item Return Value
+
+Required power level (W)
+
+=item Side Effects
+
+Updates integral term and internal state variables
+
+=back
+
+=head2 tune(%options)
+
+Tunes PI controller gains using simulation-based optimization.
+
+=over
+
+=item C<%options>
+
+Tuning options:
+
+=over
+
+=item C<period>
+
+Control period for simulation (default: 1.5 seconds)
+
+=item C<profile>
+
+Temperature profile for tuning simulation
+
+=item Additional optimization parameters
+
+=back
+
+=item Return Value
+
+Hash containing tuned gains (kp, ki, kaw)
+
+=item Side Effects
+
+Updates controller gains to tuned values
+
+=back
+
+=head1 USAGE EXAMPLES
+
+=head2 Pure PI Control
+
+  # Disable feed-forward for pure PI control
+  my $config = { gains => { kp => 2.5
+                          , ki => 0.15
+                          , kaw => 0.06
+                          }
+               , 'feed-forward-gain' => 0  # Disable feed-forward
+               };
+  
+  my $controller = Milton::Controller::HybridPI->new($config, $interface);
+
+=head2 Pure Feed-Forward Control
+
+  # Disable PI for pure feed-forward control
+  my $config = { gains => { kp => 0
+                          , kaw => 0
+                          , kaw => 0
+                          }
+               , 'feed-forward-gain' => 1.0  # Full feed-forward
+               , anticipation => 3
+               };
+  
+  my $controller = Milton::Controller::HybridPI->new($config, $interface);
+
+=head2 Hybrid Control
+
+  # Balanced hybrid control
+  my $config = { gains => { kp => 20.0
+                          , ki => 5
+                          , kaw => 0.05
+                          }
+               , ki => 5
+               , kaw => 0.05
+               }
+               , 'feed-forward-gain' => 1
+               , anticipation => 3
+               };
+  
+  my $controller = Milton::Controller::HybridPI->new($config, $interface);
+
+=head2 Tuning PI Gains
+
+  # Tune PI gains using simulation
+  my $tuned_gains = $controller->tune(period => 1.5
+                                     , kaw => 0.05
+                                     , profile => $reflow_profile
+                                     );
+  
+  print "Tuned kp: $tuned_gains->{kp}\n";
+  print "Tuned ki: $tuned_gains->{ki}\n";
+
+=head1 TUNING GUIDELINES
+
+=head2 Feed-Forward Tuning
+
+Feed-forward control depends entirely on the predictor quality. For best results:
+
+=over
+
+=item * Use L<Milton::Predictor::BandedLPF> for accurate power prediction
+
+=item * Tune predictor parameters using historical reflow data
+
+=item * Start with feed-forward-gain = 1, anticipation = 3
+
+=item * Adjust based on control performance
+
+=back
+
+=head2 PI Gain Tuning
+
+The current automatic tuning implementation has limitations. Recommended approach:
+
+=over
+
+=item * Start with default gains (kp=25, ki=15, kaw=0.6)
+
+=item * Manually adjust based on observed performance
+
+=item * PI gains are forgiving of sub-optimal values
+
+=item * Focus on feed-forward tuning for best results
+
+=back
+
+=head2 Manual PI Tuning
+
+=over
+
+=item * **Proportional Gain (kp)**: Increase for faster response, decrease for stability
+
+=item * **Integral Gain (ki)**: Increase to eliminate steady-state error, decrease to prevent overshoot
+
+=item * **Anti-windup (kaw)**: Set to ki/kp for standard anti-windup
+
+=back
+
+=head1 ADVANTAGES
+
+=over
+
+=item * Superior control performance compared to bang-bang
+
+=item * Flexible control modes (PI, feed-forward, or hybrid)
+
+=item * Excellent profile following with feed-forward
+
+=item * Robust operation with anti-windup protection
+
+=item * Smooth control output and temperature response
+
+=back
+
+=head1 DISADVANTAGES
+
+=over
+
+=item * Requires predictor tuning for feed-forward operation
+
+=item * More complex than bang-bang control
+
+=item * PI tuning can be challenging
+
+=item * Dependent on predictor accuracy
+
+=back
+
+=head1 PREDICTOR REQUIREMENTS
+
+Feed-forward control requires a predictor that supports the C<predictPower> method:
+
+=over
+
+=item * **Recommended**: L<Milton::Predictor::BandedLPF> - Most accurate and well-tested
+
+=item * **Not Recommended**: L<Milton::Predictor::DoubleLPFPower> - Incomplete implementation
+
+=back
+
+=head1 INHERITANCE
+
+This class inherits from L<Milton::Controller::RTDController>, which provides:
+
+=over
+
+=item * Temperature measurement using heating element as RTD
+
+=item * Resistance-temperature calibration support
+
+=item * Safety limits and cutoff features
+
+=item * Interface management
+
+=back
+
+=head1 SEE ALSO
+
+=over
+
+=item * L<Milton::Controller::RTDController> - Base class for RTD-based controllers
+
+=item * L<Milton::Controller::BangBang> - Simple bang-bang control alternative
+
+=item * L<Milton::Predictor::BandedLPF> - Recommended predictor for feed-forward control
+
+=item * L<Milton::Math::Util> - Optimization utilities used in tuning
+
+=back
+
+=head1 AUTHOR
+
+Milton Controller Development Team
+
+=head1 COPYRIGHT AND LICENSE
+
+Copyright (c) 2025 Brett Gersekowski
+
+This module is part of Milton - The Makeshift Melt Master! - a system for controlling solder reflow hotplates.
+
+This software is licensed under an MIT licence. The full licence text is available in the LICENCE.md file distributed with this project.
+
+=cut
+
 sub new {
   my ($class, $config, $interface) = @_;
 
   my $self = $class->SUPER::new($config, $interface);
 
-  $self->{gains}->{kp} //= 2.47;
-  $self->{gains}->{ki} //= 0.1;
+  $self->{gains}->{kp} //= 25;
+  $self->{gains}->{ki} //= 15;
   $self->{gains}->{kaw} //= $self->{gains}->{ki} / ($self->{gains}->{kp} || 1);
-
-  # No low-pass filtering on the control signal by default.
-  $self->{'control-tau'} //= 0;
-  $self->{'feed-forward-tau'} //= 0;
 
   # By default, use the full feed-forward signal.
   $self->{'feed-forward-gain'} //= 1;
+
+  $self->{'anti-windup-clamp'} //= 30;
 
   # Only designed to work with the DoubleLPFPower predictor.
   if (!defined $self->{predictor}) {
@@ -40,12 +485,12 @@ sub new {
 sub description {
   my ($self) = @_;
 
-  return sprintf('HybridPI (ff-gain: %.3f, ff-tau: %.3f, kp: %.3f, ki: %.3f, control-tau: %.3f)'
+  return sprintf('HybridPI (ff-gain: %.3f, kp: %.3f, ki: %.3f, kaw: %.3f, anticipation: %d)'
                , $self->{'feed-forward-gain'}
-               , $self->{'feed-forward-tau'}
                , $self->{gains}->{kp}
                , $self->{gains}->{ki}
-               , $self->{'control-tau'}
+               , $self->{gains}->{kaw}
+               , $self->{'anticipation'}
                );
 }
 
@@ -59,15 +504,6 @@ sub getRequiredPower {
   my $ff_gain = $self->{'feed-forward-gain'};
   if ($ff_gain > 0) {
     $ff_power = $self->{predictor}->predictPower($status) * $self->{'feed-forward-gain'};
-
-    my $ff_tau = $self->{'feed-forward-tau'};
-    if ($ff_tau > 0) {
-      if (exists $self->{'last-ff-power'}) {
-        my $ff_alpha = $period / ($period + $ff_tau);
-        $ff_power = $ff_power * $ff_alpha + (1 - $ff_alpha) * $self->{'last-ff-power'};
-      }
-      $self->{'last-ff-power'} = $ff_power;
-    }
   }
 
   my ($pmin, $pmax) = $self->{interface}->getPowerLimits();
@@ -82,6 +518,13 @@ sub getRequiredPower {
 
   my $integral = $self->{integral} //= 0;
   my $iterm = $error * $ki * $period;
+
+  # Avoid integral in the first few seconds when the profile may be intentionally under ambient
+  # Hacky, but whatever...
+  if ($status->{now} < 7.5) {
+    $iterm = 0;
+  }
+
   $integral += $iterm;
   $status->{integral} = $integral;
   $status->{iterm} = $iterm;
@@ -103,7 +546,7 @@ sub getRequiredPower {
   }
 
   # Anti-windup correction
-  $integral += $kaw * ($power_sat - $power_unsat);
+  #$integral += $kaw * ($power_sat - $power_unsat);
 
   # Clamp the integral if we're still too big.
   my $anti_windup_clamp = $self->{'anti-windup-clamp'};
@@ -116,18 +559,7 @@ sub getRequiredPower {
 
   $self->{integral} = $integral;
 
-  # Low-pass filter the control signal if required.
-  my $control_tau = $self->{'control-tau'};
-  my $power = $power_sat;
-  if ($control_tau > 0) {
-    if (exists $self->{'last-power'}) {
-      my $control_alpha = $period / ($period + $control_tau);
-      $power = $power_sat * $control_alpha + (1 - $control_alpha) * $self->{'last-power'};
-    }
-    $self->{'last-power'} = $power;
-  }
-
-  return $power;
+  return $power_sat;
 }
 
 sub initialize {

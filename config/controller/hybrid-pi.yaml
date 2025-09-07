@@ -25,6 +25,15 @@ control-tau: 0
 # A value of 0 disables feed-forward control entirely and turns this controller into a pure PI controller.
 feed-forward-gain: 1
 
+# Number of additional samples to look ahead for controller anticipation.
+# This is used by feed-forward control to look further ahead at the required temperature when calculatin
+# the required power to supply to the hotplate. If feed-forward gain is zero, this value has no effect.
+# Anticipation is disabled by default. Setting a few samples worth of anticipation can help to smooth
+# the feed-forward control signal and reduce overshoot/undershoot. This is usually a better way to smooth
+# out the feed-forward signal than using a low-pass filter. Values in the 1-3 range are usually reasonable.
+# Higher values are unlikely to provide additional benefit and may lead to undesirable control results.
+anticipation: 3
+
 # The percentage of maximum power at which to clamp the output of the integral term of the PI controller.
 # Integral windup protection is implemented in two ways. First is the anti-windup gain (kaw) which will
 # unwind the integral as the control signal exceeds the maximum power. The second is a hard clamp which

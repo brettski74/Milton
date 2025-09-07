@@ -517,7 +517,7 @@ Compared to L<Milton::Predictor::LossyLPF> and L<Milton::Predictor::DoubleLPF>, 
 
 =head1 AUTHOR
 
-Milton Controller Development Team
+Brett Gersekowski
 
 =head1 COPYRIGHT AND LICENSE
 

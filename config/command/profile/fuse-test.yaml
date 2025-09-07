@@ -1,0 +1,135 @@
+#@ description: Profile to test the thermal fuse trip temperature. DO NOT USE FOR REFLOW!
+# A profile to test the thermal fuse trip temperature
+#
+# This profile will rapidly heat up to 200 celsius, then increase temperatures
+# up to 260 celsius in 5 celsius increments.
+#
+# This profile will disable cutoff and safety limits in order to reach the
+# necessary temperatures, as those are almost certainly configured to prevent
+# a thermal fuse trip. For this reason:
+#
+# 1. DO NOT USE THIS PROFILE WITH THE HOTPLATE UNATTENDED.
+# 2. DO NOT USE THIS PROFILE FOR SOLDER REFLOW. IT MAY DAMAGE YOUR COMPONENTS
+#    AND SHOULD CAUSE YOUR THERMAL FUSE TO TRIP, REQUIRING YOU TO REBUILD IT.
+#
+- name: ambient
+  seconds: 0
+  temperature: 15
+- name: preheat
+  seconds: 180
+  temperature: 220
+- name: hold-220
+  seconds: 10
+  temperature: 220
+- name: step-225
+  seconds: 5
+  disable-limits: true
+  disable-cutoff: true
+  temperature: 225
+- name: hold-225
+  seconds: 20
+  disable-limits: true
+  disable-cutoff: true
+  temperature: 225
+- name: step-230
+  seconds: 5
+  disable-limits: true
+  disable-cutoff: true
+  temperature: 230
+- name: hold-230
+  seconds: 20
+  disable-limits: true
+  disable-cutoff: true
+  temperature: 230
+- name: step-235
+  seconds: 5
+  disable-limits: true
+  disable-cutoff: true
+  temperature: 235
+- name: hold-235
+  seconds: 20
+  disable-limits: true
+  disable-cutoff: true
+  temperature: 235
+- name: step-240
+  seconds: 5
+  disable-limits: true
+  disable-cutoff: true
+  temperature: 240
+- name: hold-240
+  seconds: 20
+  disable-limits: true
+  disable-cutoff: true
+  temperature: 240
+- name: step-245
+  seconds: 5
+  disable-limits: true
+  disable-cutoff: true
+  temperature: 245
+- name: hold-245
+  seconds: 20
+  disable-limits: true
+  disable-cutoff: true
+  temperature: 245
+- name: step-250
+  seconds: 5
+  disable-limits: true
+  disable-cutoff: true
+  temperature: 250
+- name: hold-250
+  seconds: 20
+  disable-limits: true
+  disable-cutoff: true
+  temperature: 250
+- name: step-255
+  seconds: 5
+  disable-limits: true
+  disable-cutoff: true
+  temperature: 255
+- name: hold-255
+  disable-limits: true
+  disable-cutoff: true
+  seconds: 20
+  temperature: 255
+- name: step-260
+  disable-limits: true
+  disable-cutoff: true
+  seconds: 5
+  temperature: 260
+- name: hold-260
+  disable-limits: true
+  disable-cutoff: true
+  seconds: 20
+  temperature: 260
+- name: step-265
+  disable-limits: true
+  disable-cutoff: true
+  seconds: 5
+  temperature: 265
+- name: hold-265
+  disable-limits: true
+  disable-cutoff: true
+  seconds: 20
+  temperature: 265
+- name: step-270
+  disable-limits: true
+  disable-cutoff: true
+  seconds: 5
+  temperature: 270
+- name: hold-270
+  disable-limits: true
+  disable-cutoff: true
+  seconds: 20
+  temperature: 270
+- name: cool
+  disable-limits: true
+  disable-cutoff: true
+  seconds: 180
+  temperature: 100
+- name: off
+  seconds: 1
+  temperature: 15
+- name: monitor
+  seconds: 179
+  fan: true
+  temperature: 15

@@ -116,10 +116,13 @@ sub getTemperature {
     }
   }
 
-  # If there is insufficient current flowing, temperature cannot be estimated.
-  return if ($status->{current} < $self->{interface}->getMeasurableCurrent);
-
-  my $resistance = $status->{resistance} // ($status->{voltage} / $status->{current});
+  my $resistance = $status->{resistance};
+  if (!defined($resistance)) {
+    # If there is insufficient current flowing and no resistance measurement, temperature cannot be estimated.
+    return if ($status->{current} < $self->{interface}->getMeasurableCurrent);
+    $resistance = $status->{voltage} / $status->{current};
+    $status->{resistance} = $resistance;
+  }
 
   # If the estimator is empty, give it some sane defaults assuming a copper heating element
   if ($est->length() == 0 && !$self->{reset}) {
@@ -147,7 +150,6 @@ sub getTemperature {
 
   my $temperature = $est->estimate($resistance);
 
-  $status->{resistance} = $resistance;
   $status->{temperature} = $temperature;
 
   return $temperature;

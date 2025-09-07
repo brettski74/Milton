@@ -48,16 +48,17 @@ Returns the PiecewiseLinear estimator, so that method calls may be chained.
 
 sub addNamedPoint {
   my $self = shift;
+  my @points = ();
 
   while (@_) {
     my $x = shift;
     my $y = shift;
     my $name = shift;
 
-    push @$self, [ $x, $y, $name ];
+    push @points, { x => $x, y => $y, name => $name };
   }
 
-  return $self;
+  return $self->addHashPoints('x', 'y', @points);
 }
 
 =head2 addHashPoints($xlabel, $ylabel, @points)
@@ -91,31 +92,29 @@ sub addHashPoints {
 
   foreach my $point (@points) {
     if (exists $point->{$xlabel} && exists $point->{$ylabel}) {
-      push @new, $point->{$xlabel}, $point->{$ylabel};
+      my $done = 0;
+      my $x = $point->{$xlabel};
+      my $y = $point->{$ylabel};
+
+      for (my $i = 0; $i < @$self; $i++) {
+        if ($self->[$i]->[0] > $x) {
+          splice @$self, $i, 0, [ $x, $y, $point ];
+          $done = 1;
+          last;
+        } elsif ($self->[$i]->[0] == $x) {
+          $self->[$i] = [ $x, $y, $point ];
+          $done = 1;
+          last;
+        }
+      }
+
+      if (!$done) {
+        push @$self, [ $x, $y, $point ];
+      }
     }
   }
 
-  return $self->addPoint(@new);
-}
-
-=head2 addNamedHashPoints($xlabel, $ylabel, $namelabel, @points)
-
-Add one or more data points to this piecewise linear estimator.
-
-=cut
-
-sub addNamedHashPoints {
-  my ($self, $xlabel, $ylabel, $namelabel, @points) = @_;
-
-  my @new = ();
-
-  foreach my $point (@points) {
-    if (exists $point->{$xlabel} && exists $point->{$ylabel} && exists $point->{$namelabel}) {
-      push @new, $point->{$xlabel}, $point->{$ylabel}, $point->{$namelabel};
-    }
-  }
-
-  return $self->addNamedPoint(@new);
+  return $self;
 }
 
 =head2 addPoint($x, $y {, $x, $y})
@@ -146,23 +145,10 @@ sub addPoint {
     my $x = shift;
     my $y = shift;
 
-    my $entry = [ $x, $y ];
-
-    my $i;
-    for ($i=0; $i<@$self; $i++) {
-      if ($self->[$i]->[0] >= $x) {
-        last;
-      }
-    }
-
-    if ($i < @$self && $self->[$i]->[0] == $x) {
-      $self->[$i] = $entry;
-    } else {
-      splice @$self, $i, 0, $entry;
-    }
+    push @new, { x => $x, y => $y };
   }
 
-  return $self;
+  return $self->addHashPoints('x', 'y', @new);
 }
 
 =head2 getPoints
@@ -190,7 +176,8 @@ The X value for which a corresponding Y value is required.
 =item Return Value
 
 In a scalar context, returns the estimated Y value for the specified X value.
-In a list context, returns an array of 1 or 2 elements. The first element is the estimated Y value. The second element is the name associated with that segment of the estimator, if one is available.
+In a list context, returns an array of 1 or 2 elements. The first element is the estimated Y value.
+The second element is the hash of attributes associated with that segment of the estimator.
 
 =back
 
@@ -242,7 +229,7 @@ sub estimate {
     last if ($x < $self->[$idx]->[0]);
   }
 
-  return $self->_estimateFromPoints($x, $self->[$idx-1], $self->[$idx], $self->[$idx-1]);
+  return $self->_estimateFromPoints($x, $self->[$idx-1], $self->[$idx], $self->[$idx]);
 }
 
 sub _estimateFromPoints {

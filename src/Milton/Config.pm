@@ -8,7 +8,8 @@ Milton::Config
 
 =head1 DESCRIPTION
 
-Load and hold hp static configuration with support for !include tags.
+Load and hold Milton static configuration data. Supports YAML files with extensions for !Include
+tags and expanding environment variable values in strings with the !Env tag.
 
 =cut
 

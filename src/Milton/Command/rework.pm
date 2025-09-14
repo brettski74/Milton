@@ -140,6 +140,14 @@ sub timerEvent {
     $status->{'now-temperature'} = $self->{profile}->estimate($status->{now});
     $status->{'then-temperature'} = $self->{profile}->estimate($status->{now} + $status->{period});
 
+    # Anticipation!
+    my $anticipation = $self->{controller}->getAnticipation;
+    if ($anticipation) {
+      my $ant_period = ($anticipation + 1) * $status->{period};
+      $status->{'anticipate-temperature'} = $self->{profile}->estimate($status->{now} + $ant_period);
+      $status->{'anticipate-period'} = $ant_period;
+    }
+
     my $power = $self->{controller}->getPowerLimited($status);
     $status->{'set-power'} = $power;
     $self->{interface}->setPower($power);

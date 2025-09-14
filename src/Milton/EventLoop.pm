@@ -317,6 +317,7 @@ sub fanStop {
   if (exists $self->{fan}) {
     $self->{logger}->info("Stopping fan");
     $self->{fan}->{interface}->on(0);
+    $self->{fan}->{interface}->shutdown;
     delete $self->{fan};
   }
 }
@@ -609,7 +610,7 @@ sub run {
 
   $self->{interface}->shutdown;
   $self->{controller}->shutdown;
-  $self->{fan}->{interface}->shutdown if $self->{fan};
+  $self->fanStop if ($self->{fan});
 }
 
 =head2 getHistory

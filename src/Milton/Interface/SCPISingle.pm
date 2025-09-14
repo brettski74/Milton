@@ -3,8 +3,7 @@ package Milton::Interface::SCPISingle;
 use strict;
 use warnings qw(all -uninitialized);
 
-use base qw(Milton::Interface);
-use Device::SerialPort;
+use base qw(Milton::Interface::SerialPort);
 use Carp qw(croak);
 
 =head1 NAME
@@ -145,24 +144,28 @@ sub new {
   return $self;
 }
 
-sub _connect {
+#sub _connect {
+#  my ($self) = @_;
+
+#  my $port = $self->{port} || croak ref($self) .': port must be specified.';
+#  $self->info("Connecting to $port");
+#  my $serial = Device::SerialPort->new($port) || croak ref($self) .': could not open serial port ' . $port . ': ' . $!;
+
+#  $serial->baudrate($self->{'baudrate'});
+#  $serial->databits($self->{'databits'});
+#  $serial->parity($self->{'parity'});
+#  $serial->stopbits($self->{'stopbits'});
+#  $serial->handshake($self->{'handshake'});
+#  $serial->read_char_time($self->{'char-timeout'});
+#  $serial->read_const_time($self->{'response-timeout'});
+
+#  $self->{serial} = $serial;
+
+sub _initialize {
   my ($self) = @_;
 
-  my $port = $self->{port} || croak ref($self) .': port must be specified.';
-  $self->info("Connecting to $port");
-  my $serial = Device::SerialPort->new($port) || croak ref($self) .': could not open serial port ' . $port . ': ' . $!;
-
-  $serial->baudrate($self->{'baudrate'});
-  $serial->databits($self->{'databits'});
-  $serial->parity($self->{'parity'});
-  $serial->stopbits($self->{'stopbits'});
-  $serial->handshake($self->{'handshake'});
-  $serial->read_char_time($self->{'char-timeout'});
-  $serial->read_const_time($self->{'response-timeout'});
-
-  $self->{serial} = $serial;
   ($self->{make}, $self->{model}, $self->{'serial-number'}, $self->{firmware}) = $self->_sendCommand('*IDN?');
-  croak ref($self) .": could not get device information from $port: $!" if !defined($self->{make});
+  croak ref($self) .": could not get device information from $self->{port}: $!" if !defined($self->{make});
 
   my ($vset) = $self->_sendCommand('SOUR:VOLT?');
   my ($iset) = $self->_sendCommand('SOUR:CURR?');
@@ -170,7 +173,7 @@ sub _connect {
   $on = ($on eq 'ON') ? 1 : 0;
   my ($volts, $amps, $power) = $self->_sendCommand('MEAS:ALL?');
 
-  $self->info("Connected to $self->{make} $self->{model} $self->{'serial-number'} $self->{firmware} on $port");
+  $self->info("Connected to $self->{make} $self->{model} $self->{'serial-number'} $self->{firmware} on $self->{port}");
 
   return ($vset, $iset, $on, $volts, $amps);
 }
@@ -181,18 +184,18 @@ sub deviceName {
   return "$self->{make} $self->{model}";
 }
 
-sub _disconnect {
-  my ($self) = @_;
+#sub _disconnect {
+#  my ($self) = @_;
 
-  if ($self->{serial}) {
-    $self->on(0);
+#  if ($self->{serial}) {
+#    $self->on(0);
 
-    $self->{serial}->close();
-    $self->{serial} = undef;
-  }
+#    $self->{serial}->close();
+#    $self->{serial} = undef;
+#  }
 
-  return $self;
-}
+#  return $self;
+#}
 
 sub _sendCommand {
   my ($self, $command) = @_;

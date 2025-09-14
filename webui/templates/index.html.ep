@@ -141,11 +141,11 @@
                 <span id="heatingElementTemp" class="text-lg font-semibold text-blue-600">N/A</span>
               </div>
               <div>
-                <label class="block text-sm font-medium text-gray-700">Hotplate</label>
+                <label class="block text-sm font-medium text-gray-700">Hotplate (model)</label>
                 <span id="hotplateTemp" class="text-lg font-semibold text-blue-600">N/A</span>
               </div>
               <div>
-                <label class="block text-sm font-medium text-gray-700">Device</label>
+                <label class="block text-sm font-medium text-gray-700">Hotplate (sensor)</label>
                 <span id="deviceTemp" class="text-lg font-semibold text-blue-600">N/A</span>
               </div>
               <div>

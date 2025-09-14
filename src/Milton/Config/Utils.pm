@@ -70,10 +70,18 @@ sub findConfigFilesByPath {
   my @files = ();
   my @dirs = Milton::Config::searchPath();
   my $ypp = getYamlParser();
+  my %seen;
 
   foreach my $dir (@dirs) {
     my @list = glob("$dir/$path/*.yaml");
     foreach my $file (@list) {
+      my $relpath = substr($file, length($dir)+1);
+
+      if ($seen{$relpath}) {
+        next;
+      }
+      $seen{$relpath} = 1;
+
       my $doc = _readConfigMetadata($file);
       if (!defined $doc) {
         $doc = $ypp->load_file($file);
@@ -81,8 +89,6 @@ sub findConfigFilesByPath {
 
         next if defined($validate) && !$validate->($doc);
       }
-
-      my $relpath = substr($file, length($dir)+1);
 
       my $name = $doc->{name};
       if (!$name) {
@@ -100,7 +106,7 @@ sub findConfigFilesByPath {
     }
   }
 
-  return @files;
+  return sort { $a->{displayName} cmp $b->{displayName} } @files;
 }
 
 sub standardSearchPath {

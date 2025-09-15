@@ -106,33 +106,7 @@ each of the tinned ends of the power connection wires. Keep the wraps as tightly
 keep the wraps to the final 4-6mm of the wire - basically where the solder is expected to be. If you can't
 get it all wrapped around in a single layer, wrap the remainder around the outside in a second layer.
 
-### Step 8. Line your baking sheet with aluminium foil
-
-Line your baking sheet with aluminium foil to prevent any sticky flux residue from contaminating your next
-batch of chicken wings or chocolate chip cookies. Try to ensure that all sides of the foil are turned up
-at the edges so that no molten flux can flow off the side of the foil and onto the tray.
-
-### Step 9. Place your hotplate PCB on the foil-lined baking sheet
-
-What more to say? You can reflow multiple boards at the same time, so feel free to load it up with as many
-hotplate PCBs as you want to set up.
-
-### Step 10. Apply flux to the pads
-
-Place a thin layer of tacky flux on each of the solder pads - the two thermal fuse pads and the two power
-connection pads. Don't use too much. You'll just waste it and create more to clean up later. A thin layer
-on the pads - enough that you can see the pad is covered and it will hold things placed on top of the pad,
-but not a big bulging lump.
-
-### Step 11. Apply flux to the solder pre-forms
-
-On each of the wire ends to be soldered, place a small amount of flux on the side that will be at the top
-of the joint - we want it to flow down through the pre-form as it melts in the oven. For the power
-connections, just pick a side and place a thin line of tacky flux along that side and place that side facing
-up when loading the board. For the thermal fuse, it stands perpendicular to the board, so put a small amount
-just as the end of the solder wire wraps.
-
-### Step 12. Create a stand for the thermal fuse link
+### Step 8. Create a stand for the thermal fuse link
 
 The thermal fuse link needs to stand up perpendicular to the hotplate PCB. There are various ways to do this.
 My preferred method is to get some thing wire (30AWG) and wrap it around the centre of the link a few times
@@ -142,6 +116,32 @@ the board with flux residue. Thin wires tend to be easier to remove later. Whate
 collapsible to some degree. It cannot be a solid rigid object. When the solder joint freezes, it will still be
 quite hot. As it cools, the solder and the copper wire contract, which will clamp down unbelievably hard on any
 rigid object you place under the link. Ask me how I know this!
+
+### Step 9. Line your baking sheet with aluminium foil
+
+Line your baking sheet with aluminium foil to prevent any sticky flux residue from contaminating your next
+batch of chicken wings or chocolate chip cookies. Try to ensure that all sides of the foil are turned up
+at the edges so that no molten flux can flow off the side of the foil and onto the tray.
+
+### Step 10. Place your hotplate PCB on the foil-lined baking sheet
+
+What more to say? You can reflow multiple boards at the same time, so feel free to load it up with as many
+hotplate PCBs as you want to set up.
+
+### Step 11. Apply flux to the pads
+
+Place a thin layer of tacky flux on each of the solder pads - the two thermal fuse pads and the two power
+connection pads. Don't use too much. You'll just waste it and create more to clean up later. A thin layer
+on the pads - enough that you can see the pad is covered and it will hold things placed on top of the pad,
+but not a big bulging lump.
+
+### Step 12. Apply flux to the solder pre-forms
+
+On each of the wire ends to be soldered, place a small amount of flux on the side that will be at the top
+of the joint - we want it to flow down through the pre-form as it melts in the oven. For the power
+connections, just pick a side and place a thin line of tacky flux along that side and place that side facing
+up when loading the board. For the thermal fuse, it stands perpendicular to the board, so put a small amount
+just as the end of the solder wire wraps.
 
 ### Step 13. Place thermal fuse link and power connection on the hotplate PCB
 

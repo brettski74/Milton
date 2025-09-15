@@ -1,0 +1,203 @@
+# Hotplate Setup
+
+There are two main stages to setting up your new Aluminium PCB Hotplate. First you need to solder on
+the power connections and the thermal fuse link. Once that is done, you need to mount it on a base and
+connect the power leads to it.
+
+## Power Connections and Thermal Fuse Setup
+
+For this stage of the setup you'll need the following items:
+
+* An aluminium hotplate PCB
+* A short piece of 10AWG or 6mm² **solid** copper wire (at least 50mm)
+* A short piece of 14/16AWG or 1.5-2.5mm² **solid** copper wire (at least 160mm)
+* A 3D printed bending jig (optional, but highly recommended)
+* Pliers
+* Wire cutters
+* Soldering iron
+* A ruler or some other measuring instrument that can measure up to 80mm
+* High-temperature solder (preferably 0.8mm (0.031") flux-core wire)
+* A mild, tacky solde flux (eg. NC191)
+* A baking sheet
+* Aluminium foil
+* A kitchen oven
+
+### Copper Wire
+
+The wire can be salvaged out of domestic electrical cabling if you have access to off-cuts from a home
+improvement project or maybe you have an electrician friend who might be able to find a few small off-cuts
+for you.
+
+The wire must be solid. For the fuse link, we need a solid mass that will pull away cleanly when the fuse
+joints reflow. Stranded wire may not let go at all and be held in place by surface tension and adhesion
+effects from the molten solder, rendering the thermal fuse useless. 10AWG or 6mm² is required to provide
+sufficient mass to break away from the surface tension and adhesion of the molten solder.
+
+For the power connections, solid wire is required to produce a rigid connection that won't move if the power
+connection solder joints reflow in the event of a thermal fault. This is a safety feature to avoid live power
+connections coming into contact with anything they shouldn't in the event of a thermal fault. 14AWG is not
+entirely necessary, but it's a size that is relatively easy to find. 16AWG is probably sufficient for most
+builds.
+
+### Solder
+
+The high temperature solder needs to be an alloy that melts at a significantly higher temperature than the
+solder you intend to reflow. I recommend SN100C, CQ100Ge, K100LD or any similar alloys that are about 99.3%
+tin and 0.7% copper with potentially other components like nickel and germanium. These are usually eutectic
+alloys with a melting point of 227°C (441°F). The melting point is the most important aspect of the alloy
+you use. Ideally you should use 0.8mm flux-core wire. Avoid solder paste. It's not suitable for the large
+chunky joints we need here, will produce terrible results and may even damage your PCB.
+
+### Flux
+
+I used to think there was no such thing as too much flux or a too aggressive flux. I was wrong. I've tried
+a few different fluxes for setting up hotplate PCBs. NC191 from ChipQuik so far seems to have worked the
+best. I've also tried SMD291 from ChipQuick and that was terrible. It is excellent at clearing away oxides
+and other junk that prevents wetting and impedes flow, but for this purpose, it also caused damage to the
+solder mask almost everywhere it flowed onto the board. These were JLCPCB boards. Maybe other manufacturers
+use different solder mask that would be more resistant to this damage, so your mileage may vary. There's
+nothing particularly special about NC191. I know it works, but I suspect that many mid-range, no-clean
+tacky fluxes from a variety of manufacturers may work well.
+
+### Step 1. Cut the thermal fuse link
+
+Using the gauge on the side of the bending jig, measure out 50mm of 10AWG solid copper wire. If you don't
+have the bending jig, use a ruler instead to measure 50mm of the wire. Strip off the insulation if there
+is any so you have a bare copper wire.
+
+### Step 2. Bend the thermal fuse link into a shallow U shape
+
+Insert one end of the thermal fuse link into the hole in the top of the bending jig and then bend the wire
+down firmly until it is flat in the groove. Then remove it, insert the other end into the hole and bend it
+in the same way. Try to keep the two bend ends aligned.
+
+### Step 3. Check the thermal fuse link sizing
+
+Place the thermal fuse link on the PCB alongside the thermal fuse pads in the centre of the board. If the
+two ends don't align with the centres of both pads, use pliers to gently bend them a little more/less to
+fix this. If the link doesn't lie flat when placed on a flat surface, then use pliers to twist the link a
+little until the two ends are aligned.
+
+### Step 4. Cut the power connection wires
+
+Cut two 80mm pieces of 14AWG or 2.5mm² solid copper wire.
+
+### Step 5. Tin both ends of the thermal fuse link and one end of each of the power connections.
+
+Tin the ends of all ends that are to be soldered to the board. Use flux and plenty of heat. Use the same
+high-temperature solder alloy you plan to use for soldering these wires to the hotplate PCB.  Make sure you
+have a good solder bond all the way around the wires for about 4-6mm at the ends. The ends should now
+look shiny and silver and ideally should not be noticeably thicker than they were before tinning. The
+tinning should be a very thin and consistent layer over the surface of the copper.
+
+### Step 6. Cut solder wire for pre-forming
+
+Cut four 60mm pieces of your 0.8mm high-temperature solder wire. If you have solder wire with a different
+thickness, adjust the length to give yourself the same approximate volume. 60mm of 0.8mm solder wire is
+abotu 30mm³ of solder, so calculate the length required for that volume of solder. For example, with 1.5mm
+solder, you'd only need about 17mm. Note that working with solder wire larger than 1.5mm is probably not
+practical. Is can be done using solder cookies rather than pre-forms, but the results are not as clean
+and controlling the amount of solder in each joint becomes difficult.
+
+### Step 7. Wrap the solder wire around each of the tinned wire ends
+
+Take the 60mm pieces of solder wire and wrap one around each end of the thermal fuse link and one around
+each of the tinned ends of the power connection wires. Keep the wraps as tightly together as possible and
+keep the wraps to the final 4-6mm of the wire - basically where the solder is expected to be. If you can't
+get it all wrapped around in a single layer, wrap the remainder around the outside in a second layer.
+
+### Step 8. Line your baking sheet with aluminium foil
+
+Line your baking sheet with aluminium foil to prevent any sticky flux residue from contaminating your next
+batch of chicken wings or chocolate chip cookies. Try to ensure that all sides of the foil are turned up
+at the edges so that no molten flux can flow off the side of the foil and onto the tray.
+
+### Step 9. Place your hotplate PCB on the foil-lined baking sheet
+
+What more to say? You can reflow multiple boards at the same time, so feel free to load it up with as many
+hotplate PCBs as you want to set up.
+
+### Step 10. Apply flux to the pads
+
+Place a thin layer of tacky flux on each of the solder pads - the two thermal fuse pads and the two power
+connection pads. Don't use too much. You'll just waste it and create more to clean up later. A thin layer
+on the pads - enough that you can see the pad is covered and it will hold things placed on top of the pad,
+but not a big bulging lump.
+
+### Step 11. Apply flux to the solder pre-forms
+
+On each of the wire ends to be soldered, place a small amount of flux on the side that will be at the top
+of the joint - we want it to flow down through the pre-form as it melts in the oven. For the power
+connections, just pick a side and place a thin line of tacky flux along that side and place that side facing
+up when loading the board. For the thermal fuse, it stands perpendicular to the board, so put a small amount
+just as the end of the solder wire wraps.
+
+### Step 12. Create a stand for the thermal fuse link
+
+The thermal fuse link needs to stand up perpendicular to the hotplate PCB. There are various ways to do this.
+My preferred method is to get some thing wire (30AWG) and wrap it around the centre of the link a few times
+leaving a loose end on either side. These can be bent down so as to provide a lightweight brace on either
+side. Another option it loosely rolled aluminium foil, but it tends to be harder to remove if it gets stuck to
+the board with flux residue. Thin wires tend to be easier to remove later. Whatever you use, it needs to be
+collapsible to some degree. It cannot be a solid rigid object. When the solder joint freezes, it will still be
+quite hot. As it cools, the solder and the copper wire contract, which will clamp down unbelievably hard on any
+rigid object you place under the link. Ask me how I know this!
+
+### Step 13. Place thermal fuse link and power connection on the hotplate PCB
+
+Carefully lay the power connection wires with the pre-formed solder wire sitting centred on the each of the
+power connection pads. The line of flux you placed on the end should be facing up.
+
+Carefully place the thermalfuse link so that the two ends with solder wire pre-forms on them are sitting centred
+on each of the thermal fuse pads and with the link standing up perpendicular to the hotplate PCB. If the link
+is sitting over at an angle, it's not a major issue. In fact, lying at an angle may help increase the chance of
+the fuse link breaking away in a thermal fault. Just mate sure that the only place it is touching the PCB is at
+the pad. We don't want any flux residue getting caught under the fuse link providing extra adhesion to the board.
+
+### Step 14. Preheat your oven
+
+Most domestic ovens will reach at least 250°C or 500°F. Preheat your oven to the highest temperature for baking
+that it is capable of - probably something in the 250-280°C range or 500-550°F. Hotter is generally better, but
+hotter than 280°C or 550°F is probably starting to get counter-productive. Why hotter? The solder needs to get
+pretty hot to reflow and kitchen ovens aren't that fast at heating up things placed inside them. A hotter over
+will transfer heat to the boards quicker, which is good because we need to reflow the solder before the flux all
+cooks off. A colder oven might burn off all the flux before any solder melts, which could lead to poor quality
+joints. Flux core wire can help with this, since it forces some of the flux to be retained inside the wire until
+it melts. If you have a fan or convection feature in your oven, that is probably a good thing to use, but watch
+that the air stream doesn't knock anything over or out of place. Also, preheating is crucial. Don't place your
+boards in a cold oven thinking it will all work out the same. This will take longer to heat up your boards and
+drastically increases the risk of burning off the flux before reflow is achieved.
+
+### Step 15. Insert your baking sheet
+
+Make sure you have good ventilation. It is a good idea to have a couple of windows open and to turn on your range
+hood/exhaust fan/fume extractor/whatever you call the thing that sucks smoke and steam and stuff from your stove/oven
+and ejects it outside. There is probably some smoke in your future!
+
+Insert the baking sheet, turn on the oven light and watch. It will probably take a few minutes, but when the
+solder reflows, it will be obvious. It will change from dull, greyish-white wire into shiny silver blobs.
+
+### Step 16. Cool the PCBs in place
+
+Once you can see that every single joint has reflowed, give it about another 30 seconds, then shut off the oven.
+Open the oven door and leave the backing sheet to cool in place on the oven shelf/rack. There will probably be
+smoke. Fans and exhaust fans are handy to have have at this point in the process. You may be tempted to move the
+baking sheet elsewhere to cool, but this is risky. Every single joint is almost certainly still molten and moving
+the baking sheet runs the risk of disturbing one or more of them, which could necessitate you repeating this
+process or worse. Spilling hot molten solder on yourself or someone else is not fun. Give it 5-10 minutes. The
+joints will have all frozen, things are probably cool enough to touch and you can take the baking sheet out with
+confidence at that point.
+
+### Step 17. Clean off any flux residue
+
+Once the hotplate PCBs are cool, remove them from the oven and remove any flux residue from the hotplate PCBs
+using isopropyl alcohol or a similar flux residue remover. Paper towels, cotton buds or an old toothbrush can
+all be useful tools to use in wiping away the residue as the alcohol dissolves it. The toothbrush can be
+particularly effective in getting the residue right at the edge of the pad.
+
+This portion of the setup is now complete and you can move on to mounting the board on a base.
+
+
+
+
+

@@ -59,6 +59,11 @@ use different solder mask that would be more resistant to this damage, so your m
 nothing particularly special about NC191. I know it works, but I suspect that many mid-range, no-clean
 tacky fluxes from a variety of manufacturers may work well.
 
+Note that the PCB currently shown in the photos is one of these flux-damaged boards, but I don't have any
+other bare boards to use for the photos at this point. I'll re-shoot the images when I have new boards to
+set up. It may be difficult to see since the images are all video frame-grabs, but if you do notice cracks
+or crazing in the solder mask or exposed copper traces, this is why.
+
 ### Step 1. Cut the thermal fuse link
 
 Using the gauge on the side of the bending jig, measure out 50mm of 10AWG solid copper wire. If you don't

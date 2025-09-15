@@ -65,11 +65,21 @@ Using the gauge on the side of the bending jig, measure out 50mm of 10AWG solid 
 have the bending jig, use a ruler instead to measure 50mm of the wire. Strip off the insulation if there
 is any so you have a bare copper wire.
 
+![Step1-1](./images/hotplateSetup-Step1-1.png)
+![Step1-2](./images/hotplateSetup-Step1-2.png)
+![Step1-3](./images/hotplateSetup-Step1-3.png)
+
 ### Step 2. Bend the thermal fuse link into a shallow U shape
 
 Insert one end of the thermal fuse link into the hole in the top of the bending jig and then bend the wire
 down firmly until it is flat in the groove. Then remove it, insert the other end into the hole and bend it
 in the same way. Try to keep the two bend ends aligned.
+
+![Step2-1](./images/hotplateSetup-Step2-1.png)
+![Step2-2](./images/hotplateSetup-Step2-2.png)
+![Step2-3](./images/hotplateSetup-Step2-3.png)
+![Step2-4](./images/hotplateSetup-Step2-4.png)
+![Step2-5](./images/hotplateSetup-Step2-5.png)
 
 ### Step 3. Check the thermal fuse link sizing
 
@@ -78,9 +88,16 @@ two ends don't align with the centres of both pads, use pliers to gently bend th
 fix this. If the link doesn't lie flat when placed on a flat surface, then use pliers to twist the link a
 little until the two ends are aligned.
 
+![Step3-1](./images/hotplateSetup-Step3-1.png)
+![Step3-2](./images/hotplateSetup-Step3-2.png)
+![Step3-3](./images/hotplateSetup-Step3-3.png)
+
 ### Step 4. Cut the power connection wires
 
 Cut two 80mm pieces of 14AWG or 2.5mm² solid copper wire.
+
+![Step4-1](./images/hotplateSetup-Step4-1.png)
+![Step4-2](./images/hotplateSetup-Step4-2.png)
 
 ### Step 5. Tin both ends of the thermal fuse link and one end of each of the power connections.
 
@@ -89,6 +106,10 @@ high-temperature solder alloy you plan to use for soldering these wires to the h
 have a good solder bond all the way around the wires for about 4-6mm at the ends. The ends should now
 look shiny and silver and ideally should not be noticeably thicker than they were before tinning. The
 tinning should be a very thin and consistent layer over the surface of the copper.
+
+![Step5-1](./images/hotplateSetup-Step5-1.png)
+![Step5-2](./images/hotplateSetup-Step5-2.png)
+![Step5-3](./images/hotplateSetup-Step5-3.png)
 
 ### Step 6. Cut solder wire for pre-forming
 
@@ -99,12 +120,19 @@ solder, you'd only need about 17mm. Note that working with solder wire larger th
 practical. Is can be done using solder cookies rather than pre-forms, but the results are not as clean
 and controlling the amount of solder in each joint becomes difficult.
 
+![Step6-1](./images/hotplateSetup-Step6-1.png)
+![Step6-2](./images/hotplateSetup-Step6-2.png)
+
 ### Step 7. Wrap the solder wire around each of the tinned wire ends
 
 Take the 60mm pieces of solder wire and wrap one around each end of the thermal fuse link and one around
 each of the tinned ends of the power connection wires. Keep the wraps as tightly together as possible and
 keep the wraps to the final 4-6mm of the wire - basically where the solder is expected to be. If you can't
 get it all wrapped around in a single layer, wrap the remainder around the outside in a second layer.
+
+![Step7-1](./images/hotplateSetup-Step7-1.png)
+![Step7-2](./images/hotplateSetup-Step7-2.png)
+![Step7-3](./images/hotplateSetup-Step7-3.png)
 
 ### Step 8. Create a stand for the thermal fuse link
 
@@ -117,16 +145,25 @@ collapsible to some degree. It cannot be a solid rigid object. When the solder j
 quite hot. As it cools, the solder and the copper wire contract, which will clamp down unbelievably hard on any
 rigid object you place under the link. Ask me how I know this!
 
+![Step8-1](./images/hotplateSetup-Step8-1.png)
+![Step8-2](./images/hotplateSetup-Step8-2.png)
+![Step8-3](./images/hotplateSetup-Step8-3.png)
+
 ### Step 9. Line your baking sheet with aluminium foil
 
 Line your baking sheet with aluminium foil to prevent any sticky flux residue from contaminating your next
 batch of chicken wings or chocolate chip cookies. Try to ensure that all sides of the foil are turned up
 at the edges so that no molten flux can flow off the side of the foil and onto the tray.
 
+![Step9-1](./images/hotplateSetup-Step9-1.png)
+![Step9-2](./images/hotplateSetup-Step9-2.png)
+
 ### Step 10. Place your hotplate PCB on the foil-lined baking sheet
 
 What more to say? You can reflow multiple boards at the same time, so feel free to load it up with as many
 hotplate PCBs as you want to set up.
+
+![Step10-1](./images/hotplateSetup-Step10-1.png)
 
 ### Step 11. Apply flux to the pads
 
@@ -135,6 +172,8 @@ connection pads. Don't use too much. You'll just waste it and create more to cle
 on the pads - enough that you can see the pad is covered and it will hold things placed on top of the pad,
 but not a big bulging lump.
 
+![Step11-1](./images/hotplateSetup-Step11-1.png)
+
 ### Step 12. Apply flux to the solder pre-forms
 
 On each of the wire ends to be soldered, place a small amount of flux on the side that will be at the top
@@ -142,6 +181,9 @@ of the joint - we want it to flow down through the pre-form as it melts in the o
 connections, just pick a side and place a thin line of tacky flux along that side and place that side facing
 up when loading the board. For the thermal fuse, it stands perpendicular to the board, so put a small amount
 just as the end of the solder wire wraps.
+
+![Step12-1](./images/hotplateSetup-Step12-1.png)
+![Step12-2](./images/hotplateSetup-Step12-2.png)
 
 ### Step 13. Place thermal fuse link and power connection on the hotplate PCB
 
@@ -153,6 +195,8 @@ on each of the thermal fuse pads and with the link standing up perpendicular to 
 is sitting over at an angle, it's not a major issue. In fact, lying at an angle may help increase the chance of
 the fuse link breaking away in a thermal fault. Just mate sure that the only place it is touching the PCB is at
 the pad. We don't want any flux residue getting caught under the fuse link providing extra adhesion to the board.
+
+![Step13-1](./images/hotplateSetup-Step13-1.png)
 
 ### Step 14. Preheat your oven
 
@@ -194,6 +238,12 @@ Once the hotplate PCBs are cool, remove them from the oven and remove any flux r
 using isopropyl alcohol or a similar flux residue remover. Paper towels, cotton buds or an old toothbrush can
 all be useful tools to use in wiping away the residue as the alcohol dissolves it. The toothbrush can be
 particularly effective in getting the residue right at the edge of the pad.
+
+![Step16-1](./images/hotplateSetup-Step16-1.png)
+![Step17-1](./images/hotplateSetup-Step17-1.png)
+![Step17-2](./images/hotplateSetup-Step17-2.png)
+![Step17-3](./images/hotplateSetup-Step17-3.png)
+![Step17-4](./images/hotplateSetup-Step17-4.png)
 
 This portion of the setup is now complete and you can move on to mounting the board on a base.
 

@@ -80,6 +80,10 @@ Insert one end of the thermal fuse link into the hole in the top of the bending 
 down firmly until it is flat in the groove. Then remove it, insert the other end into the hole and bend it
 in the same way. Try to keep the two bend ends aligned.
 
+If you don't have the bending jig you can also do this with a pair of pliers. Bend each end about 8mm from
+the end. It doesn't have to be perfect. So long as the finished product has two ends that meet the thermal 
+fuse pads and can meet the hotplate PCB roughly perpendicularly.
+
 ![Step2-1](./images/hotplateSetup-Step2-1.png)
 ![Step2-2](./images/hotplateSetup-Step2-2.png)
 ![Step2-3](./images/hotplateSetup-Step2-3.png)

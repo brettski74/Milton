@@ -4,6 +4,8 @@ Milton is a web interface and set of utilities for controlling a solder reflow h
 
 Join us on [Discord](https://discord.gg/dnQJEGFCZ9) to meet other people interested in DIY solder reflow hotplates, ask questions, make suggestions or discuss problems. You can also raise issues here and I'll take a look when I can.
 
+Milton requires some playing around to set up and configure currently. Installation packages for Debian, Arch and a bare tarball installation should be coming soon.
+
 ## Features
 
 * Bootstrappable - no need to hand-solder SMD components before you have a working reflow soldering solution.

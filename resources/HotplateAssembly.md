@@ -30,6 +30,12 @@ To assemble your hotplate you'll need the following items:
 * high temperature insulation (eg. glassfibre tube, etc)
 * 2 power leads with M3 ring terminals, 30-40cm in length, 14AWG stranded wire or equivalent, silicone insulation preferred
 
+You should favour stainless steel hardware where possible, or brass if stainless steel is hard to find. For some
+reason, stainless steel standoffs seem to be incredibly expensive or hard to find. Avoid carbon steel, even zinc-plated
+or blackened carbon steel, etc. Steel rusts and when heated that process is accelerated. You want something that is
+going to hold up during repeated heated an cooling over many, many cycles. Even with zinc electroplating, ordinary steel
+hardware may rust in an undesirably short period of time.
+
 Tools:
 
 * Screwdrivers (which head depends on the screws you buy)

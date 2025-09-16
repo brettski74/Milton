@@ -18,7 +18,7 @@ go wrong, someone is there to take action before it becomes a major catastrophe.
 To assemble your hotplate you'll need the following items:
 
 * 1 Hotplate PCB, setup with thermal fuse and power connections installed
-* 1 [Hotplate Base](#Hotplate Base)
+* 1 [Hotplate Base](#hotplate-base)
 * 6 M3 x 25mm cap screws
 * 12 15mm M3 fender washers
 * 10 M3 belleville washers

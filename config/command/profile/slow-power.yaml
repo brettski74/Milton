@@ -1,21 +1,24 @@
 #@ description: Designed for lower power supplies
 - name: ambient
   seconds: 0
-  temperature: 25
+  temperature: 15
 - name: preheat
   seconds: 70
   temperature: 100
 - name: soak
-  seconds: 240
-  temperature: 175
+  seconds: 120
+  temperature: 150
 - name: reflow
-  seconds: 90
-  temperature: 220
+  seconds: 60
+  temperature: 190
+- name: reflow
+  seconds: 40
+  temperature: 210
 - name: dwell
   seconds: 20
-  temperature: 220
+  temperature: 210
 - name: cool
-  seconds: 180
+  seconds: 110
   temperature: 100
 - name: off
   seconds: 1

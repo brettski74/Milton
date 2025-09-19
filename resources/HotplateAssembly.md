@@ -15,6 +15,8 @@ go wrong, someone is there to take action before it becomes a major catastrophe.
 
 ## Tools and Materials Needed
 
+![Required Hardware](./images/hotplateHardwareRequired.png)
+
 To assemble your hotplate you'll need the following items:
 
 * 1 Hotplate PCB, setup with thermal fuse and power connections installed
@@ -45,24 +47,43 @@ Tools:
 
 ## Assembly
 
-### 1. Secure each of the 6 cap screws in the base
+### 1. Secure the screw terminal screws in the base
 
-Using 2 fender washers, 1 belleville washer and 1 M3 nut, secure each of the 6 cap screws in the
-base as shown. The screw terminals should be firmly tightened with a spanner. The 4 cap screws
-for the mounting legs should be done up finger tight only.
+Using a 25mm M3 cap screw, 2 fender washers and 1 M3 nut, secure the two screw terminal screws to the base. The nut should
+be secured tightly in place with tools.
 
-### 2. Add a second M3 nut onto the 4 mounting legs
+![Insert cap screw from underneath](./images/hotplateAssembly_Step01-1.png)
+![Add second fender washer on top](./images/hotplateAssembly_Step01-2.png)
+![Tighten the nut](./images/hotplateAssembly_Step01-3.png)
+
+### 2. Secure the 4 hotplate leg screws in the base
+
+Using 2 fender washers, 1 belleville washer and 1 M3 nut, secure each of the 4 cap screws that form the base of the legs
+supporting the hotplate. The M3 nut should be done up finger tight only. The screw should feel firm, but be able to move
+side-to-side slightly if pushed on firmly.
+
+![Insert cap screw from underneath](./images/hotplateAssembly_Step02-1.png)
+![Add second fender washer on top](./images/hotplateAssembly_Step02-2.png)
+![Add belleville washer](./images/hotplateAssembly_Step02-3.png)
+![Add M3 nut](./images/hotplateAssembly_Step02-4.png)
+![All leg screws done](./images/hotplateAssembly_Step02-5.png)
+
+### 3. Add a second M3 nut onto the 4 mounting legs
 
 Add an additional M4 nut onto each of the 4 mounting leg screws. Screw them down to near the bottom
 be keep them loose. These will be used as lock nuts later
 
-### 3. Screw the M3 standoffs onto the leg screws
+![Add M3 lock nut](./images/hotplateAssembly_Step03-1.png)
+
+### 4. Screw the M3 standoffs onto the leg screws
 
 Screw one of the M3 standoffs onto each of the 4 leg screws. Screw them several mm onto the leg screw
 so that they are securely attached, but leave them loose. We will lock them later after levelling the
 hotplate.
 
-### 4. Loosely attach the hotplate PCB to the legs
+![Add M3 standoffs](./images/hotplateAssembly_Step04-1.png)
+
+### 5. Loosely attach the hotplate PCB to the legs
 
 Using 1 M3 machine screw, 1 washer and 1 belleville washer for each corner, attach the hotplate to the
 4 legs. The flat washer should go against the underside of the hotplate. Notice that most washers have
@@ -82,13 +103,73 @@ into the standoff and screw it in several turns. After the first two screws are 
 can finish off the other two by carefully sliding the two washers in between the standoff and hotplate
 PCB, roughly aligning the holes and then carefully inserting the screw from the top.
 
-### 5. Level the hotplate and lock the leg heights
+![Start first screw with flat and belleville washer held against PCB](./images/hotplateAssembly_Step05-1.png)
+![Start second washer with flat and belleville washer held against PCB](./images/hotplateAssembly_Step05-2.png)
+![For third and fourth corner, insert washers carefully between standoff and PCB](./images/hotplateAssembly_Step05-3.png)
+![For third and fourth corner, insert washers carefully between standoff and PCB](./images/hotplateAssembly_Step05-4.png)
+![Leave screws loose at this point](./images/hotplateAssembly_Step05-5.png)
 
-### 6. Tighten up the hotplate PCB screws
+### 6. Level the hotplate and lock the leg heights
 
-### 7. Bend the power connection wires down to the screw terminals
+There are various ways to level the hotplate. Ultimately, you just need to ensure that the four corners
+of the hotplate are coplanar and ideally, parallel to the base, although parallel is not as important as
+the four corners being coplanar. Getting the leg heights all the same is a relatively easy way to
+achieve this. My favourite method is to place something under the hotplate that is the same height at
+all four corners. Here I'm using some 1-2-3 blocks with a couple of M3 stand-offs lying on top. This
+gives me about 30mm of height at each corner. I can then apply pressure on top of the hotplate near the
+corner and screw the stand-off up until I just start to feel resistance. Repeat this at each of the four
+corners.
 
-### 8. Attach power cables and tighten screw terminals
+Once you think you're finished levelling the corners, it's worth tapping on all four corners to see if
+the hotplate rocks up and down anywhere. If the hotplate is properly levelled, all four corners should be
+firm and not move up or down when tapped from above.
+
+![Using blocks/etc to provide a consistent height at all corners](./images/hotplateAssembly_Step06-1.png)
+![Carefully screw up standoffs until feeling slight resistance](./images/hotplateAssembly_Step06-2.png)
+![Tighten lock nut against standoff to lock the standoff in place](./images/hotplateAssembly_Step06-3.png)
+
+### 7. Tighten up the hotplate PCB screws
+
+Tighten the hotplate PCB screws. They don't not need to be more than finger tight. When I'm tightening
+them, I only spin the shaft of my screwdriver. I don't use the handle. These don't need to be overly
+tight. You don't want to compress all of the give out of the belleville washer. It needs to be able to
+absorb the stresses from thermal cycling.
+
+![Tighten PCB screws](./images/hotplateAssembly_Step07-1.png)
+
+### 8. Bend the power connection wires down to the screw terminals
+
+Place a flat washer on the screw terminal. Place the glass-fibre tubing insulation onto the copper power
+connection wires. Then bend the power connection wires down to the screw terminals. Make sure you support
+the wire always when bending to avoid placing undue stress on the pad
+and the adhesives holding it to the substrate. Bend them down first, then wrap the wire around the screw
+thread. Again, support the wire while doing this to avoid transferring stress back to the pad. When done,
+the wire should naturally sit. It it wants to spring up away from the screw thread of the washer, bend
+it further so that it sits naturally on the screw thread just above the washer. This is important so that
+in the event of a thermal fault, your live power connection wires don't move around unexpectedly if those
+solder joints reflow.
+
+![Add flat washers on screw terminals](./images/hotplateAssembly_Step08-0.png)
+![Place insulation on power connection wires](./images/hotplateAssembly_Step08-1.png)
+![Bend wires down to washer on screw terminals](./images/hotplateAssembly_Step08-2.png)
+![Wrap wires around screw terminal threads](./images/hotplateAssembly_Step08-3.png)
+![Power connection wire bending done](./images/hotplateAssembly_Step08-4.png)
+
+### 9. Attach power cables and tighten screw terminals
+
+Complete the hardware stack for the screw terminals. On each terminal, the following items should go on top
+of the copper wire, in order:
+
+* the ring terminal from one of the power cables
+* a flat washer
+* a belleville washer
+* an M3 nut
+
+Tighten down the nut firnly with tools on each screw terminal. The ring terminal should be held firmly in 
+place without moving when done.
+
+![Tighten screw terminals with tools](./images/hotplateAssembly_Step09-1.png)
+![Assembly complete](./images/hotplateAssembly_Step09-2.png)
 
 ## Hotplate Base
 

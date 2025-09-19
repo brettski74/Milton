@@ -37,7 +37,7 @@ logging:
   # File name for the data files produces during each command run.
   # %c can be used to represent the command name.
   # %d can be used to represent a timestamp in yyyymmddHHMMSS format.
-  filename: !ENV ${HOME}/dev/hp-controller/log/hp-log.%c.%d.csv
+  filename: !ENV ${HOME}/milton/log/milton-log.%c.%d.csv
 
   # Columns to include in the data files. These are global and will apply to all commands. Each
   # command may also specify additional columns to log. Each column is specified by a key (name)

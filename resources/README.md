@@ -106,6 +106,93 @@ layouts and see what you get. Also let me know how they are and I can add detail
 |30V 5A Bench Supply|30V|5A|150W|6Ω|RD DPS3005, many others|
 |Higher Voltage Bench Supply|40+V|5A|150+W|10Ω|RD DPS5005, DPS5015, DPS5020, etc|
 
+### Open Loop Suggestions
+
+Note that even if you don't have a power supply that can be remotely controlled and is compatible with Milton,
+there are still some reasonably safe ways to do DIY solder reflow without any control at all. This is also an
+approach you can use for bootstrapping your setup if you don't have a supported power supply and want to build
+a custom hotplate controller board. Note that this does entail some additional risk - especially if using a
+hotplate without any safety device built in like a thermal fuse. Note that I wouldn't recommend the open loop
+approach for things like rework or preheat, because these operations lack a clear indicator of temperature. If
+you want to use your hotplate for those tasks, you really need temperature control in my opinion.
+
+A 100mmx100mm aluminium hotplate mounted on metal standoffs or similar will require about 85W to hold the
+temperature steady at 220°C (428°F). All of the following discussion assumes a 100mm x 100mm aluminium PCB
+hotplate mounted in a manner similar to those in my assembly instructions. If these assumptions do not apply,
+the calculations may be wildly wrong which could lead to disappointment either due to reflow never happening
+or due to your house being consumed in a fiery blaze.
+
+If you're going to use a PCB hotplate for solder reflow without temperature
+control, the key is to limit the available power at peak temperatures and to watch for evidence of reflow to 
+know when the process is done and you should shut off the power. There are two main ways to limit the power
+available at peak temperature. One is by selection of a hotplate resistance that is suitable for your power
+supply. This option is available to anyone. The other is by controlling the voltage and/or current available 
+to the hotplate. This option depends on whether your power supply has adjustable limits for its output.
+
+The basic process for open loop reflow is this:
+
+1. Apply solder paste and place your components on your PCB.
+2. Place the PCB on the hotplate
+3. Set the correct voltage and current limits - if applicable.
+4. Turn on the power and watch.
+5. When you see the solder paste change from dull grey paste into silvery molten metal, wait for 10-15 seconds
+after you see **all** solder joints have reflowed, then turn off the power.
+6. Allow the board to cool in place on the hotplate for about 10 minutes before removing it.
+
+Note that the procedure is dependent on your being able to see evidence of reflow occurring. If you will not
+be able to observe the solder reflow for any reason, this approach is not advisable.
+
+Consider the following two plots. These were done with a hotplate PCB that has a resistance of about 10Ω at
+220°C. It's an ideal resistance for a 30V, 3A power supply with constant voltage and constant current limiting
+typical of some budget priced and lower power benchtop power supplies. These plots were created using this
+hotplate PCB and the power supply limited to 30V and 3A to simulate such a power supply. Maximum power
+available is 90W. With this supply doing no temperature control, just keep the voltage and current within
+limits, we were able to hit 220°C in about 240 seconds. This is a reasonable rate of heating for an open
+loop reflow hotplate. It's not ideal, but the rate of heating is not too high, to allow the load to heat
+up relatively evenly. The rate should be fast enough that you can reflow before burning off all of the flux -
+at least good enough for the home hobbyist. If you have a hotplate with a different resistance, then you can
+calculate a voltage and current that should produce a similar result for your specific hotplate. Determine
+it's resistance at peak reflow temperature. If you don't know that value, measure the resistance at room temperature. Let's say
+that it's 25°C in your room and you measure the resistance of your hotplate as 4Ω. You first calculate it's
+resistance at $T_{0} = 20°C$. Note that the temperature coefficient of resistance for copper is 0.00393.
+
+$$ R_{0} = \frac{R}{1 + \alpha \lparen T - T_{0} \rparen } = \frac{4}{1 + 0.00393 \lparen 25 - 20 \rparen } $$
+
+$$ R_{0} = \frac{4}{1 + 0.00393 \times 5} = \frac{4}{1.01965} = 3.923 \Omega $$
+
+Next calculate the resistance at your chosen peak temperature - let's say 210°C. It's a good idea to aim for a
+slightly lower peak temperature to give yourself extra safety margin since you don't have the benefit of
+temperature control to keep the temperature from exceeding safety limits, so aiming for something like 200°C
+or 210°C is more prudent.
+
+$$ R_{peak} = R_{0} \lparen 1 + \alpha \lparen T - T_{0} \rparen \rparen $$
+
+$$ R_{peak} = 3.923 \lparen 1 + 0.00393 \lparen 210 - 20 \rparen \rparen $$
+
+$$ R_{peak} = 3.923 \lparen 1 + 0.00393 \times 190 \rparen $$
+
+$$ R_{peak} = 3.923 \times 1.7467 = 6.852 \Omega $$
+
+Next calculate the voltage required to sink 90W into $R_{peak}$.
+
+$$ V_{max} = \sqrt{P R_{peak}} = \sqrt{90 \times 6.852} = \sqrt{616.68} = 24.8V $$
+
+Finally, calculate the current that would be required to sink 90W into $R_{peak}$.
+
+$$ I_{max} = \sqrt{ \frac{P}{R_{peak}} } = \sqrt{ \frac{90}{6.852} } = \sqrt{ 13.135 } = 3.624A $$
+
+Set your voltage limit to $V_{max}$ and your current limit to $I_{max}$, hook up your hotplate and turn it on.
+
+This assumes that you have a power supply that does both voltage limiting and current limiting and that these
+limits can also be adjusted. This is also often referred to as constant-current/constant voltage (CCCV) modes
+of operation. Realistically, open loop reflow is probably only realistic on these kinds of power supplies. A
+fixed output supply with no current limiting is probably inappropriate and would need some additional electronics
+to effectively and safely drive the hotplate. Technically it's possible, but there are some challenges and
+potential risks that, in my humble opinion, are not worth it.
+
+It's worth noting once again that **THERE IS SOME ADDED RISK IN OPEN LOOP SOLDER REFLOW**. Absolutely do not
+let the hotplate run unsupervised and shut off the power at the first sign of anything going awry.
+
 ## Bending Jig
 
 To build a reliable thermal fuse, you need to bend some 10AWG or 6mm² copper wire into a U shape with dimensions

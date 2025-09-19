@@ -38,7 +38,7 @@ sub new {
 
     croak "Power level not specified." unless $self->{power};
     croak "Power level must be a positive number: $self->{power}" unless $self->{power} > 0;
-    croak "Power level is crazy high: $self->{power}" unless $self->{power} < $interface->{power}->{maximum};
+    croak "Power level is crazy high: $self->{power}" unless $self->{power} <= $interface->{power}->{maximum};
 
     return $self;
 }
@@ -109,6 +109,13 @@ sub timerEvent {
 
     $self->{controller}->getTemperature($status);
 
+    # We don't need it for control, but getting the predicted temperature is useful for web UI display and data logging.
+    my $predictor = $self->{controller}->getPredictor;
+    if ($predictor) {
+      $predictor->predictTemperature($status);
+    }
+    $status->{'set-power'} = $self->{power};
+
     # If we've passed the set duration, then power off and exit.
     if ($self->{duration} && $status->{now} > $self->{duration}) {
       $self->{interface}->on(0);
@@ -127,7 +134,9 @@ sub timerEvent {
       }
     }
 
-    $self->{interface}->setPower($self->{power});
+    $power = $self->{controller}->getPowerLimited($status);
+
+    $self->{interface}->setPower($power);
 
     return $status;
 }

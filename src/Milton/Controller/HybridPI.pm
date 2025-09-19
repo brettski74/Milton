@@ -505,6 +505,9 @@ sub getRequiredPower {
   if ($ff_gain > 0) {
     $ff_power = $self->{predictor}->predictPower($status) * $self->{'feed-forward-gain'};
   }
+  if (!defined $ff_power) {
+    return $status->{'set-power'} // $status->{power};
+  }
 
   my ($pmin, $pmax) = $self->{interface}->getPowerLimits();
 

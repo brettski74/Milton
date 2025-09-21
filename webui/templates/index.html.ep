@@ -720,6 +720,9 @@
             option.value = item.value;
             option.textContent = item.displayName;
             option.title = item.description;
+            if (param.default === item.displayName) {
+              option.selected = true;
+            }
             select.appendChild(option);
           });
         });

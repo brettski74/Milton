@@ -104,20 +104,26 @@ group {
                                        }
                                      , { name => 'reflow'
                                        , description => 'Execute reflow profile'
-                                       , parameters => [ $PARAM_PROFILE
+                                       , parameters => [ { name => 'profile'
+                                                         , type => 'pdlist'
+                                                         , required => 0
+                                                         , description => 'Reflow Profile (optional)'
+                                                         , url => '/api/reflow/profiles'
+                                                         }
                                                        , $PARAM_AMBIENT
                                                        , $PARAM_DEVICE
-                                                       , { name => 'tune'
-                                                         , type => 'text'
-                                                         , required => 0
-                                                         , description => 'If specified, tunes the temperature prediction and saves to the specified file name (optional)'
-                                                         }
                                                        ]
                                        }
                                      , { name => 'setup'
-                                       , description => 'Set up a new hotplate PCB'
+                                       , description => 'Calibrate a new hotplate PCB'
                                        , parameters => [ $PARAM_AMBIENT
-                                                       , $PARAM_PROFILE
+                                                       , { name => 'profile'
+                                                         , type => 'pdlist'
+                                                         , required => 1
+                                                         , description => 'Reflow Profile'
+                                                         , default => 'calibration'
+                                                         , url => '/api/reflow/profiles'
+                                                         }
                                                        , $PARAM_DEVICE
                                                        , { name => 'rtd-calibration'
                                                          , type => 'text'

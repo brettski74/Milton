@@ -1,0 +1,42 @@
+#@ description: Solder profile based on ChipQuik recommendations for their SMDLTLFP solder paste.
+# A solder profile based on ChipQuik recommendations for their SMDLTLFP solder paste.
+#
+# For SnBi solder. It calls for
+#
+#   - a ramp up to 90 celsius in 90 seconds
+#   - a soak stage that rises to 130 celsius by 180 seconds (ie. 90 seconds later)
+#   - a spike up to 138 celsius by 210 seconds (ie. 30 seconds later)
+#   - a peak temperature of 165 celsius at 240 seconds (ie. 30 seconds later)
+#   - a drop to 138 celsius by 270 seconds (ie. 30 seconds later)
+# 
+
+# Start at zero with a little below expected ambient temperature to ensure we
+# start with an "off" state.
+- name: ambient
+  seconds: 0
+  temperature: 15
+- name: preheat
+  seconds: 90
+  temperature: 90
+- name: soak
+  seconds: 90
+  temperature: 130
+- name: spike
+  seconds: 30
+  temperature: 138
+- name: spike
+  seconds: 30
+  temperature: 165
+- name: dwell
+  seconds: 30
+  temperature: 138
+- name: cool
+  seconds: 20
+  temperature: 90
+- name: off
+  seconds: 1
+  temperature: 15
+- name: monitor
+  seconds: 179
+  fan: true
+  temperature: 15

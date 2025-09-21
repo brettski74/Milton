@@ -534,17 +534,26 @@ sub _timerWatcher {
   my ($self, $evl) = @_;
 
   my $cmd = $self->{command};
+  my $status;
+  my $rc;
 
-  my $status = $self->poll('timerEvent'
-                         , now => $self->_now
-                         , ambient => $self->{ambient}
-                         );
+  eval {
+    $status = $self->poll('timerEvent'
+                        , now => $self->_now
+                        , ambient => $self->{ambient}
+                        );
 
-  if (! $cmd->timerEvent($status)) {
-    $self->{logger}->log($status);
+    $rc = $cmd->timerEvent($status);
+  };
+  if ($@) {
+    $self->{logger}->error("Error in timerEvent: $@");
     $evl->send;
+    return;
   }
   $self->{logger}->log($status);
+  if (! $rc) {
+    $evl->send;
+  }
 }
 
 sub run {

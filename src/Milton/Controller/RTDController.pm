@@ -35,6 +35,9 @@ sub new {
     $self->_initializeDevice($config->{'device'});
   }
 
+  # Default maximum temperature rate of change in celsius per second
+  $self->{'maximum-temperature-rate'} //= 30;
+
   return $self;
 }
 
@@ -149,7 +152,15 @@ sub getTemperature {
   }
 
   my $temperature = $est->estimate($resistance);
+  my $last_temp = $self->{'last-temperature'};
+  if (defined $last_temp) {
+    my $rate = abs($temperature - $last_temp) / $status->{period};
 
+    if ($rate > $self->{'maximum-temperature-rate'}) {
+      die "Temperature rate of change ($rate) exceeds maximum rate of $self->{'maximum-temperature-rate'}";
+    }
+  }
+  $self->{'last-temperature'} = $temperature;
   $status->{temperature} = $temperature;
 
   return $temperature;

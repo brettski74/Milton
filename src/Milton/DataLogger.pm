@@ -203,6 +203,12 @@ sub warning {
   $self->consoleOutput('WARN', $message);
 }
 
+sub error {
+  my ($self, $message) = @_;
+
+  $self->consoleOutput('ERROR', $message);
+}
+
 sub debug {
   my ($self, $level, $message) = @_;
   

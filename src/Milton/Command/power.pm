@@ -134,7 +134,7 @@ sub timerEvent {
       }
     }
 
-    $power = $self->{controller}->getPowerLimited($status);
+    my $power = $self->{controller}->getPowerLimited($status);
 
     $self->{interface}->setPower($power);
 

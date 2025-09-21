@@ -649,6 +649,10 @@ sub predictPower {
 
   # Set up state for predicting temperature for a given power level
   my $target_temp = $status->{'anticipate-temperature'} // $status->{'then-temperature'};
+  if (!defined $target_temp) {
+    return;
+  }
+
   my $last_prediction = $status->{'predict-temperature'};
   my $last_heating_element = $status->{'temperature'};
   my $next_status = { ambient => $status->{ambient}
@@ -718,6 +722,10 @@ sub _predictTemperature {
 sub predictTemperature {
   my ($self, $status) = @_;
 
+  if ($self->{tuning}) {
+    $self->predictHeatingElement($status);
+  }
+
   my $prediction = $self->_predictTemperature($status, $self->{'last-prediction'});
 
   $self->{'last-prediction'} = $prediction;
@@ -744,6 +752,7 @@ sub tune {
 
   my $bands = $self->buildSampleBands($samples);
   my $tuned = [];
+  $self->{tuning} = 1;
 
   foreach my $band (@$bands) {
     $self->info("Band Centre: $band->{centre}, sample count: ". scalar(@{$band->{samples}}));
@@ -782,10 +791,17 @@ sub tune {
                   };
   }
 
+  delete $self->{tuning};
+
   # Flatten out the bottom end
   my $t = { %{$tuned->[0]} };
   $t->{temperature} = 25;
   unshift @$tuned, $t;
+
+  # Flatten out the top end
+  $t = { %{$tuned->[-1]} };
+  $t->{temperature} = 250;
+  push @$tuned, $t;
   
   return { package => ref($self), bands => $tuned };
 }

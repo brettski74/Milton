@@ -1,0 +1,57 @@
+#@ description: Solder profile based on ChipQuik recommendations for their SMD291AX solder paste.
+# A solder profile based on ChipQuik recommendations for their SMD291AX solder paste.
+#
+# For SnPb solder. It calls for
+#
+#   - a ramp up to 100 celsius in 30 seconds
+#   - a soak stage that rises to 150 celsius by 120 seconds (ie. 90 seconds later)
+#   - a spike up to 183 celsius by 150 seconds (ie. 30 seconds later)
+#   - a peak temperature of 235 celsius at 210 seconds (ie. 60 seconds later)
+#   - a drop to 183 celsius by 240 seconds (ie. 30 seconds later)
+#
+# 235 celsius is a higher temperature than recommended for a PCB hotplate and a temperature
+# that runs the risk of blowing the thermal fuse.
+# It's not clear whether the graph provided is suppoed to be to scale, but it's assumed not.
+# Two ways to deal with this are to either:
+#
+#   - assume a linear spike up and down and use linear interpolation to find appropriate times/temperatures
+#   - use measurements from the possibly not-to-scale diagram to estimate start and end times for peak temperature dwell
+#
+# Linear interpolation gives 195 seconds and 217.5 seconds at 222 celsius.
+# Measurements on the diagram give 196 seconds and 224 seconds at the dotted line.
+# Erring on the hotter side, I've used 195 seconds and 224 seconds at 222 celsius for dwell.
+# 
+
+# Start at zero with a little below expected ambient temperature to ensure we
+# start with an "off" state.
+- name: ambient
+  seconds: 0
+  temperature: 15
+- name: preheat
+  seconds: 30
+  temperature: 100
+- name: soak
+  seconds: 90
+  temperature: 150
+- name: spike
+  seconds: 30
+  temperature: 183
+- name: spike
+  seconds: 45
+  temperature: 222
+- name: dwell
+  seconds: 29
+  temperature: 222
+- name: cool
+  seconds: 16
+  temperature: 183
+- name: cool
+  seconds: 37
+  temperature: 120
+- name: off
+  seconds: 1
+  temperature: 15
+- name: monitor
+  seconds: 179
+  fan: true
+  temperature: 15

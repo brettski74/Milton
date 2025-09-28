@@ -111,7 +111,7 @@ layouts and see what you get. Also let me know how they are and I can add detail
 Note that even if you don't have a power supply that can be remotely controlled and is compatible with Milton,
 there are still some reasonably safe ways to do DIY solder reflow without any control at all. This is also an
 approach you can use for bootstrapping your setup if you don't have a supported power supply and want to build
-a custom hotplate controller board. Note that this does entail some additional risk - especially if using a
+a custom hotplate controller board. **NOTE THAT THIS DOES ENTAIL SOME ADDITIONAL RISK** - especially if using a
 hotplate without any safety device built in like a thermal fuse. Note that I wouldn't recommend the open loop
 approach for things like rework or preheat, because these operations lack a clear indicator of temperature. If
 you want to use your hotplate for those tasks, you really need temperature control in my opinion.
@@ -142,15 +142,19 @@ after you see **all** solder joints have reflowed, then turn off the power.
 Note that the procedure is dependent on your being able to see evidence of reflow occurring. If you will not
 be able to observe the solder reflow for any reason, this approach is not advisable.
 
-Consider the following two plots. These were done with a hotplate PCB that has a resistance of about 10Ω at
-220°C. It's an ideal resistance for a 30V, 3A power supply with constant voltage and constant current limiting
+Consider the following plot.  These were done with a hotplate PCB that has a resistance of about 10Ω at 220°C.
+It's an ideal resistance for a 30V, 3A power supply with constant voltage and constant current limiting
 typical of some budget priced and lower power benchtop power supplies. These plots were created using this
 hotplate PCB and the power supply limited to 30V and 3A to simulate such a power supply. Maximum power
 available is 90W. With this supply doing no temperature control, just keep the voltage and current within
 limits, we were able to hit 220°C in about 240 seconds. This is a reasonable rate of heating for an open
 loop reflow hotplate. It's not ideal, but the rate of heating is not too high, to allow the load to heat
 up relatively evenly. The rate should be fast enough that you can reflow before burning off all of the flux -
-at least good enough for the home hobbyist. If you have a hotplate with a different resistance, then you can
+at least good enough for the home hobbyist.
+
+![90W Open Loop Plot](./images/90W-open_loop_plot.png)
+
+If you have a hotplate with a different resistance, then you can
 calculate a voltage and current that should produce a similar result for your specific hotplate. Determine
 it's resistance at peak reflow temperature. If you don't know that value, measure the resistance at room temperature. Let's say
 that it's 25°C in your room and you measure the resistance of your hotplate as 4Ω. You first calculate it's

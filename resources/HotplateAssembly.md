@@ -35,7 +35,7 @@ To assemble your hotplate you'll need the following items:
 You should favour stainless steel hardware where possible, or brass if stainless steel is hard to find. For some
 reason, stainless steel standoffs seem to be incredibly expensive or hard to find. Avoid carbon steel, even zinc-plated
 or blackened carbon steel, etc. Steel rusts and when heated that process is accelerated. You want something that is
-going to hold up during repeated heated an cooling over many, many cycles. Even with zinc electroplating, ordinary steel
+going to hold up during repeated heated and cooled over many, many cycles. Even with zinc electroplating, ordinary steel
 hardware may rust in an undesirably short period of time.
 
 Tools:

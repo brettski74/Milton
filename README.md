@@ -78,7 +78,7 @@ If the release calibration is not working at all for you, the base predictor cla
 
 ### Temperature Control
 
-The control algorithms vary in there precision, need for calibration and sensitivity to mis-calibration. All of them rely on a properly calibrated temperature prediction model. Without good temperature prediction, you cannot hope to do good control. Note that raw measurements are often noisy which complicates control. You want a good prediction model for the noise filtering it provides.
+The control algorithms vary in their precision, need for calibration and sensitivity to mis-calibration. All of them rely on a properly calibrated temperature prediction model. Without good temperature prediction, you cannot hope to do good control. Note that raw measurements are often noisy which complicates control. You want a good prediction model for the noise filtering it provides.
 
 There are three main control strategies currently available in Milton.
 

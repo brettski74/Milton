@@ -400,6 +400,10 @@ sub getRequiredPower {
 
   my $on = $self->{on};
   my $target_temp = $status->{'then-temperature'};
+  if (!defined $target_temp) {
+    return $self->SUPER::getRequiredPower($status);
+  }
+
   my $temperature = $self->{predictor}->predictTemperature($status);
   my $hyst_lo = -$self->{hysteresis}->{low};
   my $hyst_hi = $self->{hysteresis}->{high};

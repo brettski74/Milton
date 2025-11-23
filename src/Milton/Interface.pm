@@ -942,7 +942,7 @@ Returns true if the output was set to the desired on-state or false otherwise.
 =cut
 
 sub _on {
-  croak ref($_[0]) .': not implemented.'
+  croak ref($_[0]) .': _on not implemented.'
 }
 
 =head2 _setCurrent($current, $recommendedVoltage)

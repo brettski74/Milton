@@ -75,6 +75,9 @@ sub options {
 sub preprocess {
   my ($self, $status) = @_;
 
+  $self->info("Power: $self->{power}");
+  $self->info("Duration: $self->{duration}") if $self->{duration};
+
   # Ensure that we have some current through the hotplate so we will be able to measure resistance and set output power.
   $self->{interface}->setCurrent($self->{config}->{current}->{startup});
   sleep(0.5);

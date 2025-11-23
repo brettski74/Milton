@@ -497,6 +497,11 @@ sub description {
 sub getRequiredPower {
   my ($self, $status) = @_;
 
+  my $target_temp = $status->{'then-temperature'};
+  if (!defined $target_temp) {
+    return $self->SUPER::getRequiredPower($status);
+  }
+
   my $period = $status->{period};
   $status->{'predict-temperature'} = $self->{predictor}->predictTemperature($status);
 
@@ -517,7 +522,7 @@ sub getRequiredPower {
 
   # Note that predict-temperature is the temperature we're trying to control and now-temperature is the
   # expected temperature for *now* as per the reflow profile.
-  my $error = $status->{'then-temperature'} - $status->{'predict-temperature'};
+  my $error = $target_temp - $status->{'predict-temperature'};
 
   my $integral = $self->{integral} //= 0;
   my $iterm = $error * $ki * $period;

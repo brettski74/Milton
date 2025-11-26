@@ -58,6 +58,7 @@ sub initializeCommand {
                --log back-prediction:.1f
                --log forward-prediction:.1f
                --log last-update-delay:.3f
+               --log stage:s
                );
 
   if (defined $params->{ambient}) {
@@ -191,6 +192,37 @@ sub executeRework {
   push @cmd, $params->{temperature};
 
   return $self->executeCommand('rework', @cmd);
+}
+
+sub executeRth {
+  my ($self, $params) = @_;
+
+  my @cmd = $self->initializeCommand($params);
+
+  push @cmd, 'rth';
+  push @cmd, '--length', $params->{length}
+           , '--width', $params->{width};
+
+  return $self->executeCommand('rth', @cmd);
+}
+
+sub executeRthcal {
+  my ($self, $params) = @_;
+
+  my @cmd = $self->initializeCommand($params);
+
+  push @cmd, 'rthcal';
+  push @cmd, '--calibration'
+           , '--length', $params->{length}
+           , '--width', $params->{width};
+
+  foreach my $key (qw(test-delta-T preheat-time soak-time measure-time sample-time)) {
+    if (defined $params->{$key}) {
+      push @cmd, '--'. $key, $params->{$key};
+    }
+  }
+
+  return $self->executeCommand('rth', @cmd);
 }
 
 sub stopCommand {

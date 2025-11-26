@@ -204,6 +204,70 @@ group {
                                                          }
                                                        ]
                                        }
+                                     , { name => 'rth'
+                                       , description => 'Estimate the thermal resistance of a thermal assembly'
+                                       , parameters => [ $PARAM_AMBIENT
+                                                       , { name => 'length'
+                                                         , type => 'number'
+                                                         , required => 1
+                                                         , description => 'Length of the assembly under test in mm'
+                                                         , order => 1
+                                                         }
+                                                       , { name => 'width'
+                                                         , type => 'number'
+                                                         , required => 1
+                                                         , description => 'Width of the assembly under test in mm'
+                                                         , order => 2
+                                                         }
+                                                       ]
+                                       }
+                                     , { name => 'rthcal'
+                                       , description => 'Calibrate thermal resistance measurement'
+                                       , parameters => [ $PARAM_AMBIENT
+                                                       , { name => 'length'
+                                                         , type => 'number'
+                                                         , required => 1
+                                                         , description => 'Length of the hotplate in mm'
+                                                         , order => 1
+                                                         }
+                                                       , { name => 'width'
+                                                         , type => 'number'
+                                                         , required => 1
+                                                         , description => 'Width of the hotplate in mm'
+                                                         , order => 2
+                                                         }
+                                                       , { name => 'test-delta-T'
+                                                         , type => 'number'
+                                                         , required => 0
+                                                         , description => 'Temperature difference between ambient and the assembly under test in °C'
+                                                         , order => 3
+                                                         }
+                                                       , { name => 'preheat-time'
+                                                         , type => 'number'
+                                                         , required => 0
+                                                         , description => 'Preheat time in seconds'
+                                                         , order => 4
+                                                         }
+                                                       , { name => 'soak-time'
+                                                         , type => 'number'
+                                                         , required => 0
+                                                         , description => 'Soak time in seconds'
+                                                         , order => 5
+                                                         }
+                                                       , { name => 'measure-time'
+                                                         , type => 'number'
+                                                         , required => 0
+                                                         , description => 'Measure time in seconds'
+                                                         , order => 6
+                                                         }
+                                                       , { name => 'sample-time'
+                                                         , type => 'number'
+                                                         , required => 0
+                                                         , description => 'Sample time in seconds'
+                                                         , order => 7
+                                                         }
+                                                       ]
+                                       }
                                      ]
                                    }
               )

@@ -211,7 +211,7 @@ sub executeRthcal {
 
   my @cmd = $self->initializeCommand($params);
 
-  push @cmd, 'rthcal';
+  push @cmd, 'rth';
   push @cmd, '--calibration'
            , '--length', $params->{length}
            , '--width', $params->{width};

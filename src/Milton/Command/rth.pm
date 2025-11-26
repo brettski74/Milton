@@ -55,18 +55,14 @@ sub new {
   my ($class, $config, $interface, $controller, @args) = @_;
 
   my $self = $class->SUPER::new($config, $interface, $controller, @args);
-  if (!exists $self->{config}->{command}->{rth}) {
-    $self->{config}->{command}->{rth} = {};
-  }
-  my $params = $self->{config}->{command}->{rth};
 
-  $params->{'test-delta-T'} //= 50;
-  $params->{'preheat-time'} //= 180;
-  $params->{'soak-time'} //= 240;
-  $params->{'measure-time'} //= 240;
-  $params->{'sample-time'} //= 60;
-  $params->{'length'} //= 100;
-  $params->{'width'} //= 100;
+  $config->{'test-delta-T'} //= 50;
+  $config->{'preheat-time'} //= 180;
+  $config->{'soak-time'} //= 240;
+  $config->{'measure-time'} //= 240;
+  $config->{'sample-time'} //= 60;
+  $config->{'length'} //= 100;
+  $config->{'width'} //= 100;
 
   if ($self->{filename}) {
     $self->{calibration} = $self->{filename};
@@ -87,7 +83,7 @@ sub new {
 
   foreach my $key (qw(test-delta-T preheat-time soak-time measure-time sample-time length width)) {
     if (!exists $self->{$key}) {
-      $self->{$key} = $params->{$key};
+      $self->{$key} = $config->{$key};
     }
   }
 
@@ -133,6 +129,7 @@ sub averageSamples {
 
 sub preprocess {
   my ($self, $status) = @_;
+  my $config = $self->{config};
 
   $self->startupCurrent($status);
 
@@ -140,6 +137,14 @@ sub preprocess {
 
   $self->info("Rth Ambient temperature: $status->{ambient}");
   $self->info("Rth Test temperature: $self->{'test-temperature'}");
+
+  foreach my $key (qw(test-delta-T preheat-time soak-time measure-time sample-time length width)) {
+    $self->info("$key: $self->{$key}");
+  }
+
+  $self->info("Hotplate length: $config->{'length'}");
+  $self->info("Hotplate width: $config->{'width'}");
+  $self->info("Hotplate R_th: $config->{'hotplate-rth'}");
 
   $self->newStage;
 
@@ -162,6 +167,8 @@ sub newStage {
 sub timerEvent {
   my ($self, $status) = @_;
   my $now = $status->{now};
+
+  $status->{stage} = $self->{stage};
 
   if ($now > $self->{'stage-end'}) {
     $self->newStage;
@@ -212,7 +219,7 @@ sub postprocess {
   $self->info("Power: $self->{'mean-power'}");
   $self->info("Temperature: $self->{'mean-temperature'}");
 
-  my $total_rth = ($self->{'mean-temperature'} - $self->{ambient}) / $self->{'mean-power'};
+  my $total_rth = ($self->{'mean-temperature'} - $status->{ambient}) / $self->{'mean-power'};
   $self->info("Total R_th: $total_rth");
 
   if ($self->{calibration}) {
@@ -250,7 +257,7 @@ sub _writeCalibration {
   $fh->print("sample-time: $self->{'sample-time'}\n");
   $fh->print("length: $self->{'length'}\n");
   $fh->print("width: $self->{'width'}\n");
-  $fh->print("hotplate-rth: $self->{'hotplate-rth'}\n");
+  $fh->print("hotplate-rth: $total_rth\n");
   $fh->close;
 }
 
@@ -282,13 +289,13 @@ the measured total thermal resistance of the assembly under test plus the hotpla
 
 sub _measureRth {
   my ($self, $total_rth) = @_;
-  my $params = $self->{config}->{command}->{rth} || {};
+  my $config = $self->{config};
 
-  my $covered_length = min($self->{length}, $params->{length});
-  my $covered_width = min($self->{width}, $params->{width});
+  my $covered_length = min($self->{length}, $config->{length});
+  my $covered_width = min($self->{width}, $config->{width});
   my $covered_area = $covered_length * $covered_width;
 
-  my $hotplate_area = $params->{length} * $params->{width};
+  my $hotplate_area = $config->{length} * $config->{width};
 
   my $uncovered_area = $hotplate_area - $covered_area;
   if ($uncovered_area <= 0) {
@@ -299,7 +306,7 @@ sub _measureRth {
   }
 
   my $hotplate_ratio = $hotplate_area / $uncovered_area;
-  my $hotplate_rth = $hotplate_ratio * $params->{'hotplate-rth'};
+  my $hotplate_rth = $hotplate_ratio * $config->{'hotplate-rth'};
 
   $self->info("Uncovered R_th ratio: $hotplate_ratio");
   $self->info("Uncovered Hotplate R_th: $hotplate_rth");

@@ -127,6 +127,20 @@ is($cfg2->{command}->{test}->{'command-value-1'}, 100);
 is($cfg2->{command}->{test}->{'command-value-2'}, 'red');
 is($cfg2->getPath, 't/testconfig.yaml');
 
+# Merge into a non-existent path
+$cfg2->merge('command/test.yaml', 'command', 'nonexistent');
+is($cfg2->{command}->{nonexistent}->{'command-value-1'}, 100, 'command-value-1 should be added');
+is($cfg2->{command}->{nonexistent}->{'command-value-2'}, 'red', 'command-value-2 should be added');
+is($cfg2->getPath, 't/testconfig.yaml');
+is($cfg2->getPath('command', 'nonexistent'), 't/command/test.yaml');
+
+# Merge into a fully non-existent path
+$cfg2->merge('command/test.yaml', 'crazy', 'path', 'that', 'does', 'not', 'exist');
+is($cfg2->{crazy}->{path}->{that}->{does}->{not}->{exist}->{'command-value-1'}, 100, 'command-value-1 should be added');
+is($cfg2->{crazy}->{path}->{that}->{does}->{not}->{exist}->{'command-value-2'}, 'red', 'command-value-2 should be added');
+is($cfg2->getPath, 't/testconfig.yaml');
+is($cfg2->getPath('crazy', 'path', 'that', 'does', 'not', 'exist'), 't/command/test.yaml');
+
 # Test merging with pre-existing keys (deep merge)
 note("Testing merge with pre-existing keys");
 $cfg2->merge('command/override.yaml', 'command', 'test');

@@ -219,6 +219,12 @@ group {
                                                          , description => 'Width of the assembly under test in mm'
                                                          , order => 2
                                                          }
+                                                      , { name => 'mass'
+                                                        , type => 'number'
+                                                        , required => 0
+                                                        , description => 'Mass of the heat sink under test in grams'
+                                                        , order => 3
+                                                        }
                                                        ]
                                        }
                                      , { name => 'rthcal'

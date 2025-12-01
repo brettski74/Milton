@@ -203,6 +203,10 @@ sub executeRth {
   push @cmd, '--length', $params->{length}
            , '--width', $params->{width};
 
+  if ($params->{mass} > 0) {
+    push @cmd, '--mass', $params->{mass};
+  }
+
   return $self->executeCommand('rth', @cmd);
 }
 

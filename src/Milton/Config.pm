@@ -227,7 +227,7 @@ sub findKey {
 
 =head1 PRIVATE METHODS
 
-=head2 _descend(@keys)
+=head2 _descend($create, @keys)
 
 Descend to the specified path in the configuration and return a reference to the requested node.
 

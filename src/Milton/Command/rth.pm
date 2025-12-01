@@ -81,8 +81,9 @@ sub new {
   my $self = $class->SUPER::new($config, $interface, $controller, @args);
 
   $config->{'test-delta-T'} //= 50;
-  $config->{'preheat-time'} //= 180;
-  $config->{'soak-time'} //= 240;
+  $config->{'preheat-time'} //= 90;
+  $config->{'soak-time'} //= 150;
+  $config->{'soak-count'} //= 3;
   $config->{'measure-time'} //= 240;
   $config->{'sample-time'} //= 60;
   $config->{'length'} //= 100;
@@ -418,9 +419,7 @@ sub timerEvent {
   my $stageTempKey = "$stage-temp";
   if (defined $self->{$stageTempKey}) {
     $temperature = $self->{$stageTempKey} + $status->{ambient};
-    #$self->info("stageTempKey: $stageTempKey");
   }
-  # $self->info("Rth Stage temperature: $temperature");
 
   # Anticipation!
   my $anticipation = $self->{controller}->getAnticipation;
@@ -443,7 +442,6 @@ sub timerEvent {
   } else {
     my $power = $self->{controller}->getPowerLimited($status);
     $status->{'set-power'} = $power;
-    # $self->info("Constant Temperature: $power");
   }
 
   $self->{interface}->setPower($status->{'set-power'});

@@ -66,7 +66,7 @@ option here that should work for many common power supply specifications. See th
 layout is recommended for your particular power supply. These were all generated using [Emmett](https://github.com/brettski74/Emmett),
 so if none of these suit your needs, you can use Emmett to help design a layout that does.
 
-Ideally, you want your hotplate to have maximum power available near the peark reflow temperatures. This is
+Ideally, you want your hotplate to have maximum power available near the peak reflow temperatures. This is
 assumed to be around 220°C, which is the typical peak reflow temperature for standard tin-lead solders. Since
 the resistance of the heating element increases with temperature, this means that we want to design to achieve
 the desired power into your hotplate when the heating element is hot. This does mean that for many power supplies
@@ -93,7 +93,7 @@ problem with getting the expected performance.
 I've used two different manufacturers for aluminium hotplate PCBs - JLCPCB and PCBWay. I'm not sponsored by either
 of them, they're just the ones I've used because I'm cheap and so are they. JLCPCB boards seems to come back with
 resistances that are more consistent with a 29 micron thick copper layer, so if you're planning to order from JLCPCB
-use the layouts in teh 29um directory. PCBWay seems to be more consistent with a 35 micron copper layer, so use the
+use the layouts in the 29um directory. PCBWay seems to be more consistent with a 35 micron copper layer, so use the
 35um directory if you're ordering from PCBWay. For any other manufacturers, I'd suggest starting with the 35um
 layouts and see what you get. Also let me know how they are and I can add details here for the benefit of others.
 

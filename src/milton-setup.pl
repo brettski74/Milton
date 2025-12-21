@@ -1,6 +1,7 @@
 #!/usr/bin/perl
 
 use strict refs;
+use Milton::Config::Perl;
 
 my %cfg;
 
@@ -60,6 +61,7 @@ if ($shared_install) {
 }
 
 # Determine the available perl module installation methods
+my $available_methods = Milton::Config::Perl::detect_module_installation_methods();
 
 # Prompt for preferred perl module installation method
 

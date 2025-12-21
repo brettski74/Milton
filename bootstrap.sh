@@ -63,7 +63,7 @@ $message
 EOS
 }
 
-check_for make check_for perl perl milton-setup.pl
+check_for make check_for perl perl src/milton-setup.pl
 
 if [ "$CMD" == "perl" ]; then
   install_needed perl dev-lang/perl

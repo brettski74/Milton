@@ -23,6 +23,35 @@ my $DEPS =
 , { name => 'YAML::PP::Schema::Env'       }
 ];
 
+=head2 detect_module_installation_methods()
+
+Detect available module installation methods.
+
+=item Returns
+
+Array reference of available installer objects.
+
+=cut
+
+sub detect_module_installation_methods {
+  my @available = ();
+  
+  # Try to load installer classes
+  # Order is important. First detected method will be default preferred method.
+  for my $method (qw(pacman apt cpanm cpan)) {
+    my $class = "Milton::Config::Install::$method";
+    eval "use $class";
+    if (!$@) {
+      my $installer = $class->new();
+      if ($installer->is_available()) {
+        push @available, $installer;
+      }
+    }
+  }
+  
+  return \@available;
+}
+
 sub prompt {
   my ($prompt, $default) = @_;
   chomp $prompt;
@@ -65,7 +94,7 @@ if ($shared_install) {
 }
 
 # Determine the available perl module installation methods
-my $available_methods = Milton::Config::Perl::detect_module_installation_methods();
+my $available_methods = detect_module_installation_methods();
 my $methods = join("\n    ", map { $_->name() } sort { $a->name cmp $b->name } @$available_methods);
 
 # Prompt for preferred perl module installation method

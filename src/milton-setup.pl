@@ -62,15 +62,13 @@ if ($shared_install) {
 
 # Determine the available perl module installation methods
 my $available_methods = Milton::Config::Perl::detect_module_installation_methods();
+my $methods = join("\n    ", map { $_->name() } sort { $a->name cmp $b->name } @$available_methods);
 
 # Prompt for preferred perl module installation method
 my $preferred_method = prompt(<<"EOS", 'cpanm');
 The following methods are available for installing perl modules:
 
-    apt
-    cpan
-    cpanm
-    pacman
+    $methods
 
 Select your preferred primary method for installing perl modules [cpanm]:
 EOS

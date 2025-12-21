@@ -71,7 +71,7 @@ my $methods = join("\n    ", map { $_->name() } sort { $a->name cmp $b->name } @
 
 # Prompt for preferred perl module installation method
 my $preferred_method;
-while !defined($preferred_method) {
+while (!defined $preferred_method) {
   $preferred_method = prompt(<<"EOS", $available_methods->[0]->name());
 The following methods are available for installing perl modules:
 

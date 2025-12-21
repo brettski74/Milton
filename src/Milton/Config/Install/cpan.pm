@@ -23,6 +23,11 @@ sub is_available {
   return $cpan && -x $cpan;
 }
 
+sub set_install_path {
+  my ($self, $path) = @_;
+  $self->{install_path} = $path;
+}
+
 sub requires_sudo {
   return 0;  # CPAN installs locally
 }
@@ -35,8 +40,13 @@ sub install {
     return 0;
   }
 
+  my @extra;
+  if ($self->{install_path}) {
+    push @extra, "-Mlocal::lib=$self->{install_path}";
+  }
+
   # Use cpan -i to install module
-  return $self->execute('cpan', '-i', $module);
+  return $self->execute('perl', @extra, '-MCPAN', "install $module");
 }
 
 1;

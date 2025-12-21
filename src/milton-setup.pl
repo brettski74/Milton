@@ -125,6 +125,10 @@ EOS
 push @methods, find_by_name('cpanm', $available_methods) unless $preferred_method eq 'cpanm';
 push @methods, find_by_name('cpan', $available_methods) unless $preferred_method eq 'cpan';
 
+foreach my $method (@methods) {
+  $method->set_install_path($cfg{MILTON_BASE} .'/perl5');
+}
+
 print "Perl installation methods: ". join(', ', map { $_->name() } @methods). "\n";
 
 # Check perl version check strategy (ignore/warn/install)

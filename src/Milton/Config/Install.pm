@@ -65,6 +65,24 @@ sub execute {
   return $exit_code == 0;
 }
 
+=head2 set_install_path($path)
+
+Set the path to the install directory for this installer.
+
+=over
+
+=item $path
+
+The path to the install directory.
+
+=back
+
+=cut
+
+sub set_install_path {
+  return;
+}
+
 =head2 install($module)
 
 Install a Perl module. Must be implemented by subclasses.

@@ -27,6 +27,11 @@ sub requires_sudo {
   return 0;  # cpanm installs locally
 }
 
+sub set_install_path {
+  my ($self, $path) = @_;
+  $self->{install_path} = $path;
+}
+
 sub install {
   my ($self, $module) = @_;
   
@@ -35,9 +40,14 @@ sub install {
     return 0;
   }
 
+  my @extra;
+  if ($self->{install_path}) {
+    push @extra, '-L', $self->{install_path};
+  }
+
   # Use cpanm to install module locally
   # cpanm installs to ~/perl5 by default when not run as root
-  return $self->execute('cpanm', '--local-lib-contained', $module);
+  return $self->execute('cpanm', @extra, $module);
 }
 
 1;

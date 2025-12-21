@@ -5,19 +5,19 @@ use strict refs;
 my %cfg;
 
 my $DEPS = 
-[ { name => 'AnyEvent'                    , version => '70.17', apt => 'perl-anyevent'         , apt => 'libanyevent-perl'          }
-, { name => 'Clone'                       , version => '0.46' , apt => 'perl-clone'            , apt => 'libclone-perl'             }
+[ { name => 'AnyEvent'                    , version => '70.17', pacman => 'perl-anyevent'         , apt => 'libanyevent-perl'          }
+, { name => 'Clone'                       , version => '0.46' , pacman => 'perl-clone'            , apt => 'libclone-perl'             }
 , { name => 'Device::Modbus::RTU::Client' }
-, { name => 'Device::SerialPort'          , version => '1.04' , apt => 'perl-device-serialport', apt => 'libdevice-serialport-perl' }
-, { name => 'EV'                          , version => '4.34' , apt => 'perl-ev'               , apt => 'libev-perl'                }
-, { name => 'Hash::Merge'                 , version => '0.302', apt => 'perl-hash-merge'       , apt => 'libhash-merge-perl'        }
-, { name => 'Math::Round'                 , version => '0.07' , apt => 'perl-math-round'       , apt => 'libmath-round-perl'        }
+, { name => 'Device::SerialPort'          , version => '1.04' , pacman => 'perl-device-serialport', apt => 'libdevice-serialport-perl' }
+, { name => 'EV'                          , version => '4.34' , pacman => 'perl-ev'               , apt => 'libev-perl'                }
+, { name => 'Hash::Merge'                 , version => '0.302', pacman => 'perl-hash-merge'       , apt => 'libhash-merge-perl'        }
+, { name => 'Math::Round'                 , version => '0.07' , pacman => 'perl-math-round'       , apt => 'libmath-round-perl'        }
 , { name => 'Mojolicious::Lite'           }
 , { name => 'Mojo::IOLoop::ReadWriteFork' }
-, { name => 'Path::Tiny'                  , version => '0.148', apt => 'perl-path-tiny'        , apt => 'libpath-tiny-perl'         }
-, { name => 'Readonly'                    , version => '2.05' , apt => 'perl-readonly'         , apt => 'libreadonly-perl'          }
-, { name => 'Term::ReadKey'               , version => '2.38' , apt => 'perl-term-readkey'     , apt => 'libterm-readkey-perl'      }
-, { name => 'YAML::PP'                    , version => '0.39' , apt => 'perl-uaml-pp'          , apt => 'libyaml-pp-perl'           }
+, { name => 'Path::Tiny'                  , version => '0.148', pacman => 'perl-path-tiny'        , apt => 'libpath-tiny-perl'         }
+, { name => 'Readonly'                    , version => '2.05' , pacman => 'perl-readonly'         , apt => 'libreadonly-perl'          }
+, { name => 'Term::ReadKey'               , version => '2.38' , pacman => 'perl-term-readkey'     , apt => 'libterm-readkey-perl'      }
+, { name => 'YAML::PP'                    , version => '0.39' , pacman => 'perl-uaml-pp'          , apt => 'libyaml-pp-perl'           }
 , { name => 'YAML::PP::Schema::Include'   }
 , { name => 'YAML::PP::Schema::Env'       }
 ];
@@ -67,10 +67,15 @@ sub prompt {
   return $choice;
 }
 
-sub contains {
+sub find_by_name {
   my ($value, $array) = @_;
 
-  return grep { $_ eq $value } @$array;
+  foreach my $item (@$array) {
+    if ($item->name eq $value) {
+      return $item;
+    }
+  }
+  return;
 }
 
 sub boolify {
@@ -94,32 +99,52 @@ if ($shared_install) {
 
 # Determine the available perl module installation methods
 my $available_methods = detect_module_installation_methods();
-my $methods = join("\n    ", map { $_->name() } sort { $a->name cmp $b->name } @$available_methods);
+my $method_list = join("\n    ", map { $_->name() } sort { $a->name cmp $b->name } @$available_methods);
 
 # Prompt for preferred perl module installation method
-my $preferred_method;
-while (!defined $preferred_method) {
-  $preferred_method = prompt(<<"EOS", $available_methods->[0]->name());
+my @methods;
+while (!defined $methods[0]) {
+  my $method = prompt(<<"EOS", $available_methods->[0]->name());
 The following methods are available for installing perl modules:
 
-    $methods
+    $method_list
 
 Select your preferred primary method for installing perl modules.
 EOS
 
-  if (! grep { $_->name eq $preferred_method } @$available_methods) {
-    print "Invalid method. Please select a valid method.\n";
-    $preferred_method = undef;
-  }
+  if (!defined $method || ! find_by_name($method, $available_methods)) {
+    print "Invalid method "$method". Please select a valid method.\n";
+    $method = undef;
+  } else {
+    $methods[0] = find_by_name($method, $available_methods);
 }
 
-print "Preferred method: $preferred_method\n";
 
 # Add fallback perl module installation methods
+my @fallback;
+push @fallback, find_by_name('cpanm', $available_methods) unless $preferred_method eq 'cpanm';
+push @fallback, find_by_name('cpan', $available_methods) unless $preferred_method eq 'cpan';
+
+print "Perl installation methods: ". join(', ', map { $_->name() } @fallback). "\n";
 
 # Check perl version check strategy (ignore/warn/install)
 
 # Check dependencies (installed and/or version appropriate)
+foreach my $dependency (@$DEPS) {
+  METHOD: foreach my $method (@methods) {
+    print 'Checking dependency: '.$dependency->{name}.'...  ';
+
+    eval "use $dependency->{name}";
+    if ($@) {
+      print "not found\n";
+
+      $method->install($dependency->{name});
+    } else {
+      print "found\n";
+      last METHOD;
+    }
+  }
+}
 
 # Install Milton Software
 

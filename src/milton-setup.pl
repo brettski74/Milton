@@ -93,9 +93,13 @@ EOS
 # Ensure that target installation directory exists
 if ($shared_install) {
   $cfg{MILTON_BASE} = '/opt/milton';
+  system 'sudo', 'mkdir', '-p', $cfg{MILTON_BASE};
+  system 'sudo', 'chown', $ENV{USER}, $cfg{MILTON_BASE};
+  system 'sudo', 'chmod', '755', $cfg{MILTON_BASE};
 } else {
   $cfg{MILTON_BASE} = "$ENV{HOME}/.local/milton";
 }
+system 'mkdir', '-p', "$cfg{MILTON_BASE}/perl5";
 
 # Determine the available perl module installation methods
 my $available_methods = detect_module_installation_methods();

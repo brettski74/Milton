@@ -63,6 +63,7 @@ $message
 EOS
 }
 
+export PERL5LIB=$PWD/src:$PERL5LIB
 check_for make check_for perl perl src/milton-setup.pl
 
 if [ "$CMD" == "perl" ]; then

@@ -113,7 +113,7 @@ Select your preferred primary method for installing perl modules.
 EOS
 
   if (!defined $method || ! find_by_name($method, $available_methods)) {
-    print "Invalid method "$method". Please select a valid method.\n";
+    print "Invalid method \"$method\". Please select a valid method.\n";
     $method = undef;
   } else {
     $methods[0] = find_by_name($method, $available_methods);

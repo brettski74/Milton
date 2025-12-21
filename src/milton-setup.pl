@@ -2,7 +2,6 @@
 
 use strict refs;
 use Milton::Config::Perl;
-use Array::Contains;
 
 my %cfg;
 
@@ -38,6 +37,13 @@ sub prompt {
   }
 
   return $choice;
+}
+
+sub contains {
+  my ($value, $array) = @_;
+  no warnings 'experimental::keyword_any';
+
+  return any { $_ eq $value } @$array;
 }
 
 sub boolify {

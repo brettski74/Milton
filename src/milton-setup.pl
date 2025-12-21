@@ -132,7 +132,7 @@ push @methods, find_by_name('cpanm', $available_methods) unless $preferred_metho
 push @methods, find_by_name('cpan', $available_methods) unless $preferred_method eq 'cpan';
 
 foreach my $method (@methods) {
-  $method->set_install_path($cfg{MILTON_BASE};
+  $method->set_install_path($cfg{MILTON_BASE});
 }
 
 print "Perl installation methods: ". join(', ', map { $_->name() } @methods). "\n";

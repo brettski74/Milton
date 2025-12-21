@@ -2,6 +2,7 @@
 
 use strict refs;
 use Milton::Config::Perl;
+use List::Util qw(contains);
 
 my %cfg;
 
@@ -51,8 +52,6 @@ Installing a shared instance may require sudo access and prompt for your passwor
 Install a shared instance?
 EOS
 
-print "We are not indented.\n";
-
 # Ensure that target installation directory exists
 if ($shared_install) {
   $cfg{MILTON_BASE} = '/opt/milton';
@@ -65,12 +64,12 @@ my $available_methods = Milton::Config::Perl::detect_module_installation_methods
 my $methods = join("\n    ", map { $_->name() } sort { $a->name cmp $b->name } @$available_methods);
 
 # Prompt for preferred perl module installation method
-my $preferred_method = prompt(<<"EOS", 'cpanm');
+my $preferred_method = prompt(<<"EOS", $available_methods->[0]->name());
 The following methods are available for installing perl modules:
 
     $methods
 
-Select your preferred primary method for installing perl modules [cpanm]:
+Select your preferred primary method for installing perl modules.
 EOS
 
 print "Preferred method: $preferred_method\n";

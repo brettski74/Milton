@@ -151,7 +151,8 @@ sub detect_module_installation_methods {
   my @available = ();
   
   # Try to load installer classes
-  for my $method (qw(cpanm cpan apt pacman)) {
+  # Order is important. First detected method will be default preferred method.
+  for my $method (qw(pacman apt cpanm cpan)) {
     my $class = "Milton::Config::Install::$method";
     eval "use $class";
     if (!$@) {

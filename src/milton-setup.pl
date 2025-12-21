@@ -98,8 +98,10 @@ if ($shared_install) {
   system 'sudo', 'chmod', '755', $cfg{MILTON_BASE};
 } else {
   $cfg{MILTON_BASE} = "$ENV{HOME}/.local/milton";
+  system 'mkdir', '-p', "$cfg{MILTON_BASE}";
 }
-system 'mkdir', '-p', "$cfg{MILTON_BASE}/perl5";
+
+eval "use lib '$cfg{MILTON_BASE}/lib/perl5'";
 
 # Determine the available perl module installation methods
 my $available_methods = detect_module_installation_methods();
@@ -130,7 +132,7 @@ push @methods, find_by_name('cpanm', $available_methods) unless $preferred_metho
 push @methods, find_by_name('cpan', $available_methods) unless $preferred_method eq 'cpan';
 
 foreach my $method (@methods) {
-  $method->set_install_path($cfg{MILTON_BASE} .'/perl5');
+  $method->set_install_path($cfg{MILTON_BASE};
 }
 
 print "Perl installation methods: ". join(', ', map { $_->name() } @methods). "\n";

@@ -122,11 +122,10 @@ EOS
 
 
 # Add fallback perl module installation methods
-my @fallback;
-push @fallback, find_by_name('cpanm', $available_methods) unless $preferred_method eq 'cpanm';
-push @fallback, find_by_name('cpan', $available_methods) unless $preferred_method eq 'cpan';
+push @methods, find_by_name('cpanm', $available_methods) unless $preferred_method eq 'cpanm';
+push @methods, find_by_name('cpan', $available_methods) unless $preferred_method eq 'cpan';
 
-print "Perl installation methods: ". join(', ', map { $_->name() } @fallback). "\n";
+print "Perl installation methods: ". join(', ', map { $_->name() } @methods). "\n";
 
 # Check perl version check strategy (ignore/warn/install)
 

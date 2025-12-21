@@ -153,7 +153,7 @@ sub detect_module_installation_methods {
   # Try to load installer classes
   for my $method (qw(cpanm cpan apt pacman)) {
     my $class = "Milton::Config::Install::$method";
-    eval "require $class";
+    eval "use $class";
     if (!$@) {
       my $installer = $class->new();
       if ($installer->is_available()) {

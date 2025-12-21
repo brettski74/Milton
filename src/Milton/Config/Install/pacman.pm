@@ -50,7 +50,7 @@ sub _module_to_package {
   my $key = $module;
   $key =~ s/::/-/g;
   
-  return $module_map{$module} || $module_map{$key} || "perl-${key,,}";
+  return $module_map{$module} || $module_map{$key} || "perl-${key}";
 }
 
 sub install {

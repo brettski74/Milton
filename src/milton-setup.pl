@@ -1,7 +1,6 @@
 #!/usr/bin/perl
 
 use strict refs;
-use Milton::Config::Perl;
 
 my %cfg;
 

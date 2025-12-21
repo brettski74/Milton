@@ -2,7 +2,7 @@
 
 use strict refs;
 use Milton::Config::Perl;
-use List::Util qw(contains);
+use Array::Contains;
 
 my %cfg;
 
@@ -64,13 +64,21 @@ my $available_methods = Milton::Config::Perl::detect_module_installation_methods
 my $methods = join("\n    ", map { $_->name() } sort { $a->name cmp $b->name } @$available_methods);
 
 # Prompt for preferred perl module installation method
-my $preferred_method = prompt(<<"EOS", $available_methods->[0]->name());
+my $preferred_method;
+while !defined($preferred_method) {
+  $preferred_method = prompt(<<"EOS", $available_methods->[0]->name());
 The following methods are available for installing perl modules:
 
     $methods
 
 Select your preferred primary method for installing perl modules.
 EOS
+
+  if (!contains($preferred_method, $available_methods)) {
+    print "Invalid method. Please select a valid method.\n";
+    $preferred_method = undef;
+  }
+}
 
 print "Preferred method: $preferred_method\n";
 

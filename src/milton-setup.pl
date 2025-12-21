@@ -43,7 +43,7 @@ sub contains {
   my ($value, $array) = @_;
   no warnings 'experimental::keyword_any';
 
-  return any { $_ eq $value } @$array;
+  return grep { $_ eq $value } @$array;
 }
 
 sub boolify {

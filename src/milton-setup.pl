@@ -117,6 +117,7 @@ EOS
     $method = undef;
   } else {
     $methods[0] = find_by_name($method, $available_methods);
+  }
 }
 
 

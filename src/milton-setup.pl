@@ -41,7 +41,6 @@ sub prompt {
 
 sub contains {
   my ($value, $array) = @_;
-  no warnings 'experimental::keyword_any';
 
   return grep { $_ eq $value } @$array;
 }
@@ -80,7 +79,7 @@ The following methods are available for installing perl modules:
 Select your preferred primary method for installing perl modules.
 EOS
 
-  if (!contains($preferred_method, $available_methods)) {
+  if (! grep { $_->name eq $preferred_method } @$available_methods) {
     print "Invalid method. Please select a valid method.\n";
     $preferred_method = undef;
   }

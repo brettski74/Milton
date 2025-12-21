@@ -47,7 +47,7 @@ sub _module_to_package {
   );
   
   # Convert Module::Name to Module-Name for lookup
-  my $key = $module;
+  my $key = lc($module);
   $key =~ s/::/-/g;
   
   return $module_map{$module} || $module_map{$key} || "lib${key}-perl";

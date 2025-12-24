@@ -68,7 +68,7 @@ sub connect {
   $self->send('scan off');
   $self->send('menu scan');
   $self->send('transport le');
-  $self->send('back', qr/Run script/);
+  $self->send('back', qr/Run script|Print environment variables/);
   $self->send('scan on');
 
   my $device;
@@ -99,7 +99,7 @@ sub disconnect {
     if ($response !~ /Invalid command in menu/) {
       last;
     } else {
-      $self->send('back', qr/Run script/);
+      $self->send('back', qr/Run script|Print environment variables/);
     }
   }
 
@@ -155,7 +155,7 @@ sub subscribe {
 
   $match //= $attribute;
 
-  $self->send('menu gatt', qr/Run script/);
+  $self->send('menu gatt', qr/Run script|Print environment variables/);
 #  $self->send("list-attributes $self->{device}", qr/$attribute/);
   my @rc = $self->send("select-attribute $attribute", qr/$match/);
 

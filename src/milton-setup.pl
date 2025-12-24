@@ -273,7 +273,7 @@ if ( ! -f 'config.mk' ) {
 ###
 ### Install Milton Software
 ###
-system 'make', 'install-dirs', 'install';
+system 'make', 'install-dirs', 'install', 'install-config';
 
 
 

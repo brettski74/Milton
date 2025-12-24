@@ -1,8 +1,8 @@
-# Configuration file for PSC installation
+# Configuration file for PSC installation - Default user local installation version
 # Users can modify these variables to customize installation paths
 
 # Base directory for executables
-PREFIX ?= $(HOME)
+PREFIX ?= $(HOME)/.local/milton
 
 # Base directory for configuration files
 CONFIG_PREFIX ?= $(HOME)/.config
@@ -11,8 +11,8 @@ CONFIG_PREFIX ?= $(HOME)/.config
 BINDIR ?= $(PREFIX)/bin
 
 # Library directory for Perl modules (under PREFIX)
-# Standard locations: perl5/lib/perl5 lib/perl5, lib, perl5
-LIBDIR ?= $(PREFIX)/perl5/lib/perl5
+# Standard locations: lib/perl5, lib, perl5
+LIBDIR ?= $(PREFIX)/lib/perl5
 
 # Configuration directory (under CONFIG_PREFIX)
-CONFIGDIR ?= $(CONFIG_PREFIX)/psc 
+CONFIGDIR ?= $(CONFIG_PREFIX)/milton

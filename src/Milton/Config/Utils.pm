@@ -113,7 +113,8 @@ sub standardSearchPath {
   Milton::Config->addSearchDir(split(/:/, $ENV{MILTON_CONFIG_PATH})
                                          , '.'
                                          , "$ENV{HOME}/.config/milton"
-                                         , "$ENV{HOME}/.local/share/milton"
+                                         , "$ENV{HOME}/.local/milton/share/milton"
+                                         , "$ENV{HOME}/.local/share/milton"           # Legacy
                                          , '/usr/local/share/milton'
                                          , '/usr/share/milton'
                                          );

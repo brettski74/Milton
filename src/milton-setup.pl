@@ -26,9 +26,9 @@ my $DEPS =
 
 Detect available module installation methods.
 
-=item Returns
+=item Return Value
 
-Array reference of available installer objects.
+Reference to an array containing installer objects for supported perl installation methods.
 
 =cut
 
@@ -51,6 +51,30 @@ sub detect_module_installation_methods {
   return \@available;
 }
 
+=head2 prompt($prompt, $default)
+
+Display a message to the user and wait for them to enter a value.
+
+If they enter a blank response, then return the default value.
+
+=over
+
+=item $prompt
+
+The message to display to the user.
+
+=item $default
+
+The default value to return if the user enters a blank response.
+
+=item Return Value
+
+The value entered by the user or the default value if they entered a blank response.
+
+=back
+
+=cut
+
 sub prompt {
   my ($prompt, $default) = @_;
   chomp $prompt;
@@ -67,6 +91,28 @@ sub prompt {
   return $choice;
 }
 
+=head2 find_by_name($value, $array)
+
+Find an item in an array of hashes based on the value associated with the name key.
+
+=over
+
+=item $value
+
+The name of the value to find.
+
+=item $array
+
+A reference to an array of hashes.
+
+=item Return Value
+
+The matching hash, if found, otherwise returns false.
+
+=back
+
+=cut
+
 sub find_by_name {
   my ($value, $array) = @_;
 
@@ -78,19 +124,65 @@ sub find_by_name {
   return;
 }
 
+=head2 boolify($value)
+
+Convert an arbitrary value into a normalized boolean value - ie. either 1 or 0.
+
+=over
+
+=item $value
+
+The value to be converted to a normalized boolean value.
+
+=item Return Value
+
+1 if $value evaluates as true, otherwise 0.
+
+=back
+
+=cut
+
 sub boolify {
   my ($value) = @_;
 
   return $value =~ /^(y|yes|true|1)$/i || 0;
 }
 
+=head2 copy_file($source, $destination)
+
+Copy a file from the source to the destination.
+
+=over
+
+=item $source
+
+The source file to copy.
+
+=item $destination
+
+The destination file to copy to.
+
+=back
+
+=cut
+
+sub copy_file {
+  my ($source, $destination) = @_;
+  system 'cp', '-v', $source, $destination;
+}
+
+###
+### Check whether we want a shared installation or a user local installation.
+###
 my $shared_install = boolify(prompt(<<'EOS', 'no'));
 Installing a shared instance may require sudo access and prompt for your password once or more during setup.
 
 Install a shared instance?
 EOS
 
-# Ensure that target installation directory exists
+###
+### Ensure that the target installation directory exists.
+###
 if ($shared_install) {
   $cfg{MILTON_BASE} = '/opt/milton';
   system 'sudo', 'mkdir', '-p', $cfg{MILTON_BASE};
@@ -101,9 +193,15 @@ if ($shared_install) {
   system 'mkdir', '-p', "$cfg{MILTON_BASE}";
 }
 
+###
+### Make sure that we can load libraries from the target installation directory.
+###
 eval "use lib '$cfg{MILTON_BASE}/lib/perl5'";
+$ENV{PERL5LIB} = "$cfg{MILTON_BASE}/lib/perl5:$ENV{PERL5LIB}";
 
-# Determine the available perl module installation methods
+###
+### Determine the available perl library installation methods for perl dependencies.
+###
 my $available_methods = detect_module_installation_methods();
 my $method_list = join("\n    ", map { $_->name() } sort { $a->name cmp $b->name } @$available_methods);
 
@@ -126,8 +224,9 @@ EOS
   }
 }
 
-
-# Add fallback perl module installation methods
+###
+### Add fallback perl module installation methods - cpanm and cpan, if available.
+###
 push @methods, find_by_name('cpanm', $available_methods) unless $preferred_method eq 'cpanm';
 push @methods, find_by_name('cpan', $available_methods) unless $preferred_method eq 'cpan';
 
@@ -137,9 +236,13 @@ foreach my $method (@methods) {
 
 print "Perl installation methods: ". join(', ', map { $_->name() } @methods). "\n";
 
-# Check perl version check strategy (ignore/warn/install)
+###
+### TODO: Ask which perl version check strategy to use - ignore/warn/install.
+###
 
-# Check dependencies (installed and/or version appropriate)
+###
+### Ensure that all perl dependencies are installed.
+###
 foreach my $dependency (@$DEPS) {
   METHOD: foreach my $method (@methods) {
     print 'Checking dependency: '.$dependency->{name}.'...  ';
@@ -156,7 +259,23 @@ foreach my $dependency (@$DEPS) {
   }
 }
 
-# Install Milton Software
+###
+### Set up config.mk if not already present.
+###
+if ( ! -f 'config.mk' ) {
+  if ($shared_install) {
+    copy_file 'config.mk.global', 'config.mk';
+  } else {
+    copy_file 'config.mk.local', 'config.mk';
+  }
+}
+
+###
+### Install Milton Software
+###
+system 'make', 'install';
+
+
 
 # Write the .miltonenv file
 

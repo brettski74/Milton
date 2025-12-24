@@ -14,5 +14,7 @@ BINDIR ?= $(PREFIX)/bin
 # Standard locations: lib/perl5, lib, perl5
 LIBDIR ?= $(PREFIX)/lib/perl5
 
+SHAREDIR ?= $(PREFIX)/share/milton
+
 # Configuration directory (under CONFIG_PREFIX)
 CONFIGDIR ?= $(CONFIG_PREFIX)/milton

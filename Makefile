@@ -107,4 +107,4 @@ help:
 	@echo "  BINDIR=$(BINDIR)"
 	@echo "  LIBDIR=$(LIBDIR)"
 	@echo "  CONFIGDIR=$(CONFIGDIR)"
-	@echo "  SHAREDIR=$(SHAREDIR)" 
+	@echo "  SHAREDIR=$(SHAREDIR)"

@@ -32,15 +32,40 @@ You will also need to match the resistance of your hotplate with your power supp
 
 ## Installation
 
-Milton releases come in three flavours:
+Milton releases will come as a tarball that can be installed either as a user local installation, or as a global shared installation that can be used by multiple users. One reasons you might want to do this is if you have multiple hotplates connected to a host. One simple way of handling this is to simply run a separate instance under separate users, each with their own configuration.
 
-* a .deb package for Debian-derived distributions or anyone using the apt/dpkg package management system
-* a .zst package for Arch-linux and derived distributions or anyone using the pacman package management system
-* a .tar.xz file that you can just extract into your location of choice.
+You can also install the latest source by cloning the git repo and running the installation from your cloned sources. While this is the only option currently, once release tarballs start becoming available, those should be the preferred source of your installation. Release tarballs should be relatively bug free, working releases that are stable and reliable. The git repo will contain the latest code, but may include bugs and other issues from time to time.
 
-Simply download the flavour of package that you prefer. For the .deb or .zst packages, you can just use dpkg or pacman to install it. I don't think dpkg will automatically download and install the dependencies for you. Maybe there's a way to do that using apt - not sure at this point.
+Installation process is mostly the same. For the tarball releases, you must first extract the contents of the tarball:
 
-TODO: More installation and setup information required here!
+```
+xz -dc milton-<version>.tar.xz | tar xv
+```
+
+Now chdir to the base directory of your release (or git repo). For example:
+
+```
+cd milton-<version>
+```
+
+You should see a file called install.sh in your current directory. Run it using:
+
+```
+bash install.sh
+```
+
+It should prompt your for a few things. If you are doing a global shared installation and/or using your system package manager to install perl dependencies, you may need to provide your password for sudo. If you don't trust me enough to let the installation script run sudo, then do a user local installation and use cpan or cpanm for installating your perl dependencies and it shouldn't be required. Alternatively, you can manually install all the perl dependencies and setup the required directories prior to running the installation.
+
+The installation script doesn't quite do everything yet. Some of the things that you may need to still handle after the installation script runs include, but are not limtied to:
+
+1. Copy configuration files into $HOME/.config/milton.
+1. Create an interface configuration file for your particular power supply.
+1. Set the $MILTON_BASE environment variable in your .profile or .bashrc.
+1. Add $MILTON_BASE/bin to the PATH and add it to your .profile or .bashrc.
+1. Add $MILTON_BASE/lib/perl5 to your PERL5LIB and add it to your .profile or .bashrc.
+1. Run a calibration cycle for your hotplate.
+
+I'll update this list as I find more and as I update the installation scripts to handle most of this automatically.
 
 ## Using Milton
 

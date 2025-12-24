@@ -63,6 +63,8 @@ The installation script doesn't quite do everything yet. Some of the things that
 1. Set the $MILTON_BASE environment variable in your .profile or .bashrc.
 1. Add $MILTON_BASE/bin to the PATH and add it to your .profile or .bashrc.
 1. Add $MILTON_BASE/lib/perl5 to your PERL5LIB and add it to your .profile or .bashrc.
+1. Create hybrid-pi-gains.yaml and al-resistance.yaml files - TODO!
+1. Calibration requires a calibration device. TODO - RTD or Passthrough!
 1. Run a calibration cycle for your hotplate.
 
 I'll update this list as I find more and as I update the installation scripts to handle most of this automatically.

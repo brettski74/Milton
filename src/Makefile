@@ -48,6 +48,3 @@ install-tools: $(REL_TOOL_SCRIPTS)
 clean:
 	@echo "Cleaning CLI components..." 
 	rm -f $(REL_PERL_SCRIPTS) $(REL_TOOL_SCRIPTS) $(REL_PERL_MODULES)
-
-reallyclean: clean
-	rm -rf $(HOME)/.config/milton $(HOME)/.local/milton

@@ -108,3 +108,6 @@ help:
 	@echo "  LIBDIR=$(LIBDIR)"
 	@echo "  CONFIGDIR=$(CONFIGDIR)"
 	@echo "  SHAREDIR=$(SHAREDIR)"
+
+reallyclean: clean
+	rm -rf $(HOME)/.config/milton $(HOME)/.local/milton

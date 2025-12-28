@@ -3,14 +3,10 @@
 use strict;
 use warnings qw(all -uninitialized);
 
-use Milton::Config::Utils qw(getReflowProfiles getDeviceNames);
+use FindBin qw($Bin);
+use lib "$Bin/../lib/perl5";
 
-# Make sure that we can find our libraries.
-BEGIN {
-  my $path = __FILE__;
-  $path =~ s/\/[^\/]*$/\/lib/;
-  unshift @INC, $path;
-}
+use Milton::Config::Utils qw(getReflowProfiles getDeviceNames);
 
 use Mojolicious::Lite;
 use MiltonUI::CommandExecutor;
@@ -36,20 +32,12 @@ my $command_executor = MiltonUI::CommandExecutor->new();
 # Serve static files from shared/public directories (user/local/system) with app-local as fallback
 app->static->paths([
   $ENV{MILTON_BASE} . '/share/milton/webui/public',
-  $ENV{HOME} . '/.local/milton/share/milton/webui/public',
-  '/opt/milton/share/milton/webui/public',
-  '/usr/local/share/milton/webui/public',
-  '/usr/share/psc/webui/public',
   app->home->child('public'),
 ]);
 
 # Template search paths (user/local/system) with app-local as fallback
 app->renderer->paths([
   $ENV{MILTON_BASE} . '/share/milton/webui/templates',
-  $ENV{HOME} . '/.local/milton/share/milton/webui/templates',
-  '/opt/milton/share/milton/webui/templates',
-  '/usr/local/share/milton/webui/templates',
-  '/usr/share/milton/webui/templates',
   app->home->child('templates'),
 ]);
 

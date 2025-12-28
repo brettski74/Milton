@@ -2,6 +2,8 @@ package Milton::Config::Utils;
 
 use strict;
 use warnings qw(all -uninitialized);
+use FindBin qw($Bin);
+use File::Spec;
 
 use Exporter qw(import);
 our @EXPORT_OK = qw(getReflowProfiles getDeviceNames findDeviceFile getYamlParser standardSearchPath);
@@ -11,6 +13,11 @@ use YAML::PP::Schema::Include;
 use Scalar::Util qw(reftype);
 
 use Milton::Config qw(getYamlParser);
+
+# Ensure that $MILTON_BASE is set if not already.
+if ( ! $ENV{MILTON_BASE} ) {
+  $ENV{MILTON_BASE} = File::Spec->catdir($Bin, '..');
+}
 
 =head1 NAME
 
@@ -113,10 +120,7 @@ sub standardSearchPath {
   Milton::Config->addSearchDir(split(/:/, $ENV{MILTON_CONFIG_PATH})
                                          , '.'
                                          , "$ENV{HOME}/.config/milton"
-                                         , "$ENV{HOME}/.local/milton/share/milton"
-                                         , "$ENV{HOME}/.local/share/milton"           # Legacy
-                                         , '/usr/local/share/milton'
-                                         , '/usr/share/milton'
+                                         , "$ENV{MILTON_BASE}/share/milton"
                                          );
 }
 

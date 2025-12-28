@@ -1,5 +1,8 @@
 #!/usr/bin/perl
 
+use FindBin qw($Bin);
+use lib "$Bin/../lib/perl5";
+
 use AnyEvent;
 use Term::ReadKey;
 use Getopt::Long qw(:config no_ignore_case bundling require_order);

@@ -4,15 +4,15 @@
 # Base directory for executables
 PREFIX ?= $(HOME)/.local/milton
 
-# Base directory for configuration files
-CONFIG_PREFIX ?= $(HOME)/.config
-
 # Executable directory (under PREFIX)
 BINDIR ?= $(PREFIX)/bin
 
 # Library directory for Perl modules (under PREFIX)
 # Standard locations: lib/perl5, lib, perl5
 LIBDIR ?= $(PREFIX)/lib/perl5
+
+# Ensure that we can find perl libraries when compiling perl scripts/modules
+PERL5LIB := $(LIBDIR):$(PERL5LIB)
 
 # Shared configuration directory
 SHAREDIR ?= $(PREFIX)/share/milton

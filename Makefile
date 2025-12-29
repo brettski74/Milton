@@ -81,11 +81,10 @@ help:
 	@echo "Configuration:"
 	@echo "  Edit config.mk to customize installation paths"
 	@echo "  PREFIX=$(PREFIX)"
-	@echo "  CONFIG_PREFIX=$(CONFIG_PREFIX)"
 	@echo "  BINDIR=$(BINDIR)"
 	@echo "  LIBDIR=$(LIBDIR)"
 	@echo "  SHAREDIR=$(SHAREDIR)"
-	@echo "  SHAREDIR=$(SHAREDIR)"
+	@echo "  PERL5LIB=$(PERL5LIB)"
 
 reallyclean: clean
 	rm -rf $(HOME)/.config/milton $(HOME)/.local/milton

@@ -12,7 +12,7 @@ BINDIR ?= $(PREFIX)/bin
 LIBDIR ?= $(PREFIX)/lib/perl5
 
 # Ensure that we can find perl libraries when compiling perl scripts/modules
-PERL5LIB := $(LIBDIR):$(PERL5LIB)
+PERL5LIB ::= $(LIBDIR):$(BASEDIR)/src:$(PERL5LIB)
 
 # Shared configuration directory
 SHAREDIR ?= $(PREFIX)/share/milton

@@ -13,6 +13,19 @@ sub new {
   my $self = $class->SUPER::new($config);
 }
 
+sub checkPortAccessibility {
+  my ($self, $port) = @_;
+
+  if (! -r $port) {
+    my $ls = `ls -l $port`;
+    chomp $ls;
+    $self->warning("Port $port is not readable: $ls");
+    return;
+  }
+
+  return 1;
+}
+
 sub _connect {
   my ($self) = @_;
 
@@ -34,6 +47,8 @@ sub _connect {
 
   foreach my $port (@ports) {
     next if !port_exists($port);
+
+    next if !$self->checkPortAccessibility($port);
 
     $self->info("Connecting to $port");
     my $serial = undef;

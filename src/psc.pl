@@ -5,7 +5,7 @@ use FindBin qw($Bin);
 use Path::Tiny;
 my $libdir;
 BEGIN {
-  my $libpath = path($Bin)->parent->parent->child('lib')->child('perl5');
+  my $libpath = path($Bin)->parent->child('lib')->child('perl5');
   $libdir = $libpath->stringify;
 };
 

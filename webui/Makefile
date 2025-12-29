@@ -42,14 +42,22 @@ $(TEMPLATES_DIR)/%: templates/% $(TEMPLATES_DIR)
 	@chmod $(TEMPLATE_PERMS) $@
 
 install: $(REL_PERL_MODULES) $(REL_PERL_SCRIPTS) $(REL_TEMPLATES) $(REL_IMAGES)
-	@echo "Web UI Installation Complete!"
+	@echo "################################################################################"
+	@echo "# Web UI installation complete!"
+	@echo "################################################################################"
 
 # Create installation directories
 install-dirs:
-	@echo "Creating Web UI installation directories..."
+	@echo "################################################################################"
+	@echo "# Creating Web UI installation directories..."
+	@echo "################################################################################"
 	@mkdir -p $(BINDIR) $(LIBDIR) $(TEMPLATES_DIR) $(IMAGES_DIR)
 
 # Clean up
 clean:
-	@echo "Cleaning Web UI components..." 
+	@echo "################################################################################"
+	@echo "# Cleaning Web UI components..." 
+	@echo "################################################################################"
 	rm -f $(REL_PERL_MODULES) $(REL_PERL_SCRIPTS)
+
+reallyclean: clean

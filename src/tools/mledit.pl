@@ -97,9 +97,11 @@ foreach my $file (@ARGV) {
         } elsif ($choice eq 'R') {
           copy_file("$target.$$", $target);
         }
-        unlink "$target.$$";
       }
+
     }
   }
+
+  unlink "$target.$$" if -e "$target.$$";
 }
 

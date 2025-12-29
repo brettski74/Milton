@@ -65,8 +65,12 @@ cutoff-disabled: 0
 limits: !include controller-limits.yaml
 
 # Calibration data - best to load from a separate file so that you can easily update via calibration.
-calibration: !include al-resistance.yaml
+# Optional load to support initial installation, but will be generated during calibration runs or can
+# be manually set up based on manual calibration cycles.
+calibration: !include hotplate-resistance.yaml?
 
 # Predictor configuration - typically loaded from a separate file to allow for easier update during
 # calibration and use by different controllers.
+# Default values should probably work ok for typical 100x100mm hotplates, but may need tuning to account
+# for differences in your assembly and power supply response.
 predictor: !include banded-lpf.yaml

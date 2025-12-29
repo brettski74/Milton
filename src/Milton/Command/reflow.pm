@@ -7,7 +7,7 @@ use Carp qw(croak);
 use IO::File;
 use Milton::Math::Util qw(setDebug setDebugWriter);
 use Milton::Config qw(getYamlParser);
-use Milton::Config::Utils qw(resolveConfigPath);
+use Milton::Config::Utils qw(resolveWritableConfigPath);
 
 use Exporter qw(import);
 our @EXPORT_OK = qw(buildProfile);

@@ -6,7 +6,7 @@ use FindBin qw($Bin);
 use Path::Tiny;
 
 use Exporter qw(import);
-our @EXPORT_OK = qw(getReflowProfiles getDeviceNames findDeviceFile getYamlParser standardSearchPath resolveConfigPath);
+our @EXPORT_OK = qw(getReflowProfiles getDeviceNames findDeviceFile getYamlParser standardSearchPath resolveConfigPath resolveWritableConfigPath);
 
 use YAML::PP;
 use YAML::PP::Schema::Include;
@@ -71,9 +71,78 @@ sub findDeviceFile {
   return $name;
 }
 
+=head2 resolveConfigPath($path, $optional)
+
+Resolve the path to a configuration file.
+
+This method tries to resolve the path to an existing configuration file using the standard configuration
+search path. This method should be used when intending to read the configuration file that is found.
+
+=over
+
+=item $path
+
+The path to the configuration file to resolve. Absolute paths are allowed and will eb returned unchanged.
+Relative paths are resolved using the current configuration file search path.
+
+=item $optional
+
+Defaults to false.
+
+If true, a file with the corresponding path does not need to exist and if the file is not found, relative
+paths will be referenced to the first directory in the serach path, consistent with the behaviour of the
+resolveWritableConfigPath function.
+
+If false, an error will be thrown if the file is not found.
+
+=item Return Value
+
+The fully qualified path to the configuration file that will be read.
+
+=back
+
+=cut
+
 sub resolveConfigPath {
+  my ($path, $optional) = @_;
+  my $fullpath = Milton::Config::_resolve_file_path($path, $optional);
+
+  return $fullpath->stringify;
+}
+
+=head2 resolveWritableConfigPath($path)
+
+Resolve the path to a configuration file that will be written by the current user.
+
+The configuration file framework assumes that the first directory in the search path is the user's custom
+configuration directory, so this function will always resolve relative paths into this directory, regardless
+of whether the file already exists or not. This function should only be used in cases where the intention
+is to write configuration out to the resolved path.
+
+=over
+
+=item $path
+
+The relative path to which the configuration will be written. Absolute paths are not permitted here and will
+result in an error.
+
+=item Return Value
+
+The fully qualified path to the configuration file that will be written.
+
+=back
+
+=cut
+
+sub resolveWritableConfigPath {
   my ($path) = @_;
-  my $fullpath = Milton::Config::_resolve_file_path($path);
+  my @search_path = Milton::Config::searchPath();
+
+  if ($path =~ /^\//) {
+    croak "Absolute paths are not permitted for writable configuration files: $path";
+  }
+
+  my $fullpath = path($search_path[0], $path);
 
   return $fullpath->stringify;
 }

@@ -3,6 +3,7 @@ package Milton::Command;
 use Getopt::Long qw(GetOptionsFromArray :config no_ignore_case bundling require_order);
 use Hash::Merge;
 use IO::File;
+use Path::Tiny;
 use Carp qw(croak);
 use Scalar::Util qw(reftype);
 use Milton::ValueTools qw(boolify checkMinimum timestamp);
@@ -164,6 +165,10 @@ sub replaceFile {
   if (-f $filename) {
     rename $filename, "$filename." . $timestamp;
   }
+
+  # Ensure that the path exists
+  my $path = path($filename)->parent;
+  $path->mkpath if !$path->exists;
 
   my $fh = IO::File->new($filename, 'w') || croak "Failed to open $filename: $!";
   if ($filename =~ /\.yaml$/) {

@@ -171,7 +171,9 @@ sub postprocess {
     if ($filename !~ /\.yaml$/) {
       $filename .= '.yaml';
     }
-    $filename = resolveConfigPath($filename);
+    
+    # Remember optional flag to allow for non-existent files during initial setup and calibration.
+    $filename = resolveWritableConfigPath($filename);
 
     my $fh = $self->replaceFile($filename);
     my @calibration = $self->{controller}->getTemperaturePoints;
@@ -196,7 +198,8 @@ sub postprocess {
     if ($filename !~ /\.yaml$/) {
       $filename .= '.yaml';
     }
-    $filename = resolveConfigPath($filename);
+    # Remember optional flag to allow for non-existent files during initial setup and calibration.
+    $filename = resolveWritableConfigPath($filename);
 
     my $csvfile = $filename;
     $csvfile =~ s/\.yaml$/.csv/;

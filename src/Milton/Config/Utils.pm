@@ -4,6 +4,7 @@ use strict;
 use warnings qw(all -uninitialized);
 use FindBin qw($Bin);
 use Path::Tiny;
+use Carp qw(croak);
 
 use Exporter qw(import);
 our @EXPORT_OK = qw(getReflowProfiles getDeviceNames findDeviceFile getYamlParser standardSearchPath resolveConfigPath resolveWritableConfigPath);

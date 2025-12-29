@@ -1,0 +1,38 @@
+###
+# Standard configuration file for the Kiprim DC310S power supply.
+#
+# Specifications:
+#   Max Output Voltage: 32V
+#   Max Output Current: 10.2A
+#   Max Output Power:   300W
+#
+###
+package: Milton::Interface::SCPISingle
+
+# The UDP6721 has USB serial ports operating at 115200 baud.
+# This should pick up all ports matching /dev/ttyUSB<number>
+port: /dev/ttyUSB[0-9]*
+
+# The id string should being with Uni-Trend UDP6721
+id-pattern: ^KIPRIM DC310S
+
+baudrate: 115200
+
+# Sane current limits within spec
+current:
+  maximum: 10.1
+  minimum: 0.5
+  measurable: 0.1
+
+# Sane voltage limits within spec
+voltage:
+  maximum: 31.9
+  minimum: 2
+
+# Sane power limits within spec
+power:
+  maximum: 299
+  minimum: 1
+
+calibration: !include dc310s-cal.yaml?
+

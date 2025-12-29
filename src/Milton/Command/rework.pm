@@ -5,7 +5,7 @@ use warnings qw(all -uninitialized);
 
 use Time::HiRes qw(sleep);
 
-use base qw(Milton::Command);
+use base qw(Milton::Command::ManualTuningCommand);
 use Carp;
 
 =head1 NAME
@@ -125,34 +125,34 @@ sub keyEvent {
   return $status;
 }
 
-sub timerEvent {
-    my ($self, $status) = @_;
+sub processTimerEvent {
+  my ($self, $status) = @_;
 
-    $self->{controller}->getTemperature($status);
+  $self->{controller}->getTemperature($status);
 
-    # If we've passed the set duration, then power off and exit.
-    if ($self->{'end-time'} && $status->{now} > $self->{'end-time'}) {
-      $self->{interface}->on(0);
-      $self->beep;
-      return;
-    }
+  # If we've passed the set duration, then power off and exit.
+  if ($self->{'end-time'} && $status->{now} > $self->{'end-time'}) {
+    $self->{interface}->on(0);
+    $self->beep;
+    return;
+  }
 
-    $status->{'now-temperature'} = $self->{profile}->estimate($status->{now});
-    $status->{'then-temperature'} = $self->{profile}->estimate($status->{now} + $status->{period});
+  $status->{'now-temperature'} = $self->{profile}->estimate($status->{now});
+  $status->{'then-temperature'} = $self->{profile}->estimate($status->{now} + $status->{period});
 
-    # Anticipation!
-    my $anticipation = $self->{controller}->getAnticipation;
-    if ($anticipation) {
-      my $ant_period = ($anticipation + 1) * $status->{period};
-      $status->{'anticipate-temperature'} = $self->{profile}->estimate($status->{now} + $ant_period);
-      $status->{'anticipate-period'} = $ant_period;
-    }
+  # Anticipation!
+  my $anticipation = $self->{controller}->getAnticipation;
+  if ($anticipation) {
+    my $ant_period = ($anticipation + 1) * $status->{period};
+    $status->{'anticipate-temperature'} = $self->{profile}->estimate($status->{now} + $ant_period);
+    $status->{'anticipate-period'} = $ant_period;
+  }
 
-    my $power = $self->{controller}->getPowerLimited($status);
-    $status->{'set-power'} = $power;
-    $self->{interface}->setPower($power);
+  my $power = $self->{controller}->getPowerLimited($status);
+  $status->{'set-power'} = $power;
+  $self->{interface}->setPower($power);
 
-    return $status;
+  return $status;
 }
 
 1;

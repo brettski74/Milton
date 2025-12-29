@@ -139,27 +139,14 @@ sub new {
   $config->{'char-timeout'} //= 1;
   $config->{'response-timeout'} //= 10;
 
+  if ($config->{'id-pattern'}) {
+    $config->{'id-pattern-re'} = qr/$config->{'id-pattern'}/;
+  }
+
   my $self = $class->SUPER::new($config);
 
   return $self;
 }
-
-#sub _connect {
-#  my ($self) = @_;
-
-#  my $port = $self->{port} || croak ref($self) .': port must be specified.';
-#  $self->info("Connecting to $port");
-#  my $serial = Device::SerialPort->new($port) || croak ref($self) .': could not open serial port ' . $port . ': ' . $!;
-
-#  $serial->baudrate($self->{'baudrate'});
-#  $serial->databits($self->{'databits'});
-#  $serial->parity($self->{'parity'});
-#  $serial->stopbits($self->{'stopbits'});
-#  $serial->handshake($self->{'handshake'});
-#  $serial->read_char_time($self->{'char-timeout'});
-#  $serial->read_const_time($self->{'response-timeout'});
-
-#  $self->{serial} = $serial;
 
 sub _initialize {
   my ($self) = @_;
@@ -173,9 +160,32 @@ sub _initialize {
   $on = ($on eq 'ON') ? 1 : 0;
   my ($volts, $amps, $power) = $self->_sendCommand('MEAS:ALL?');
 
-  $self->info("Connected to $self->{make} $self->{model} $self->{'serial-number'} $self->{firmware} on $self->{port}");
+  $self->info("Connected to $self->{make} $self->{model} $self->{'serial-number'} $self->{firmware} on $self->{'connected-port'}");
 
   return ($vset, $iset, $on, $volts, $amps);
+}
+
+sub _identify {
+  my ($self) = @_;
+
+  if ($self->{'id-pattern-re'}) {
+    my ($make, $model, $serialNumber, $firmware) = $self->_sendCommand('*IDN?');
+    my $id = "$make $model $serialNumber $firmware";
+    if ($id =~ $self->{'id-pattern-re'}) {
+      $self->{'id-string'} = $id;
+      return $id;
+    }
+
+    $self->debug(1, "Device $id does not match pattern $self->{'id-pattern'}");
+    return;
+  }
+
+  return 1;
+}
+
+sub identifyFailedMessage {
+  my ($self) = @_;
+  return "could not find a power supply matching pattern $self->{'id-pattern'} connected to $self->{port} at $self->{baudrate} baud";
 }
 
 sub deviceName {
@@ -183,19 +193,6 @@ sub deviceName {
 
   return "$self->{make} $self->{model}";
 }
-
-#sub _disconnect {
-#  my ($self) = @_;
-
-#  if ($self->{serial}) {
-#    $self->on(0);
-
-#    $self->{serial}->close();
-#    $self->{serial} = undef;
-#  }
-
-#  return $self;
-#}
 
 sub _sendCommand {
   my ($self, $command) = @_;

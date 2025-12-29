@@ -11,7 +11,7 @@ BASEDIR=../
 TEST_DIRS=$(shell find . -type d -name t)
 
 # Perl scripts to install
-PERL_SCRIPTS=psc.pl psc-genconfig.pl
+PERL_SCRIPTS=psc.pl milton-setup.pl
 TOOL_SCRIPTS=tools/csv2csv.pl tools/csv2perl.pl
 
 REL_PERL_SCRIPTS=$(patsubst %.pl,$(BINDIR)/%,$(PERL_SCRIPTS))

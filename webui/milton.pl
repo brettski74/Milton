@@ -4,7 +4,18 @@ use strict;
 use warnings qw(all -uninitialized);
 
 use FindBin qw($Bin);
-use lib "$Bin/../lib/perl5";
+
+use Path::Tiny;
+my $libdir;
+BEGIN {
+  my $libpath = path($Bin)->parent->parent->child('lib')->child('perl5');
+  $libdir = $libpath->stringify;
+};
+
+use lib $libdir;
+
+use strict;
+use warnings qw(all -uninitialized);
 
 use Milton::Config::Utils qw(getReflowProfiles getDeviceNames);
 
@@ -87,6 +98,7 @@ group {
                                                          , description => 'Cold resistance:temperature in Ω or mΩ and °C (optional)'
                                                          }
                                                        , $PARAM_AMBIENT
+                                                       , $PARAM_DEVICE
                                                        , { name => 'resetCalibration'
                                                          , type => 'boolean'
                                                          , required => 0
@@ -194,6 +206,7 @@ group {
                                                          , description => 'Disable safety limits (optional)'
                                                          , order => 8
                                                          }
+                                                       , $PARAM_DEVICE
                                                        ]
                                        }
                                      , { name => 'rth'

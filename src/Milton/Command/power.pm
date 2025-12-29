@@ -5,7 +5,7 @@ use warnings qw(all -uninitialized);
 
 use Time::HiRes qw(sleep);
 
-use base qw(Milton::Command);
+use base qw(Milton::Command::ManualTuningCommand);
 use Milton::Math::SteadyStateDetector;
 use Carp;
 
@@ -30,17 +30,17 @@ turned off.
 =cut
 
 sub new {
-    my ($class, $config, $interface, $controller, @args) = @_;
+  my ($class, $config, $interface, $controller, @args) = @_;
 
-    my $self = $class->SUPER::new($config, $interface, $controller, @args);
+  my $self = $class->SUPER::new($config, $interface, $controller, @args);
 
-    $self->{power} = $self->{args}->[0] || $config->{power}->{default};
+  $self->{power} = $self->{args}->[0] || $config->{power}->{default};
 
-    croak "Power level not specified." unless $self->{power};
-    croak "Power level must be a positive number: $self->{power}" unless $self->{power} > 0;
-    croak "Power level is crazy high: $self->{power}" unless $self->{power} <= $interface->{power}->{maximum};
+  croak "Power level not specified." unless $self->{power};
+  croak "Power level must be a positive number: $self->{power}" unless $self->{power} > 0;
+  croak "Power level is crazy high: $self->{power}" unless $self->{power} <= $interface->{power}->{maximum};
 
-    return $self;
+  return $self;
 }
 
 =head1 OPTIONS
@@ -107,41 +107,41 @@ sub keyEvent {
   return $status;
 }
 
-sub timerEvent {
-    my ($self, $status) = @_;
+sub processTimerEvent {
+  my ($self, $status) = @_;
 
-    $self->{controller}->getTemperature($status);
+  $self->{controller}->getTemperature($status);
 
-    # We don't need it for control, but getting the predicted temperature is useful for web UI display and data logging.
-    my $predictor = $self->{controller}->getPredictor;
-    if ($predictor) {
-      $predictor->predictTemperature($status);
-    }
-    $status->{'set-power'} = $self->{power};
+  # We don't need it for control, but getting the predicted temperature is useful for web UI display and data logging.
+  my $predictor = $self->{controller}->getPredictor;
+  if ($predictor) {
+    $predictor->predictTemperature($status);
+  }
+  $status->{'set-power'} = $self->{power};
 
-    # If we've passed the set duration, then power off and exit.
-    if ($self->{duration} && $status->{now} > $self->{duration}) {
-      $self->{interface}->on(0);
+  # If we've passed the set duration, then power off and exit.
+  if ($self->{duration} && $status->{now} > $self->{duration}) {
+    $self->{interface}->on(0);
+    $self->beep;
+    return;
+  }
+
+  if ($self->{detector}) {
+    $status->{'steady-state-count'} = $self->{detector}->{count};
+    $status->{'filtered-delta'} = $self->{detector}->{'filtered-delta'};
+
+    if ($self->{detector}->check($status->{resistance})) {
+      $self->{interface}->off;
       $self->beep;
       return;
     }
+  }
 
-    if ($self->{detector}) {
-      $status->{'steady-state-count'} = $self->{detector}->{count};
-      $status->{'filtered-delta'} = $self->{detector}->{'filtered-delta'};
+  my $power = $self->{controller}->getPowerLimited($status);
 
-      if ($self->{detector}->check($status->{resistance})) {
-        $self->{interface}->off;
-        $self->beep;
-        return;
-      }
-    }
+  $self->{interface}->setPower($power);
 
-    my $power = $self->{controller}->getPowerLimited($status);
-
-    $self->{interface}->setPower($power);
-
-    return $status;
+  return $status;
 }
 
 1;

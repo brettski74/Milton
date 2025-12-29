@@ -155,7 +155,14 @@ sub new {
 
   my $limits = $config->{limits};
   if ($limits && exists $limits->{'power-limits'}) {
+    my ($pmin, $pmax) = $interface->getPowerLimits;
+
     foreach my $point (@{$limits->{'power-limits'}}) {
+      if ($point->{power} eq 'psmax') {
+        $point->{power} = $pmax;
+      } elsif ($point->{power} eq 'psmin') {
+        $point->{power} = $pmin;
+      }
       $self->setPowerLimit($point->{temperature}, $point->{power});
     }
   }

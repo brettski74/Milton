@@ -16,10 +16,14 @@ sub new {
   return $self;
 }
 
+sub options {
+  return qw(imax=f vmax=f);
+}
+
 sub _handleSignals {
   my ($self) = @_;
   my $handler = sub {
-    $self->{interface}->off(1);
+    $self->{interface}->on(0);
     exit 0;
   };
 
@@ -89,10 +93,18 @@ sub _calibrateCurrent {
   my ($self, $status) = @_;
   my $interface = $self->{interface};
   my $samples = $self->{config}->{samples};
-  my ($minCurrent, $maxCurrent) = $interface->getCurrentLimits;
+  my ($vmin, $vmax) = $interface->getVoltageLimits;
+  my ($imin, $imax) = $interface->getCurrentLimits;
   my $points = [];
 
-  for (my $current = $maxCurrent; $current >= $minCurrent; $current -= ($current > 2 ? 1 : 0.2)) {
+  if ($self->{imax}) {
+    $imax = $self->{imax};
+  }
+
+  for (my $current = $imax; $current >= $imin; $current -= ($current > 2 ? 1 : 0.2)) {
+    # Set the voltage to the maximum value to ensure we can hit the higest currents
+    $interface->setVoltage($vmax);
+
     # Put the power supply in constant current mode
     $interface->setCurrent($current);
 
@@ -100,7 +112,16 @@ sub _calibrateCurrent {
     for (my $i=0; $i<$samples; $i++) {
       sleep(1.0);
       $interface->poll($status);
-      $sum += $status->{current};
+
+      # Test if we're in constant current mode by checking whether the output current is closer to the set current or max voltage
+      if (abs($status->{current} - $current) > abs($status->{voltage} - $vmax)) {
+        $current--;
+        $i = -1;
+        $sum = 0;
+        $interface->setCurrent($current);
+      } else {
+        $sum += $status->{current};
+      }
     }
 
     $self->beep;
@@ -108,7 +129,7 @@ sub _calibrateCurrent {
     push(@$points, $point);
   }
 
-  $interface->off(1);
+  $interface->on(0);
 
   return $points;
 }
@@ -117,12 +138,19 @@ sub _calibrateVoltage {
   my ($self, $status) = @_;
   my $interface = $self->{interface};
   my $samples = $self->{config}->{samples};
-  my ($minVoltage, $maxVoltage) = $interface->getVoltageLimits;
-  my ($minCurrent, $maxCurrent) = $interface->getCurrentLimits;
+  my ($vmin, $vmax) = $interface->getVoltageLimits;
+  my ($imin, $imax) = $interface->getCurrentLimits;
 
   my $points = [];
 
-  for (my $voltage = $maxVoltage; $voltage >= $minVoltage; $voltage -= ($voltage > 2 ? 1 : 0.2)) {
+  if ($self->{vmax}) {
+    $vmax = $self->{vmax};
+  }
+
+  for (my $voltage = $vmax; $voltage >= $vmin; $voltage -= ($voltage > 2 ? 1 : 0.2)) {
+    # Set the current to the maximum value to ensure we can hit the highest voltages  
+    $interface->setCurrent($imax);
+
     $interface->setVoltage($voltage);
     my $sum = 0;
     for (my $i=0; $i<$samples; $i++) {
@@ -130,7 +158,7 @@ sub _calibrateVoltage {
       $interface->poll($status);
 
       # Test if we're in constant current mode by checking whether the output current is closer to the set voltage or max current
-      if (abs($status->{current} - $maxCurrent) < abs($status->{voltage} - $voltage)) {
+      if (abs($status->{current} - $imax) < abs($status->{voltage} - $voltage)) {
         $voltage--;
         $i = -1;
         $sum = 0;
@@ -145,7 +173,7 @@ sub _calibrateVoltage {
     push(@$points, $point);
   }
 
-  $interface->off(1);
+  $interface->on(0);
 
   return $points;
 }
@@ -153,7 +181,7 @@ sub _calibrateVoltage {
 sub DESTROY {
   my ($self) = @_;
 
-  $self->{interface}->off(1);
+  $self->{interface}->on(0);
 }
 
 1;

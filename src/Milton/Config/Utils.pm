@@ -3,10 +3,10 @@ package Milton::Config::Utils;
 use strict;
 use warnings qw(all -uninitialized);
 use FindBin qw($Bin);
-use File::Spec;
+use Path::Tiny;
 
 use Exporter qw(import);
-our @EXPORT_OK = qw(getReflowProfiles getDeviceNames findDeviceFile getYamlParser standardSearchPath);
+our @EXPORT_OK = qw(getReflowProfiles getDeviceNames findDeviceFile getYamlParser standardSearchPath resolveConfigPath);
 
 use YAML::PP;
 use YAML::PP::Schema::Include;
@@ -16,7 +16,7 @@ use Milton::Config qw(getYamlParser);
 
 # Ensure that $MILTON_BASE is set if not already.
 if ( ! $ENV{MILTON_BASE} ) {
-  $ENV{MILTON_BASE} = File::Spec->catdir($Bin, '..');
+  $ENV{MILTON_BASE} = path($Bin, '..')->realpath->stringify;
 }
 
 =head1 NAME
@@ -71,6 +71,13 @@ sub findDeviceFile {
   return $name;
 }
 
+sub resolveConfigPath {
+  my ($path) = @_;
+  my $fullpath = Milton::Config::_resolve_file_path($path);
+
+  return $fullpath->stringify;
+}
+
 sub findConfigFilesByPath {
   my ($path, $validate) = @_;
 
@@ -118,9 +125,8 @@ sub findConfigFilesByPath {
 
 sub standardSearchPath {
   Milton::Config->addSearchDir(split(/:/, $ENV{MILTON_CONFIG_PATH})
-                                         , '.'
                                          , "$ENV{HOME}/.config/milton"
-                                         , "$ENV{MILTON_BASE}/share/milton"
+                                         , "$ENV{MILTON_BASE}/share/milton/config"
                                          );
 }
 
@@ -130,7 +136,7 @@ sub getConfigPath {
   Milton::Config->clearSearchPath();
   Milton::Config::Utils::standardSearchPath();
   my $config = Milton::Config->new($filename);
-  return $config->getPath(@keys);
+  return $config->getPath(@keys)->{filename};
 }
 
 sub _readConfigMetadata {

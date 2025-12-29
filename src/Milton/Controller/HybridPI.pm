@@ -485,12 +485,13 @@ sub new {
 sub description {
   my ($self) = @_;
 
-  return sprintf('HybridPI (ff-gain: %.3f, kp: %.3f, ki: %.3f, kaw: %.3f, anticipation: %d)'
+  return sprintf('HybridPI (ff-gain: %.3f, kp: %.3f, ki: %.3f, kaw: %.3f, anticipation: %d, control-tau: %.1f)'
                , $self->{'feed-forward-gain'}
                , $self->{gains}->{kp}
                , $self->{gains}->{ki}
                , $self->{gains}->{kaw}
                , $self->{'anticipation'}
+               , $self->{'control-tau'}
                );
 }
 
@@ -566,6 +567,14 @@ sub getRequiredPower {
   }
 
   $self->{integral} = $integral;
+
+  if ($self->{'control-tau'}) {
+    if ($self->{'last-power'}) {
+      my $alpha = $period / ($period + $self->{'control-tau'});
+      $power_sat = $power_sat * $alpha + $self->{'last-power'} * (1-$alpha);
+    }
+    $self->{'last-power'} = $power_sat;
+  }
 
   return $power_sat;
 }

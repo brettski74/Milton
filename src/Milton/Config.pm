@@ -26,7 +26,9 @@ use Clone;
 use Exporter qw(import);
 our @EXPORT_OK = qw(getYamlParser);
 
-my @search_path = ( '.' );
+use Milton::Config::Include;
+
+my @search_path = ();
 
 my %path_cache = ();
 
@@ -81,11 +83,11 @@ sub _load_file {
 
   my $ypp = getYamlParser();
 
-  my $depth = _path_push($pathstring);
+  my $depth = _path_push($filename);
   my $result = $ypp->load_file($pathstring);
   _path_pop($depth);
 
-  $path_cache{refaddr($result)} = $pathstring;
+  $path_cache{refaddr($result)} = { fullpath => $pathstring, filename => $filename };
   
   return $result;
 }
@@ -105,7 +107,7 @@ sub _path_peek {
   return $path_stack[-1];
 }
 
-sub _resolve_child_filename {
+sub _resolve_child_path {
   my ($filename) = @_;
 
   if ($filename =~ /^\//) {
@@ -115,14 +117,9 @@ sub _resolve_child_filename {
   croak "Path stack is empty" unless scalar @path_stack;
 
   my $parent = path(_path_peek())->parent;
-  if ($parent->is_dir) {
-    my $child = $parent->child($filename);
-    if ($child->is_file) {
-      return $child->stringify;
-    }
-  }
+  my $child = $parent->child($filename);
 
-  return _resolve_file_path($filename);
+  return $child->stringify;
 }
 
 sub _path_pop {
@@ -145,8 +142,12 @@ Resolve a filename to a full path, searching in the search path if needed.
 =cut
 
 sub _resolve_file_path {
-  my ($filename) = @_;
+  my ($filename, $optional) = @_;
   my $path;
+
+  if (!@search_path) {
+    croak "No search path defined";
+  }
 
   # Check if filename is relative
   if ($filename !~ /^\//) {
@@ -154,12 +155,17 @@ sub _resolve_file_path {
 
     my ($found_path) = grep { path($_, $filename)->is_file } @search_path;
 
+    if (!$found_path && $optional) {
+      $found_path = $search_path[0];
+    }
+
     croak "Config file '$filename' not found in search path: ". join(':', @search_path) unless $found_path;
 
     $path = path($found_path, $filename);
-  } else {
+  } elsif (-f $filename || $optional) {
     $path = path($filename);
-    croak "Config file '$filename' not found" unless $path->is_file;
+  } else {
+    croak "Config file '$filename' not found";
   }
 
   return $path;
@@ -297,7 +303,7 @@ sub addSearchDir {
 }
 
 sub clearSearchPath {
-  @search_path = ( '.' );
+  @search_path = ();
 }
 
 =head2 searchPath
@@ -451,24 +457,40 @@ sub DESTROY {
 }
 
 sub getYamlParser {
-  my $include = YAML::PP::Schema::Include->new(
-        loader => sub {
-                    my ($yp, $filename) = @_;
+  my $include = Milton::Config::Include->new( loader => sub {
+    my ($self, $yp, $filename) = @_;
+      
+    my $optional = undef;
+    if ($filename =~ s/\?$//) {
+      $optional = 1;
+    }
 
-                    my $full_path = _resolve_child_filename($filename);
+    my $child = _resolve_child_path($filename);
 
-                    #print "INFO: include loader loading filename: $filename, full_path: $full_path\n";
+    my $path = _resolve_file_path($child, $optional);
+    my $full_path = $path->stringify;
 
-                    my $result = $yp->load_file($full_path);
+    if ($self->{cached}->{$full_path}++) {
+      croak "Circular include '$full_path'";
+    }
 
-                    if (reftype($result) eq 'HASH') {
-                      $path_cache{refaddr($result)} = $filename;
-                      bless $result, 'Milton::Config';
-                    }
+    my $result;
+    if ($path->is_file) {
+      my $yp = $self->yp->clone;
+      my $depth = _path_push($child);
+      $result = $yp->load_file($full_path);
+      _path_pop($depth);
+    } else {
+      $result = {};
+    }
 
-                    return $result;
-                  }
-      );
+    if (reftype($result) eq 'HASH') {
+      $path_cache{refaddr($result)} = { fullpath => $full_path, filename => $child };
+      bless $result, 'Milton::Config';
+    }
+
+    return $result;
+  });
 
   my $ypp = YAML::PP->new(schema => ['+', $include, 'Env', 'defval=' ]);
   $include->yp($ypp);

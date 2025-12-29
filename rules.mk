@@ -1,4 +1,4 @@
-# Common Makefile rules for PSC components
+# Common Makefile rules for Milton components
 
 BINPERMS=0755
 LIBPERMS=0644
@@ -19,7 +19,7 @@ $(LIBDIR)/%.pm: %.pm
 	@chmod $(LIBPERMS) $@
 
 # Pattern rule for configuration templates (for shared directory installation)
-$(SHAREDIR)/config/%: config/%
-	@echo "Installing config template $< to $(SHAREDIR)/config/"
+$(SHAREDIR)/config/%: %
+	@echo "Installing shared configuration file $< to $(SHAREDIR)/config/"
 	@mkdir -p $(dir $@)
 	@cp -rv $< $@ 

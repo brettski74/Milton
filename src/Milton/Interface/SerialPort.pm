@@ -5,6 +5,7 @@ use warnings qw(all -uninitialized);
 use base qw(Milton::Interface);
 use Device::SerialPort;
 use Carp qw(croak);
+use Milton::Interface::Utils::Common qw(device_compare port_exists);
 
 sub new {
   my ($class, $config) = @_;
@@ -15,10 +16,6 @@ sub new {
 sub _connect {
   my ($self) = @_;
 
-  my $port = $self->{port} || croak ref($self) .': port must be specified.';
-  $self->info("Connecting to $port");
-  my $serial = Device::SerialPort->new($port) || croak ref($self) .': could not open serial port ' . $port . ': ' . $!;
-
   $self->{baudrate} //= 9600;
   $self->{databits} //= 8;
   $self->{parity} //= 'none';
@@ -26,16 +23,56 @@ sub _connect {
   $self->{'char-timeout'} //= 1;
   $self->{'response-timeout'} //= 10;
 
-  $serial->baudrate($self->{baudrate});
-  $serial->databits($self->{databits});
-  $serial->parity($self->{parity});
-  $serial->stopbits($self->{stopbits});
-  $serial->read_char_time($self->{'char-timeout'});
-  $serial->read_const_time($self->{'response-timeout'});
+  croak ref($self) .': port must be specified.' if ! defined($self->{port});
 
-  $self->{serial} = $serial;
+  my @ports = glob($self->{port});
+  if (scalar(@ports) == 0) {
+    croak ref($self) .': could not find any serial ports matching ' . $self->{port};
+  }
 
-  return $self->_initialize;
+  @ports = sort { device_compare($a, $b) } @ports;
+
+  foreach my $port (@ports) {
+    next if !port_exists($port);
+
+    $self->info("Connecting to $port");
+    my $serial = undef;
+    eval {
+      $serial = Device::SerialPort->new($port);
+    };
+    
+    if ($serial) {
+      $serial->baudrate($self->{baudrate});
+      $serial->databits($self->{databits});
+      $serial->parity($self->{parity});
+      $serial->stopbits($self->{stopbits});
+      $serial->read_char_time($self->{'char-timeout'});
+      $serial->read_const_time($self->{'response-timeout'});
+
+      $self->{serial} = $serial;
+      if ($self->_identify) {
+        $self->{'connected-port'} = $port;
+        return $self->_initialize;
+      }
+
+      # Clean up open serial port object.
+      $serial->close();
+      delete $self->{serial};
+      $serial = undef;
+    }
+  }
+
+  die ref($self) .': '. $self->identifyFailedMessage ."\n";
+}
+
+sub identifyFailedMessage {
+  my ($self) = @_;
+  return "could not identify matching power supply connected to $self->{port} at $self->{baudrate} baud";
+}
+
+# Default implementation returns TRUE, so that subclasses that do not support scanning multiple ports can still work.
+sub _identify {
+  return 1;
 }
 
 sub _initialize {

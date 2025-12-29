@@ -1,4 +1,4 @@
-# Configuration file for PSC installation - Default user local installation version
+# Configuration file for Milton installation - Default user local installation version
 # Users can modify these variables to customize installation paths
 
 # Base directory for executables
@@ -14,7 +14,7 @@ BINDIR ?= $(PREFIX)/bin
 # Standard locations: lib/perl5, lib, perl5
 LIBDIR ?= $(PREFIX)/lib/perl5
 
+# Shared configuration directory
 SHAREDIR ?= $(PREFIX)/share/milton
 
-# Configuration directory (under CONFIG_PREFIX)
-CONFIGDIR ?= $(CONFIG_PREFIX)/milton
+TEMPLATE ?= local

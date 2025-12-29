@@ -229,13 +229,19 @@ sub poll {
     $cooked->{on} = $on;
   }
 
-  if ($self->{'voltage-output'}) {
+  if ($self->{'voltage-output'} && $raw->{vout} > 0) {
     $cooked->{vout} = $self->{'voltage-output'}->estimate($vout);
+    if ($cooked->{vout} < 0) {
+      $cooked->{vout} = 0;
+    }
   } else {
     $cooked->{vout} = $vout;
   }
-  if ($self->{'current-output'}) {
+  if ($self->{'current-output'} && $raw->{iout} > 0) {
     $cooked->{iout} = $self->{'current-output'}->estimate($iout);
+    if ($cooked->{iout} < 0) {
+      $cooked->{iout} = 0;
+    }
   } else {
     $cooked->{iout} = $iout;
   }
@@ -413,6 +419,7 @@ The voltage required from the power supply measured in volts.
 
 sub setVoltage {
   my ($self, $voltage) = @_;
+  
   my $raw = $self->{raw};
   my $cooked = $self->{cooked};
   my ($vmin, $vmax) = $self->getVoltageLimits;
@@ -514,6 +521,7 @@ The current required from the power supply measured in amps.
 
 sub setCurrent {
   my ($self, $current) = @_;
+  
   my $raw = $self->{raw};
   my $cooked = $self->{cooked};
   my ($vmin, $vmax) = $self->getVoltageLimits;
@@ -1129,6 +1137,13 @@ sub warning {
   my ($self, $message) = @_;
   if ($self->{logger}) {
     $self->{logger}->warning($message);
+  }
+}
+
+sub error {
+  my ($self, $message) = @_;
+  if ($self->{logger}) {
+    $self->{logger}->error($message);
   }
 }
 

@@ -1,7 +1,18 @@
 #!/usr/bin/perl
 
 use FindBin qw($Bin);
-use lib "$Bin/../lib/perl5";
+
+use Path::Tiny;
+my $libdir;
+BEGIN {
+  my $libpath = path($Bin)->parent->parent->child('lib')->child('perl5');
+  $libdir = $libpath->stringify;
+};
+
+use lib $libdir;
+
+use strict;
+use warnings qw(all -uninitialized);
 
 use AnyEvent;
 use Term::ReadKey;

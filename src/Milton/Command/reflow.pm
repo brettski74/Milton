@@ -7,6 +7,7 @@ use Carp qw(croak);
 use IO::File;
 use Milton::Math::Util qw(setDebug setDebugWriter);
 use Milton::Config qw(getYamlParser);
+use Milton::Config::Utils qw(resolveConfigPath);
 
 use Exporter qw(import);
 our @EXPORT_OK = qw(buildProfile);
@@ -170,6 +171,8 @@ sub postprocess {
     if ($filename !~ /\.yaml$/) {
       $filename .= '.yaml';
     }
+    $filename = resolveConfigPath($filename);
+
     my $fh = $self->replaceFile($filename);
     my @calibration = $self->{controller}->getTemperaturePoints;
     $fh->print("temperatures:\n");
@@ -193,6 +196,8 @@ sub postprocess {
     if ($filename !~ /\.yaml$/) {
       $filename .= '.yaml';
     }
+    $filename = resolveConfigPath($filename);
+
     my $csvfile = $filename;
     $csvfile =~ s/\.yaml$/.csv/;
     my $rawfile = $filename;

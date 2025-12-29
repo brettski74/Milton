@@ -1,0 +1,35 @@
+###
+# Standard configuration file for the Uni-Trend UDP6721 power supply.
+#
+# Specifications:
+#   Max Output Voltage: 62
+#   Max Output Current: 8.2
+#   Max Output Power:   180
+#
+###
+package: Milton::Interface::SCPISingle
+
+# The UDP6721 has RS-232 serial ports operating at 9600 baud.
+# This should pick up all ports matching /dev/ttyS<number> and /dev/ttyUSB<number>
+port: /dev/ttyS[0-9]*
+
+# The id string should being with Uni-Trend UDP6721
+id-pattern: ^Uni-Trend UDP6721
+
+baudrate: 9600
+
+# Sane current limits within spec
+current:
+  maximum: 8.1
+  minimum: 0.5
+  measurable: 0.1
+
+# Sane voltage limits within spec
+voltage:
+  maximum: 60
+  minimum: 2
+
+# Sane power limits within spec
+power:
+  maximum: 179.5
+  minimum: 1

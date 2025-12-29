@@ -59,3 +59,22 @@ clean:
 	@echo "################################################################################"
 	$(MAKE) -C tools clean
 	rm -f $(REL_PERL_SCRIPTS) $(REL_PERL_MODULES)
+
+# Show help
+help:
+	@echo "Available targets:"
+	@echo "  test          - Run all tests"
+	@echo "  test-verbose  - Run tests with verbose output"
+	@echo "  test-file     - Run specific test file (FILE=path/to/test.t)"
+	@echo "  install       - Install the application (requires test to pass)"
+	@echo "  install-dirs  - Make installation directories"
+	@echo "  clean         - Clean up temporary files"
+	@echo "  help          - Show this help"
+	@echo ""
+	@echo "Configuration:"
+	@echo "  Edit config.mk to customize installation paths"
+	@echo "  PREFIX=$(PREFIX)"
+	@echo "  BINDIR=$(BINDIR)"
+	@echo "  LIBDIR=$(LIBDIR)"
+	@echo "  SHAREDIR=$(SHAREDIR)"
+	@echo "  PERL5LIB=$(PERL5LIB)"

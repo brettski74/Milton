@@ -61,3 +61,19 @@ clean:
 	rm -f $(REL_PERL_MODULES) $(REL_PERL_SCRIPTS)
 
 reallyclean: clean
+
+# Show help
+help:
+	@echo "Available targets:"
+	@echo "  install       - Install the application"
+	@echo "  install-dirs  - Make installation directories"
+	@echo "  clean         - Clean up temporary files"
+	@echo "  help          - Show this help"
+	@echo ""
+	@echo "Configuration:"
+	@echo "  Edit config.mk to customize installation paths"
+	@echo "  PREFIX=$(PREFIX)"
+	@echo "  BINDIR=$(BINDIR)"
+	@echo "  LIBDIR=$(LIBDIR)"
+	@echo "  SHAREDIR=$(SHAREDIR)"
+	@echo "  PERL5LIB=$(PERL5LIB)"

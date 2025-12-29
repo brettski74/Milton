@@ -3,7 +3,7 @@ package: Milton::Controller::HybridPI
 # Hysteresis band
 # How far do we let the temperature go above the setpoint before turning off?
 # How far do we let the temperature go below the setpoint before turning on?
-gains: !include hybrid-pi-gains.yaml
+gains: !include hybrid-pi-gains.yaml?
 
 # Low-pass filter time constant on the feed-forward signal.
 # The default is 0 - ie. no low-pass filtering. This will probably produce the lowest mean-squared error

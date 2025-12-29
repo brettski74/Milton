@@ -20,6 +20,16 @@ sub checkPortAccessibility {
     my $ls = `ls -l $port`;
     chomp $ls;
     $self->warning("Port $port is not readable: $ls");
+
+    # Try to suggest corrective action.
+    my $permissions = (stat($port))[2] & 07777;
+    my $gid = (stat($port))[5];
+
+    if ($permissions & 0040) {
+      my $group = getgrgid($gid);
+      my $user = getlogin || getpwuid($<);
+      $self->info("You may need to add your user to the $group group. Try running sudo usermod -aG $group $user");
+    }
     return;
   }
 

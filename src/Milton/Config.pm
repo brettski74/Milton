@@ -284,7 +284,8 @@ Add one or more directories to the search path for configuration files.
 sub addSearchDir {
   my ($class, @dirs) = @_;
   foreach my $dir (@dirs) {
-    if ($dir && -d $dir) {
+    # Directory needs to be either an existing directory or non-existent.
+    if ($dir && (-d $dir || !-e $dir)) {
       push @search_path, $dir;
     }
   }

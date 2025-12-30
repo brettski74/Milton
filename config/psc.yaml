@@ -70,26 +70,4 @@ interface: !include interface/udp6721.yaml
 # Fan configuration. This can be used to control a fan for colling purposes at the end of a reflow
 # cycle. Current fan support assumes that you have a second power supply with Modbus or SCPI control
 # capabilities that is powering your fan.
-fan:
-  # Fan interface configuration.
-  interface:
-    package: Milton::Interface::DPS
-    baudrate: 19200
-    address: 1
-  # Voltage set point to use for the fan.
-  voltage: 11.5
-  # Current set point to use for the fan.
-  current: 1.0
-
-  # Maximum duration that the fan should be left running. This must be set to a non-zero value otherwise
-  # the fan will not turn on.
-  duration: 600
-
-  # Boolean flag indicating whether the fan should be turned off when the command exits due to a signal.
-  # By default this is true, but you can set it to false if you need to for automation purposes where you
-  # may be killing the command early and will control fan power off by some other means.
-  shutdown-on-signal: false
-
-  # Boolean flag indicating whether the fan should be enabled. Setting this to false overrides all other
-  # settings and ensures that the software does not turn on the fan under normal circumstances.
-  enabled: true
+fan: !include fan.yaml?

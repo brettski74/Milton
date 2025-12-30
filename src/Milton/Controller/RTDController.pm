@@ -131,6 +131,7 @@ sub getTemperature {
   if ($est->length() == 0 && !$self->{reset}) {
     my $ambient = $self->getAmbient($status);
     $est->addPoint($resistance, $ambient);
+    self->warning("Auto-adding calibration point at T=$ambient, R=$resistance");
   }
   
   # If the estimator has only one point, add a second point to make it a linear estimator

@@ -1,10 +1,10 @@
 # Makefile for Milton tools components
 
-BASEDIR=../..
+BASEDIR=../../
 
 # Include configuration and rules from parent
--include $(BASEDIR)/config.mk
--include $(BASEDIR)/rules.mk
+-include $(BASEDIR)config.mk
+-include $(BASEDIR)rules.mk
 
 .PHONY: install install-dirs check-perl clean
 

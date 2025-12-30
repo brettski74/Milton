@@ -23,6 +23,9 @@ standardSearchPath();
 sub copy_file {
   my ($source, $target) = @_;
 
+  my $dir = path($target)->parent;
+  $dir->mkpath if $dir->is_dir;
+
   my $in = IO::File->new($source, 'r') || die "Failed to open $source for reading: $!";
   my $out = IO::File->new($target, 'w') || die "Failed to open $target for writing: $!";
 

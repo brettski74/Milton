@@ -1,11 +1,8 @@
-###
-# Standard configuration file for the Uni-Trend UDP6721 power supply.
-#
-# Specifications:
-#   Max Output Voltage: 62
-#   Max Output Current: 8.2
-#   Max Output Power:   180
-#
+#@ displayName: Uni-Trend UDP6721
+#@ description: Standard configuration for the Uni-Trend UDP6721 power supply.
+#@ vmax: 62
+#@ imax: 8.2
+#@ pmax: 180
 ###
 package: Milton::Interface::SCPISingle
 

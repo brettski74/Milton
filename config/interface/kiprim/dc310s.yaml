@@ -1,11 +1,8 @@
-###
-# Standard configuration file for the Kiprim DC310S power supply.
-#
-# Specifications:
-#   Max Output Voltage: 32V
-#   Max Output Current: 10.2A
-#   Max Output Power:   300W
-#
+#@ displayName: Kiprim DC310S
+#@ description: Standard configuration for the Kiprim DC310S power supply.
+#@ vmax: 32
+#@ imax: 10.2
+#@ pmax: 300
 ###
 package: Milton::Interface::SCPISingle
 

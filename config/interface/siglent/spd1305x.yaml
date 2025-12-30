@@ -1,11 +1,8 @@
-###
-# Standard configuration file for the Siglent SPD1305X power supply.
-#
-# Specifications:
-#   Max Output Voltage: 30
-#   Max Output Current: 5
-#   Max Output Power:   150
-#
+#@ displayName: Siglent SPD1305X
+#@ description: Standard configuration for the Siglent SPD1305X power supply.
+#@ vmax: 30
+#@ imax: 5
+#@ pmax: 150
 ###
 package: Milton::Interface::SCPISingle
 
@@ -13,8 +10,8 @@ package: Milton::Interface::SCPISingle
 # This should pick up all ports matching /dev/ttyS<number> and /dev/ttyUSB<number>
 port: /dev/ttyUSB[0-9]*
 
-# The id string should being with Uni-Trend UDP6721
-#id-pattern: ^Uni-Trend UDP6721
+# The id string should being with Siglent SPD1305X
+id-pattern: ^Siglent SPD1305X
 
 baudrate: 115200
 

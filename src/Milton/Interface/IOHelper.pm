@@ -118,7 +118,7 @@ sub connect {
          $failureMessage = $id->identify($self);
         return $self if !defined($failureMessage);
 
-        $id->warn($failureMessage);
+        $id->warning($failureMessage);
       }
     }
 

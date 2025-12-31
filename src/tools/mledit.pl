@@ -58,6 +58,9 @@ foreach my $file (@ARGV) {
       $source = readlink $target;
       unlink $target;
     }
+  } else {
+    my $dir = path($target)->parent;
+    $dir->mkpath if !$dir->is_dir;
   }
 
   if (! -e $target && -e $source) {

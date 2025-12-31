@@ -81,12 +81,12 @@ sub check_device_writable {
   return 1;
 }
 
-sub validateDevice {
-  my ($self, $device) = @_;
+sub validate_device {
+  my ($logger, $device) = @_;
 
   return if !-e $device;
-  return if ! check_device_readable($self, $device);
-  return if ! check_device_writable($self, $device);
+  return if ! check_device_readable($logger, $device);
+  return if ! check_device_writable($logger, $device);
 
   return 1;
 }
@@ -109,16 +109,16 @@ sub connect {
 
   my $failureMessage = undef;
   foreach my $device (@devices) {
-    next if !$self->validateDevice($device);
+    next if !validate_device($id, $device);
 
     if ($self->tryConnection($device)) {
       $self->{'connected-device'} = $device;
 
       if ($id) {
          $failureMessage = $id->identify($self);
-        return $self if !defined("Device $device: $failureMessage");
+        return $self if !defined($failureMessage);
 
-        $id->warning($failureMessage);
+        $id->warning("Device $device: $failureMessage");
       }
     }
 

@@ -3,6 +3,7 @@ package Milton::Interface::FilehandleHelper;
 use strict;
 use warnings qw(all -uninitialized);
 use base qw(Milton::Interface::IOHelper);
+use IO::File;
 use Carp qw(croak);
 use Milton::Interface::IOHelper qw(device_compare);
 
@@ -32,15 +33,16 @@ sub sendRequest {
   my $in = $self->{in};
   my $out = $self->{out};
   my $buffer;
+  my $len;
 
   return unless $in && $out;  ### Burger! Actually, they're quite ordinary, IMHO!
 
-  $out->print($request);
+  $out->syswrite($request);
 
   # Hopefully we never end up with fragmentation. If we go, getline may be an option, but also comes with some caveats,
   # such as what if we ever have a multi-line response from some kind of request? Hoping that this was the more future-
   # proof decision.
-  $in->read($buffer, 255);
+  $len = $in->sysread($buffer, 255);
 
   return $buffer;
 }

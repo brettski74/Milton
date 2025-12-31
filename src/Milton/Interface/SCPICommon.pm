@@ -266,6 +266,7 @@ sub identify {
 
   if ($self->{'id-pattern-re'}) {
     if ($id !~ $self->{'id-pattern-re'}) {
+      $id ||= '<<unknown>>';
       return "Device $id does not match pattern $self->{'id-pattern'}";
     }
   } # else just accept it if we have no pattern for identification purposes

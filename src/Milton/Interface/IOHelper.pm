@@ -116,7 +116,7 @@ sub connect {
 
       if ($id) {
          $failureMessage = $id->identify($self);
-        return $self if !defined($failureMessage);
+        return $self if !defined("Device $device: $failureMessage");
 
         $id->warning($failureMessage);
       }

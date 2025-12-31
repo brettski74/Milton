@@ -35,12 +35,12 @@ sub sendRequest {
 
   return unless $in && $out;  ### Burger! Actually, they're quite ordinary, IMHO!
 
-  $in->print($request);
+  $out->print($request);
 
   # Hopefully we never end up with fragmentation. If we go, getline may be an option, but also comes with some caveats,
   # such as what if we ever have a multi-line response from some kind of request? Hoping that this was the more future-
   # proof decision.
-  $out->read($buffer, 255);
+  $in->read($buffer, 255);
 
   return $buffer;
 }

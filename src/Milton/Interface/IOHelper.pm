@@ -125,7 +125,7 @@ sub connect {
     $self->disconnect;
   }
 
-  die ref($self) .": Could not connect to any devices matching $self->{device}\n";
+  die ref($self) .": Could not connect or correctly identify any devices matching $self->{device}\n";
 }
 
 sub sendRequest {

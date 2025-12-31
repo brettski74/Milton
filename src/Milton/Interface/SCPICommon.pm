@@ -263,6 +263,7 @@ sub identify {
 
   my ($make, $model, $serialNumber, $firmware) = $self->sendCommand('*IDN?', $helper);
   my $id = "$make $model $serialNumber $firmware";
+  $id =~ s/\s*$//;
 
   if ($self->{'id-pattern-re'}) {
     if ($id !~ $self->{'id-pattern-re'}) {

@@ -4,11 +4,11 @@
 #@ imax: 10.2
 #@ pmax: 300
 ###
-package: Milton::Interface::SCPISingle
+package: Milton::Interface::SCPI::Serial
 
 # The UDP6721 has USB serial ports operating at 115200 baud.
 # This should pick up all ports matching /dev/ttyUSB<number>
-port: /dev/ttyUSB[0-9]*
+device: /dev/ttyUSB[0-9]*
 
 # The id string should being with Uni-Trend UDP6721
 id-pattern: ^KIPRIM DC310S

@@ -146,8 +146,6 @@ sub DESTROY {
   my ($self) = @_;
 
   $self->disconnect;
-
-  return $self->SUPER::DESTROY;
 }
 
 1;

@@ -52,7 +52,7 @@ install-dirs:
 # Main install target
 install:
 	@for dir in $(SUBDIRS); do \
-		$(MAKE) -C $$dir install; \
+		$(MAKE) -C $$dir install || exit 1; \
 	done
 	@echo "Installation complete!"
 

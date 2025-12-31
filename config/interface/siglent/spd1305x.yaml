@@ -4,11 +4,11 @@
 #@ imax: 5
 #@ pmax: 150
 ###
-package: Milton::Interface::SCPISingle
+package: Milton::Interface::SCPI::USBTMC
 
-# The UDP6721 has RS-232 serial ports operating at 9600 baud.
-# This should pick up all ports matching /dev/ttyS<number> and /dev/ttyUSB<number>
-port: /dev/ttyUSB[0-9]*
+# The SPD1305X is a USBTMC based device using the NI-VISA implementation of the TMC protocl.
+# Compatible linux installations should create a USBTMC device matching the /dev/usbtmc[0-9]* pattern.
+device: /dev/usbtmc[0-9]*
 
 # The id string should being with Siglent SPD1305X
 id-pattern: ^Siglent SPD1305X

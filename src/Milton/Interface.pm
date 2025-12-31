@@ -4,7 +4,7 @@ use strict;
 use warnings qw(all -uninitialized);
 use Time::HiRes qw(time);
 
-use Carp qw(croak);
+use Carp qw(croak cluck);
 
 use Milton::Math::PiecewiseLinear;
 
@@ -148,7 +148,7 @@ sub DESTROY {
 =cut
 
 sub deviceName {
-  croak ref($_[0]) .': deviceName not implemented.';
+  cluck ref($_[0]) .': deviceName not implemented.';
 }
 
 sub noOffOnShutdown {
@@ -890,7 +890,7 @@ Returns a five element list containing:
 =cut
 
 sub _connect {
-  croak ref($_[0]) .': _connect not implemented.';
+  cluck ref($_[0]) .': _connect not implemented.';
 }
 
 =head2 _disconnect
@@ -900,7 +900,7 @@ Disconnect from the power supply. This is used to close the connection to the po
 =cut
 
 sub _disconnect {
-  croak ref($_[0]) .': _disconnect not implemented.'
+  cluck ref($_[0]) .': _disconnect not implemented.'
 }
 
 =head2 _poll
@@ -924,7 +924,7 @@ request, then return undef for the on-state and let the calling logic figure it 
 =cut
 
 sub _poll {
-  croak ref($_[0]) .': _poll not implemented.'
+  cluck ref($_[0]) .': _poll not implemented.'
 }
 
 =head2 _on($flag)
@@ -950,7 +950,7 @@ Returns true if the output was set to the desired on-state or false otherwise.
 =cut
 
 sub _on {
-  croak ref($_[0]) .': _on not implemented.'
+  cluck ref($_[0]) .': _on not implemented.'
 }
 
 =head2 _setCurrent($current, $recommendedVoltage)
@@ -985,7 +985,9 @@ voltage set point to this value.
 Returns a three element list containing:
 
 1. A true value if the current set point was successfully set.
+
 2. A true value if the output was turned on or undef if this method cannot determine that.
+
 3. The voltage set point that was actually set or undef if this method was unable to set the voltage set point.
 
 Note that it is important to return these three values correctly as the calling logic will use them
@@ -1046,7 +1048,7 @@ the desired outcomes. (ie. voltage set, output on, constant voltage operation)
 =cut
 
 sub _setVoltage {
-  croak ref($_[0]) .': _setVoltage not implemented.';
+  cluck ref($_[0]) .': _setVoltage not implemented.';
 }
 
 =head2 _buildEstimator($input, $output, @key)

@@ -87,6 +87,12 @@ An array of SCPI command strings to send to the power supply upon connecting. Th
 commands required to setup the state of the remote control interface, such as selecting a default output
 channel. If not specified, no custom initialization commands are sent.
 
+=item term-commands
+
+An array of SCPI command strings to send to the power supply before disconnecting. This is useful for sending
+any commands required to cleanup the state of the remote control interface, such as unlocing the cntrol panel.
+If not specified, no custom termination commands are sent.
+
 =item command-length
 
 The maximum length of a single SCPI command string that can be sent to the power supply. This does not include
@@ -429,6 +435,12 @@ sub _disconnect {
 
   if ($self->{helper}) {
     $self->_on(0);
+    if ($self->{'term-commands'}) {
+      foreach my $cmd (@{$self->{'term-commands'}}) {
+        $self->sendCommand($cmd);
+      }
+    }
+
     $self->{helper}->disconnect;
   }
 

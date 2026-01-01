@@ -5,6 +5,13 @@ use warnings qw(all -uninitialized);
 use Time::HiRes qw(time);
 
 use Carp qw(croak cluck);
+use Milton::DataLogger qw(get_namespace_debug_level);
+
+# Get the debug level for this namespace
+use constant DEBUG_LEVEL => get_namespace_debug_level();
+use constant CONNECTION_DEBUG => 10;
+use constant REQUEST_DEBUG => 50;
+use constant RESPONSE_DEBUG => 100;
 
 use Milton::Math::PiecewiseLinear;
 
@@ -787,7 +794,17 @@ Returns true if the output state was set to the desired value or false otherwise
 sub on {
   my ($self, $flag) = @_;
 
-  $flag = $flag ? 1 : 0;
+  # Normalize the boolean flag
+  if ($flag) {
+    $flag = 1;
+  } else {
+    $flag = 0;
+
+    if (DEBUG_LEVEL >= REQUEST_DEBUG && !$flag) {
+      my ($package, $filename, $line, $subroutine) = caller(1);
+      $self->debug('Turning off output from %s::%s at %s line %d', $package, $subroutine, $filename, $line);
+    }
+  }
 
   if ($self->_on($flag)) {
     $self->{raw}->{on} = $self->{cooked}->{on} = $flag;

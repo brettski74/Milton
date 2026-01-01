@@ -6,10 +6,14 @@ use strict;
 use warnings qw(all -uninitialized);
 
 use Test2::V0;
+use Cwd;
 use Milton::Config;
+use Milton::Config::Path qw(add_search_dir);
+
+my $CWD = getcwd();
 
 # Simple basic load with explicit path
-my $cfg = Milton::Config->new('t/testconfig.yaml');
+my $cfg = Milton::Config->new("$CWD/t/testconfig.yaml");
 is($cfg->{test1}, 'value1');
 is($cfg->{test2}, 'value2');
 is($cfg->{test3}, { colour => 'green', size => 'large' });
@@ -22,17 +26,17 @@ eval{
 ok(!defined $cfg);
 
 # Simple basic load via search path
-is([ Milton::Config->addSearchDir('t') ], [ '.', 't' ], 'searchPath');
+is([ add_search_dir('t') ], [ "$ENV{HOME}/.config/milton", "$ENV{MILTON_BASE}/share/milton/config", 't' ], 'search_path');
 my $cfg2 = Milton::Config->new('testconfig.yaml');
 is($cfg2->{test1}, 'value1');
 is($cfg2->{test2}, 'value2');
 is($cfg2->{test3}, { colour => 'green', size => 'large' });
-is($cfg2->getPath, 't/testconfig.yaml');
+is($cfg2->getPath, { filename => 'testconfig.yaml', fullpath => 't/testconfig.yaml' });
 
 # Test configFileExists method
 note("Testing configFileExists method");
 ok(Milton::Config->configFileExists('testconfig.yaml'), 'testconfig.yaml does exist in search path');
-ok(Milton::Config->configFileExists('t/testconfig.yaml'), 't/testconfig.yaml does exist with explicit path');
+ok(Milton::Config->configFileExists("$CWD/t/testconfig.yaml"), 't/testconfig.yaml does exist with explicit path');
 ok(!Milton::Config->configFileExists('nonexistent.yaml'), 'nonexistent.yaml does not exist');
 ok(Milton::Config->configFileExists('command/test.yaml'), 'command/test.yaml does exist');
 ok(!Milton::Config->configFileExists('command/are_you_serious.yaml'), 'command/are_you_serious.yaml does not exist');
@@ -40,7 +44,7 @@ ok(!Milton::Config->configFileExists('command/are_you_serious.yaml'), 'command/a
 subtest 'Environment variable expansion' => sub {
   no warnings 'uninitialized';
 
-  my $env = Milton::Config->new('t/environment.yaml');
+  my $env = Milton::Config->new('environment.yaml');
 
   is($env->{user}, $ENV{LOGNAME}, 'user');
   is($env->{logging}->{enabled}, 1, 'logging->enabled');
@@ -125,21 +129,21 @@ subtest 'findKey method' => sub {
 $cfg2->merge('command/test.yaml', 'command', 'test');
 is($cfg2->{command}->{test}->{'command-value-1'}, 100);
 is($cfg2->{command}->{test}->{'command-value-2'}, 'red');
-is($cfg2->getPath, 't/testconfig.yaml');
+is($cfg2->getPath->{fullpath}, 't/testconfig.yaml');
 
 # Merge into a non-existent path
 $cfg2->merge('command/test.yaml', 'command', 'nonexistent');
 is($cfg2->{command}->{nonexistent}->{'command-value-1'}, 100, 'command-value-1 should be added');
 is($cfg2->{command}->{nonexistent}->{'command-value-2'}, 'red', 'command-value-2 should be added');
-is($cfg2->getPath, 't/testconfig.yaml');
-is($cfg2->getPath('command', 'nonexistent'), 't/command/test.yaml');
+is($cfg2->getPath->{fullpath}, 't/testconfig.yaml');
+is($cfg2->getPath('command', 'nonexistent')->{fullpath}, 't/command/test.yaml');
 
 # Merge into a fully non-existent path
 $cfg2->merge('command/test.yaml', 'crazy', 'path', 'that', 'does', 'not', 'exist');
 is($cfg2->{crazy}->{path}->{that}->{does}->{not}->{exist}->{'command-value-1'}, 100, 'command-value-1 should be added');
 is($cfg2->{crazy}->{path}->{that}->{does}->{not}->{exist}->{'command-value-2'}, 'red', 'command-value-2 should be added');
-is($cfg2->getPath, 't/testconfig.yaml');
-is($cfg2->getPath('crazy', 'path', 'that', 'does', 'not', 'exist'), 't/command/test.yaml');
+is($cfg2->getPath->{fullpath}, 't/testconfig.yaml');
+is($cfg2->getPath('crazy', 'path', 'that', 'does', 'not', 'exist')->{fullpath}, 't/command/test.yaml');
 
 # Test merging with pre-existing keys (deep merge)
 note("Testing merge with pre-existing keys");
@@ -156,13 +160,13 @@ is($cfg2->{command}->{test}->{list}->[2]->{name}, 'item3', 'list item 3 should b
 is($cfg2->{command}->{test}->{list}->[2]->{value}, 300, 'list item 3 should be preserved');
 is($cfg2->{command}->{test}->{list}->[3]->{name}, 'item4', 'list item 4 should be preserved');
 is($cfg2->{command}->{test}->{list}->[3]->{value}, 400, 'list item 4 should be preserved');
-is($cfg2->getPath, 't/testconfig.yaml');
+is($cfg2->getPath->{fullpath}, 't/testconfig.yaml');
 
 # Test merging an empty file
 $cfg2->merge('empty.yaml', 'command', 'test');
 is($cfg2->{command}->{test}->{'command-value-1'}, 200, 'command-value-1 should be preserved');
 is($cfg2->{command}->{test}->{'command-value-2'}, 'red', 'command-value-2 should be preserved');
-is($cfg2->getPath, 't/testconfig.yaml');
+is($cfg2->getPath->{fullpath}, 't/testconfig.yaml');
 
 # Test merging a list item
 $cfg2->merge('command/list_item.yaml', 'command', 'test', 'list', 1);
@@ -187,7 +191,8 @@ is($include_cfg->{app_name}, 'HP Controller', 'app_name');
 is($include_cfg->{version}, '1.0.0', 'version');
 is($include_cfg->{debug}, 1, 'debug');
 is($include_cfg->{environment}, 'development', 'environment');
-is($include_cfg->getPath, 't/include_base.yaml');
+is($include_cfg->getPath->{fullpath}, 't/include_base.yaml');
+is($include_cfg->getPath->{filename}, 'include_base.yaml');
 
 # Test that included controller configuration is loaded
 is($include_cfg->{controller}, D(), 'Controller configuration should be included');
@@ -259,9 +264,9 @@ is($subdir_cfg->{list}->[1], 'item 2', 'list 2');
 is($subdir_cfg->{command}->{config}->{'command-value-1'}, 100, 'command-value-1');
 is($subdir_cfg->{command}->{config}->{'command-value-2'}, 'red', 'command-value-2');
 is($subdir_cfg->{controller}->{thermal_offset}, 34.56, 'controller->thermal_offset');
-is($subdir_cfg->getPath, 't/include_subdir.yaml');
-is($subdir_cfg->getPath('controller'), 't/controller.yaml');
-is($subdir_cfg->getPath('command', 'config'), 't/command/test.yaml');
+is($subdir_cfg->getPath->{fullpath}, 't/include_subdir.yaml');
+is($subdir_cfg->getPath('controller')->{fullpath}, 't/controller.yaml');
+is($subdir_cfg->getPath('command', 'config')->{fullpath}, 't/command/test.yaml');
 
 done_testing;
 

@@ -459,6 +459,9 @@ sub _disconnect {
   my ($self) = @_;
 
   if ($self->{helper}) {
+    $self->debug('Turning off output') if DEBUG_LEVEL >= CONNECTION_DEBUG;
+    $self->_on(0);
+
     if ($self->{'shutdown-commands'}) {
     $self->debug('Sending shutdown commands') if DEBUG_LEVEL >= CONNECTION_DEBUG;
       foreach my $cmd (@{$self->{'shutdown-commands'}}) {
@@ -466,8 +469,6 @@ sub _disconnect {
       }
     }
 
-    $self->debug('Turning off output') if DEBUG_LEVEL >= CONNECTION_DEBUG;
-    $self->_on(0);
     $self->debug('Disconnecting from power supply') if DEBUG_LEVEL >= CONNECTION_DEBUG;
     $self->{helper}->disconnect;
   }

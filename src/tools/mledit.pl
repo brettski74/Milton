@@ -11,7 +11,7 @@ use warnings qw(all -uninitialized);
 use IO::File;
 
 use Milton::Config;
-use Milton::Config::Utils qw(resolveConfigPath resolveWritableConfigPath);
+use Milton::Config::Utils qw(resolve_config_path resolve_writable_config_path);
 use Milton::Config::Path qw(standard_search_path);
 use Milton::DataLogger qw($DEBUG_LEVEL_FILENAME);
 
@@ -51,8 +51,8 @@ foreach my $file (@ARGV) {
     $file = $DEBUG_LEVEL_FILENAME;
   }
 
-  my $source = resolveConfigPath($file, 1);
-  my $target = resolveWritableConfigPath($file);
+  my $source = resolve_config_path($file, 1);
+  my $target = resolve_writable_config_path($file);
 
   if (-e $target) {
     if (-l $target) {

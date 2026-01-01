@@ -363,8 +363,9 @@ my $DEBUG_LEVELS_LOADED = undef;
 # Keep the debug level loadign logic as simple and free of dependencies as possible, since this needs
 # to be callable at compile-time for efficiency.
 sub load_debug_levels {
-  return if $DEBUG_LEVELS_LOADED;
-  #print "load_debug_levels: called\n";
+  # Allow the filename to be passed in for testing purposes, but normally should be left to default to the standard filename.
+  return if $DEBUG_LEVELS_LOADED && !@_;
+  my $debug_level_filename = shift || $DEBUG_LEVEL_FILENAME;
 
   $DEBUG_LEVELS_LOADED = 1;
 
@@ -375,12 +376,11 @@ sub load_debug_levels {
     standard_search_path();
   }
 
-  my $path = resolve_file_path($DEBUG_LEVEL_FILENAME, 1);
+  my $path = resolve_file_path($debug_level_filename, 1);
   return if !$path;
   return if !$path->is_file;
 
   my $pathstring = $path->stringify;
-  #print "path to debug level file: $pathstring\n";
 
   local $_;
   local $.;
@@ -392,20 +392,18 @@ sub load_debug_levels {
     chomp;
     s/^\s+//;
     s/\s+$//;
-    #print "DEBUG LEVEL line: $_\n";
 
+    next if $_ eq '';
     next if /^#/;
 
     if (/^((\w+::)*\w+)\s*=\s*(\d+)$/) {
       $DEBUG_LEVELS{$1} = $3;
-      #print "DEBUG LEVEL $1 = $3\n";
     } else {
       warn "$pathstring:$.: Syntax error: $_\n";
     }
   }
 
   CORE::close(DBGLVL);
-  #print "DEBUG LEVELS: finished\n";
 }
 
 =head1 FUNCTIONS
@@ -439,21 +437,18 @@ sub get_namespace_debug_level {
 
     $namespace = $package;
   }
-  #print "get_namespace_debug_level: namespace = $namespace\n";
 
   load_debug_levels() if !$DEBUG_LEVELS_LOADED;
 
   my $linear_isa = mro::get_linear_isa($namespace);
-  #print "get_namespace_debug_level: linear_isa = ", join(', ', @$linear_isa) ."\n";
 
   foreach my $isa (@$linear_isa) {
     if (exists $DEBUG_LEVELS{$isa}) {
-      #print "DEBUG_LEVEL $isa($namespace) = $DEBUG_LEVELS{$isa}\n";
       return $DEBUG_LEVELS{$isa} || 0;
     }
   }
 
-  return 0;
+  return $DEBUG_LEVELS{UNIVERSAL} || 0;
 }
 
 

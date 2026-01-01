@@ -6,8 +6,8 @@ use Math::Round qw(round);
 use Carp qw(croak);
 use IO::File;
 use Milton::Math::Util qw(setDebug setDebugWriter);
-use Milton::Config qw(getYamlParser);
-use Milton::Config::Utils qw(resolveWritableConfigPath);
+use Milton::Config qw(get_yaml_parser);
+use Milton::Config::Utils qw(resolve_writable_config_path);
 use Milton::DataLogger qw(get_namespace_debug_level);
 
 # Get the debug level for this namespace
@@ -178,7 +178,7 @@ sub postprocess {
     }
     
     # Remember optional flag to allow for non-existent files during initial setup and calibration.
-    $filename = resolveWritableConfigPath($filename);
+    $filename = resolve_writable_config_path($filename);
 
     my $fh = $self->replaceFile($filename);
     my @calibration = $self->{controller}->getTemperaturePoints;
@@ -204,7 +204,7 @@ sub postprocess {
       $filename .= '.yaml';
     }
     # Remember optional flag to allow for non-existent files during initial setup and calibration.
-    $filename = resolveWritableConfigPath($filename);
+    $filename = resolve_writable_config_path($filename);
 
     my $csvfile = $filename;
     $csvfile =~ s/\.yaml$/.csv/;
@@ -215,7 +215,7 @@ sub postprocess {
     my $results = $predictor->tune($history, parallel => $self->{config}->{tuning}->{parallel});
 
     my $fh = $self->replaceFile($filename);
-    my $ypp = getYamlParser();
+    my $ypp = get_yaml_parser();
     my $tuned_yaml = $ypp->dump_string($results);
     $fh->print($tuned_yaml);
     $fh->close;

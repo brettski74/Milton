@@ -9,7 +9,7 @@ use POSIX qw(:sys_wait_h);
 
 use Mojo::IOLoop::ReadWriteFork;
 
-use Milton::Config::Utils qw(getDeviceNames findDeviceFile);
+use Milton::Config::Utils qw(get_device_names find_device_file);
 
 sub new {
   my ($class, $logger) = @_;
@@ -44,7 +44,7 @@ sub info {
 }
 
 sub discoverDevices {
-  return Milton::Config::Utils::getDeviceNames();
+  return Milton::Config::Utils::get_device_names();
 }
 
 sub initializeCommand {
@@ -93,7 +93,7 @@ sub initializeCommand {
   if (defined $params->{device}) {
     my $device = $params->{device};
     if (! -f $device) {
-      $device = findDeviceFile($device);
+      $device = find_device_file($device);
     }
     push @cmd, '--device', $device
              , '--log', 'device-temperature:.1f';

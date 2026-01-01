@@ -11,7 +11,7 @@ use warnings qw(all -uninitialized);
 use strict;
 use warnings qw(all -uninitialized);
 
-use Milton::Config::Utils qw(getReflowProfiles getDeviceNames);
+use Milton::Config::Utils qw(find_reflow_profiles get_device_names);
 use Milton::Config::Path qw(standard_search_path);
 
 use Mojolicious::Lite;
@@ -353,7 +353,7 @@ group {
   # Get available devices
   get '/api/devices' => sub {
     my $c = shift;
-    my @devices = getDeviceNames();
+    my @devices = get_device_names();
     $c->render(json => { list => \@devices });
   };
   
@@ -366,7 +366,7 @@ group {
 
   get '/api/reflow/profiles' => sub {
     my $c = shift;
-    my @profiles = getReflowProfiles();
+    my @profiles = find_reflow_profiles();
     $c->render(json => { list => \@profiles });
   };
 

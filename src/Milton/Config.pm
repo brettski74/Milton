@@ -24,7 +24,7 @@ use Scalar::Util qw(reftype refaddr);
 use Hash::Merge;
 use Clone;
 use Exporter qw(import);
-our @EXPORT_OK = qw(getYamlParser);
+our @EXPORT_OK = qw(get_yaml_parser);
 
 use Milton::Config::Include;
 use Milton::Config::Path qw(resolve_file_path search_path);
@@ -80,7 +80,7 @@ sub _load_file {
 
   my $pathstring = $path->stringify;
 
-  my $ypp = getYamlParser();
+  my $ypp = get_yaml_parser();
 
   my $depth = _path_push($filename);
   my $result = $ypp->load_file($pathstring);
@@ -378,7 +378,7 @@ sub DESTROY {
   delete $path_cache{refaddr($self)};
 }
 
-sub getYamlParser {
+sub get_yaml_parser {
   my $include = Milton::Config::Include->new( loader => sub {
     my ($self, $yp, $filename) = @_;
       

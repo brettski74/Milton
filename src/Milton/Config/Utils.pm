@@ -7,13 +7,13 @@ use Path::Tiny;
 use Carp qw(croak);
 
 use Exporter qw(import);
-our @EXPORT_OK = qw(getReflowProfiles getDeviceNames findDeviceFile getYamlParser standardSearchPath resolveConfigPath resolveWritableConfigPath);
+our @EXPORT_OK = qw(find_reflow_profiles get_device_names find_device_file get_yaml_parser resolve_config_path resolve_writable_config_path);
 
 use YAML::PP;
 use YAML::PP::Schema::Include;
 use Scalar::Util qw(reftype);
 
-use Milton::Config qw(getYamlParser);
+use Milton::Config qw(get_yaml_parser);
 use Milton::Config::Path qw(resolve_file_path search_path);
 
 =head1 NAME
@@ -22,13 +22,13 @@ Milton::Config::Utils - Utility functions for dealing with PSC configuration.
 
 =head1 FUNCTIONS
 
-=head2 getYamlParser
+=head2 get_yaml_parser
 
 Return a YAML parser.
 
 =cut
 
-=head2 getReflowProfiles
+=head2 find_reflow_profiles
 
   Returns a list of reflow profile names.
 
@@ -39,11 +39,11 @@ Return a YAML parser.
 
 =cut
 
-sub getReflowProfiles {
-  return findConfigFilesByPath('command/profile');
+sub find_reflow_profiles {
+  return find_config_files_by_path('command/profile');
 }
 
-=head2 getDeviceNames
+=head2 get_device_names
 
   Returns a list of device names.
 
@@ -54,14 +54,14 @@ sub getReflowProfiles {
 
 =cut
 
-sub getDeviceNames {
-  return findConfigFilesByPath('device');
+sub get_device_names {
+  return find_config_files_by_path('device');
 }
 
-sub findDeviceFile {
+sub find_device_file {
   my ($name) = @_;
 
-  my @files = findConfigFilesByPath('device');
+  my @files = find_config_files_by_path('device');
   foreach my $file (@files) {
     return $file->{value} if $file->{displayName} eq $name;
   }
@@ -71,7 +71,7 @@ sub findDeviceFile {
 =head2 findInterfaceConfigFiles
 
 Returns 
-=head2 resolveConfigPath($path, $optional)
+=head2 resolve_config_path($path, $optional)
 
 Resolve the path to a configuration file.
 
@@ -91,7 +91,7 @@ Defaults to false.
 
 If true, a file with the corresponding path does not need to exist and if the file is not found, relative
 paths will be referenced to the first directory in the serach path, consistent with the behaviour of the
-resolveWritableConfigPath function.
+resolve_writable_config_path function.
 
 If false, an error will be thrown if the file is not found.
 
@@ -103,14 +103,14 @@ The fully qualified path to the configuration file that will be read.
 
 =cut
 
-sub resolveConfigPath {
+sub resolve_config_path {
   my ($path, $optional) = @_;
   my $fullpath = resolve_file_path($path, $optional);
 
   return $fullpath->stringify;
 }
 
-=head2 resolveWritableConfigPath($path)
+=head2 resolve_writable_config_path($path)
 
 Resolve the path to a configuration file that will be written by the current user.
 
@@ -134,7 +134,7 @@ The fully qualified path to the configuration file that will be written.
 
 =cut
 
-sub resolveWritableConfigPath {
+sub resolve_writable_config_path {
   my ($path) = @_;
   my @search_path = search_path();
 
@@ -147,7 +147,7 @@ sub resolveWritableConfigPath {
   return $fullpath->stringify;
 }
 
-=head2 findConfigFilesByPath($path, $validate)
+=head2 find_config_files_by_path($path, $validate)
 
 Find all configuration files in the search path that match the given path.
 
@@ -160,16 +160,21 @@ pattern elements. The function will search all directories in the configuration 
 
 =item $validate
 
+A code reference that will be called with the loaded configuration document as its argument. If the
+function call returns true, the file will be included in the returned list, otherwise it will be
+excluded from the list. This can be used to perform arbitrary filtering of the resulting list. For
+example, you could use this to only include files that include a defined value for a given key.
+
 =back
 
 =cut
 
-sub findConfigFilesByPath {
+sub find_config_files_by_path {
   my ($path, $validate) = @_;
 
   my @files = ();
   my @dirs = search_path();
-  my $ypp = getYamlParser();
+  my $ypp = get_yaml_parser();
   my %seen;
 
   foreach my $dir (@dirs) {

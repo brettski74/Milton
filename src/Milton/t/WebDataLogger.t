@@ -73,38 +73,16 @@ subtest 'warning method' => sub {
 subtest 'debug method' => sub {
   my $logger = Milton::WebDataLogger->new($config);
   
-  # Set debug level to allow all debug messages
-  $logger->debugLevel(10);
-  
   my $capture = IO::Capture::Stdout->new();
   $capture->start();
-  $logger->debug(1, "Test debug message level 1");
-  $logger->debug(5, "Test debug message level 5");
-  $logger->debug(10, "Test debug message level 10");
-  $logger->debug(1, "Multi-line\ndebug\nmessage");
+  $logger->debug("Test debug message level %d", 1);
+  $logger->debug("Test debug message level %d", 5);
+  $logger->debug("Test debug message level %d", 10);
+  $logger->debug("Multi-line\ndebug\nmessage");
   $capture->stop();
   my @output = $capture->read();
   
   is(join('', @output), "DEBUG: Test debug message level 1\nDEBUG: Test debug message level 5\nDEBUG: Test debug message level 10\nDEBUG: Multi-line\nDEBUG: debug\nDEBUG: message\n", 'debug method output');
-};
-
-# Test debug method with level filtering
-subtest 'debug method with level filtering' => sub {
-  my $logger = Milton::WebDataLogger->new($config);
-  
-  # Set debug level to 5
-  $logger->debugLevel(5);
-  
-  my $capture = IO::Capture::Stdout->new();
-  $capture->start();
-  $logger->debug(1, "Debug level 1 - should show");
-  $logger->debug(5, "Debug level 5 - should show");
-  $logger->debug(10, "Debug level 10 - should not show");
-  $logger->debug(15, "Debug level 15 - should not show");
-  $capture->stop();
-  my @output = $capture->read();
-  
-  is(join('', @output), "DEBUG: Debug level 1 - should show\nDEBUG: Debug level 5 - should show\n", 'debug method with level filtering');
 };
 
 # Test log method with tee enabled
@@ -145,7 +123,6 @@ subtest 'mixed output types' => sub {
   $capture->start();
   $logger->info("Starting operation");
   $logger->warning("Temperature is high");
-  $logger->debug(1, "Debug info");
   $logger->info("Operation complete");
   $capture->stop();
   my @output = $capture->read();

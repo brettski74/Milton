@@ -8,6 +8,10 @@ use Readonly;
 use Milton::ValueTools qw(hexToNumber);
 
 use base qw(BLE::BlueToothCtl);
+use Milton::DataLogger qw(get_namespace_debug_level);
+
+# Get the debug level for this namespace
+use constant DEBUG_LEVEL => get_namespace_debug_level();
 
 Readonly our $DEVICE_ADDRESS => qr/88:6B:0F:[0-9a-fA-F]{2}:[0-9a-fA-F]{2}:[0-9a-fA-F]{2}/;
 Readonly our $INDICATION_UUID => 'e7add780-b042-4876-aae1-112855353cc1';
@@ -110,20 +114,28 @@ sub setLogger {
 }
 
 sub info {
-  my ($self, $message) = @_;
+  my $self = shift;
+  my $message = shift;
+
   if ($self->{logger}) {
-    $self->{logger}->info("EEVBlog121GW: $message");
+    $self->{logger}->info("EEVBlog121GW: $message", @_);
+  } elsif (@_) {
+    printf "EEVBlog121GW: $message\n", @_;
   } else {
     print $message, "\n";
   }
 }
 
 sub warning {
-  my ($self, $message) = @_;
+  my $self = shift;
+  my $message = shift;
+
   if ($self->{logger}) {
-    $self->{logger}->warning("EEVBlog121GW: $message");
+    $self->{logger}->warning("EEVBlog121GW: $message", @_);
+  } elsif (@_) {
+    printf "EEVBlog121GW: $message\n", @_;
   } else {
-    warn $message;
+    warn $message, "\n";
   }
 }
 
@@ -195,7 +207,7 @@ sub receiveData {
 
   my $line = $self->{recv}->getline;
   chomp $line;
-  $self->debug(50, "line: $line");
+  $self->debug('line: %s', $line) if DEBUG_LEVEL >= 50;
 
   $line =~ s/^\s*//;
   $line =~ s/\s*$//;
@@ -243,7 +255,7 @@ sub parseData {
   my ($self) = @_;
 
   my $buf = $self->{'read-buffer'};
-  $self->debug(50, "parseData: ". scalar(@$buf). " bytes in buffer [ ". join(', ', @$buf). " ]");
+  $self->debug('parseData: %d bytes in buffer [ %s ]', scalar(@$buf), join(', ', @$buf)) if DEBUG_LEVEL >= 50;
   my $parseCount = 0;
   my $max_offset = $self->{'max-offset'};
   my $max_value = $self->{'max-value'};

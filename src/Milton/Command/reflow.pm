@@ -8,6 +8,10 @@ use IO::File;
 use Milton::Math::Util qw(setDebug setDebugWriter);
 use Milton::Config qw(getYamlParser);
 use Milton::Config::Utils qw(resolveWritableConfigPath);
+use Milton::DataLogger qw(get_namespace_debug_level);
+
+# Get the debug level for this namespace
+use constant DEBUG_LEVEL => get_namespace_debug_level();
 
 use Exporter qw(import);
 our @EXPORT_OK = qw(buildProfile);
@@ -65,13 +69,14 @@ sub preprocess {
   $self->startupCurrent($status);
   my $ambient = $status->{ambient};
 
-  $self->debug(10, join(', ', "Ambient temperature: $ambient"
-                            , "device-temperature: $status->{'device-temperature'}"
-                            , "device-ambient: $status->{'device-ambient'}"
-                            , "temperature: $status->{temperature}"
-                            , "resistance: $status->{resistance}"
-                            )
-              );
+  #print "DEBUG_LEVEL is ". DEBUG_LEVEL ."\n";
+  $self->debug('Ambient temperature: %.1f, device-temperature: %.1f, device-ambient: %.1f, temperature: %.1f, resistance: %.1f'
+              , $ambient
+              , $status->{'device-temperature'}
+              , $status->{'device-ambient'}
+              , $status->{temperature}
+              , $status->{resistance}
+              ) if DEBUG_LEVEL >= 10;
 
   $self->{profile} = buildProfile($self->{config}->{profile}, $ambient);
 }

@@ -1129,30 +1129,30 @@ sub _buildCalibration {
 }
 
 sub info {
-  my ($self, $message) = @_;
+  my $self = shift;
   if ($self->{logger}) {
-    $self->{logger}->info($message);
+    $self->{logger}->info(@_);
   }
 }
 
 sub warning {
-  my ($self, $message) = @_;
+  my $self = shift;
   if ($self->{logger}) {
-    $self->{logger}->warning($message);
+    $self->{logger}->warning(@_);
   }
 }
 
 sub error {
-  my ($self, $message) = @_;
+  my $self = shift;
   if ($self->{logger}) {
-    $self->{logger}->error($message);
+    $self->{logger}->error(@_);
   }
 }
 
 sub debug {
-  my ($self, $level, $message) = @_;
+  my $self = shift;
   if ($self->{logger}) {
-    $self->{logger}->debug($level, $message);
+    $self->{logger}->debug(@_);
   }
 }
 

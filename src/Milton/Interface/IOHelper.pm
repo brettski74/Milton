@@ -416,23 +416,23 @@ sub disconnect {
 }
 
 sub info {
-  my ($self, $message) = @_;
-  $self->{logger}->info($message);
+  my $self = shift;
+  $self->{logger}->info(@_);
 }
 
 sub warning {
-  my ($self, $message) = @_;
-  $self->{logger}->warning($message);
+  my $self = shift;
+  $self->{logger}->warning(@_);
 }
 
 sub error {
-  my ($self, $message) = @_;
-  $self->{logger}->error($message);
+  my $self = shift;
+  $self->{logger}->error(@_);
 }
 
 sub debug {
-  my ($self, $level, $message) = @_;
-  $self->{logger}->debug($level, $message);
+  my $self = shift;
+  $self->{logger}->debug(@_);
 }
 
 =head2 DESTROY

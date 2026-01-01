@@ -27,8 +27,7 @@ use Exporter qw(import);
 our @EXPORT_OK = qw(getYamlParser);
 
 use Milton::Config::Include;
-
-my @search_path = ();
+use Milton::Config::Path qw(resolve_file_path search_path);
 
 my %path_cache = ();
 
@@ -77,7 +76,7 @@ Load a YAML file and return the data as a reference.
 sub _load_file {
   my ($filename) = @_;
   
-  my $path = _resolve_file_path($filename);
+  my $path = resolve_file_path($filename);
 
   my $pathstring = $path->stringify;
 
@@ -133,42 +132,6 @@ sub _path_pop {
   }
 
   return $rc;
-}
-
-=head2 _resolve_file_path($filename)
-
-Resolve a filename to a full path, searching in the search path if needed.
-
-=cut
-
-sub _resolve_file_path {
-  my ($filename, $optional) = @_;
-  my $path;
-
-  if (!@search_path) {
-    croak "No search path defined";
-  }
-
-  # Check if filename is relative
-  if ($filename !~ /^\//) {
-    $filename ||= 'psc.yaml';
-
-    my ($found_path) = grep { path($_, $filename)->is_file } @search_path;
-
-    if (!$found_path && $optional) {
-      $found_path = $search_path[0];
-    }
-
-    croak "Config file '$filename' not found in search path: ". join(':', @search_path) unless $found_path;
-
-    $path = path($found_path, $filename);
-  } elsif (-f $filename || $optional) {
-    $path = path($filename);
-  } else {
-    croak "Config file '$filename' not found";
-  }
-
-  return $path;
 }
 
 =head2 _create_node($node, $key)
@@ -275,48 +238,6 @@ sub _descend {
 
 =head1 CLASS METHODS
 
-=head2 addSearchDir(@dirs)
-
-Add one or more directories to the search path for configuration files.
-
-=cut
-
-sub addSearchDir {
-  my ($class, @dirs) = @_;
-  foreach my $dir (@dirs) {
-    # Directory needs to be either an existing directory or non-existent.
-    if ($dir && (-d $dir || !-e $dir)) {
-      push @search_path, $dir;
-    }
-  }
-
-  # Remove duplicates
-  my %seen;
-  for (my $i = 0; $i < @search_path; $i++) {
-    if ($seen{$search_path[$i]}) {
-      splice @search_path, $i, 1;
-    } else {
-      $seen{$search_path[$i]} = 1;
-    }
-  }
-
-  return @search_path;
-}
-
-sub clearSearchPath {
-  @search_path = ();
-}
-
-=head2 searchPath
-
-Return the current list of directories that will be searched for configuration files.
-
-=cut
-
-sub searchPath {
-  return @search_path;
-}
-
 =head2 configFileExists($filename)
 
 Check if a configuration file exists in the search path.
@@ -328,7 +249,7 @@ sub configFileExists {
   my $rc = undef;
 
   eval {
-    my $path = _resolve_file_path($filename);
+    my $path = resolve_file_path($filename);
     $rc = $path->is_file;
   };
 
@@ -340,7 +261,7 @@ sub findConfigFile {
   my ($class, $filename) = @_;
 
   eval {
-    my $path = _resolve_file_path($filename);
+    my $path = resolve_file_path($filename);
     return $path->stringify if $path->is_file;
   };
 
@@ -468,7 +389,7 @@ sub getYamlParser {
 
     my $child = _resolve_child_path($filename);
 
-    my $path = _resolve_file_path($child, $optional);
+    my $path = resolve_file_path($child, $optional);
     my $full_path = $path->stringify;
 
     if ($self->{cached}->{$full_path}++) {
@@ -497,6 +418,13 @@ sub getYamlParser {
   $include->yp($ypp);
 
   return $ypp;
+}
+
+sub getConfigPath {
+  my ($filename, @keys) = @_;
+
+  my $config = Milton::Config->new($filename);
+  return $config->getPath(@keys)->{filename};
 }
 
 1;

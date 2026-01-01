@@ -14,11 +14,7 @@ use YAML::PP::Schema::Include;
 use Scalar::Util qw(reftype);
 
 use Milton::Config qw(getYamlParser);
-
-# Ensure that $MILTON_BASE is set if not already.
-if ( ! $ENV{MILTON_BASE} ) {
-  $ENV{MILTON_BASE} = path($Bin, '..')->realpath->stringify;
-}
+use Milton::Config::Path qw(resolve_file_path search_path);
 
 =head1 NAME
 
@@ -72,6 +68,9 @@ sub findDeviceFile {
   return $name;
 }
 
+=head2 findInterfaceConfigFiles
+
+Returns 
 =head2 resolveConfigPath($path, $optional)
 
 Resolve the path to a configuration file.
@@ -106,7 +105,7 @@ The fully qualified path to the configuration file that will be read.
 
 sub resolveConfigPath {
   my ($path, $optional) = @_;
-  my $fullpath = Milton::Config::_resolve_file_path($path, $optional);
+  my $fullpath = resolve_file_path($path, $optional);
 
   return $fullpath->stringify;
 }
@@ -137,7 +136,7 @@ The fully qualified path to the configuration file that will be written.
 
 sub resolveWritableConfigPath {
   my ($path) = @_;
-  my @search_path = Milton::Config::searchPath();
+  my @search_path = search_path();
 
   if ($path =~ /^\//) {
     croak "Absolute paths are not permitted for writable configuration files: $path";
@@ -148,11 +147,28 @@ sub resolveWritableConfigPath {
   return $fullpath->stringify;
 }
 
+=head2 findConfigFilesByPath($path, $validate)
+
+Find all configuration files in the search path that match the given path.
+
+=over
+
+=item $path
+
+A relative path string to be searched for YAML files. The path may contain wildcards and other glob
+pattern elements. The function will search all directories in the configuration search path 
+
+=item $validate
+
+=back
+
+=cut
+
 sub findConfigFilesByPath {
   my ($path, $validate) = @_;
 
   my @files = ();
-  my @dirs = Milton::Config::searchPath();
+  my @dirs = search_path();
   my $ypp = getYamlParser();
   my %seen;
 
@@ -191,22 +207,6 @@ sub findConfigFilesByPath {
   }
 
   return sort { $a->{displayName} cmp $b->{displayName} } @files;
-}
-
-sub standardSearchPath {
-  Milton::Config->addSearchDir(split(/:/, $ENV{MILTON_CONFIG_PATH})
-                                         , "$ENV{HOME}/.config/milton"
-                                         , "$ENV{MILTON_BASE}/share/milton/config"
-                                         );
-}
-
-sub getConfigPath {
-  my ($filename, @keys) = @_;
-
-  Milton::Config->clearSearchPath();
-  Milton::Config::Utils::standardSearchPath();
-  my $config = Milton::Config->new($filename);
-  return $config->getPath(@keys)->{filename};
 }
 
 sub _readConfigMetadata {

@@ -13,6 +13,9 @@ device: /dev/usbtmc[0-9]*
 # The id string should being with Siglent SPD1305X
 id-pattern: ^Siglent SPD1305X
 
+shutdown-commands:
+  - *UNLOCK
+
 baudrate: 115200
 
 # Sane current limits within spec

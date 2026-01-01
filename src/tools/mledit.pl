@@ -1,24 +1,21 @@
 #!/usr/bin/perl
 
+use Path::Tiny;
+use FindBin qw($RealBin);
+use lib path($RealBin)->sibling('lib', 'perl5')->stringify;
+use Milton::Config::Path;
+
 use strict;
 use warnings qw(all -uninitialized);
-use FindBin qw($Bin);
-use Path::Tiny;
-
-my $libdir;
-BEGIN {
-  my $libpath = path($Bin)->parent->child('lib')->child('perl5');
-  $libdir = $libpath->stringify;
-}
-
-use lib $libdir;
 
 use IO::File;
 
 use Milton::Config;
-use Milton::Config::Utils qw(resolveConfigPath resolveWritableConfigPath standardSearchPath);
+use Milton::Config::Utils qw(resolveConfigPath resolveWritableConfigPath);
+use Milton::Config::Path qw(standard_search_path);
+use Milton::DataLogger qw($DEBUG_LEVEL_FILENAME);
 
-standardSearchPath();
+standard_search_path();
 
 sub copy_file {
   my ($source, $target) = @_;
@@ -49,6 +46,11 @@ if (!@ARGV) {
 }
 
 foreach my $file (@ARGV) {
+  # Allow use of "debug" as an abbreviation for the debug level configuration file.
+  if ($file eq 'debug') {
+    $file = $DEBUG_LEVEL_FILENAME;
+  }
+
   my $source = resolveConfigPath($file, 1);
   my $target = resolveWritableConfigPath($file);
 
@@ -74,7 +76,7 @@ foreach my $file (@ARGV) {
   EDIT: {
     system $editor, $target;
 
-    if (-e $target) {
+    if (-e $target && $file =~ /\.yaml$/i && $file ne $DEBUG_LEVEL_FILENAME) {
       my $cfg;
       # Test file validity
       eval {

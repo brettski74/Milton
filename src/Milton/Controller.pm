@@ -5,6 +5,10 @@ use warnings qw(all -uninitialized);
 use Carp qw(croak);
 use Milton::Math::PiecewiseLinear;
 use Milton::Predictor;
+use Milton::DataLogger qw(get_namespace_debug_level);
+
+# Get the debug level for this namespace
+use constant DEBUG_LEVEL => get_namespace_debug_level();
 
 =encoding utf8
 
@@ -350,7 +354,7 @@ The ambient temperature in degrees celsius.
 sub getAmbient {
   my ($self, $status) = @_;
   my $ambient = $status->{ambient};
-  $self->debug(10, "getAmbient: ambient: $ambient");
+  $self->debug('getAmbient: ambient: %.1f', $ambient) if DEBUG_LEVEL >= 10;
 
   if (!defined $ambient) {
     my $default = $self->{limits}->{ambient} // 25;
@@ -358,12 +362,18 @@ sub getAmbient {
     my $temperature = $status->{temperature};
     my $device_temperature = $status->{'device-temperature'};
     my $device_ambient = $status->{'device-ambient'};
-    $self->debug(10, "default: $default, ambient: $ambient, device-temp: $device_temperature, device-ambient: $device_ambient");
+    $self->debug('default: %.1f, ambient: %.1f, device-temp: %.1f, device-ambient: %.1f'
+               , $default
+               , $ambient
+               , $device_temperature
+               , $device_ambient) if DEBUG_LEVEL >= 10;
 
     # If we have a temperature device but no device temperature, then maybe we need to poll it
     if (!defined($device_temperature) && defined($self->hasTemperatureDevice)) {
       ($device_temperature, $device_ambient) = $self->getDeviceTemperature;
-      $self->debug(10, "Getting device temperature: device-temp: $device_temperature, device-ambient: $device_ambient");
+      $self->debug('Getting device temperature: device-temp: %.1f, device-ambient: %.1f'
+                 , $device_temperature
+                 , $device_ambient) if DEBUG_LEVEL >= 10;
     }
 
     $ambient = $device_ambient;
@@ -619,23 +629,30 @@ sub setPowerLimit {
 }
 
 sub info {
-  my ($self, $message) = @_;
+  my $self = shift;
   if ($self->{logger}) {
-    $self->{logger}->info($message);
+    $self->{logger}->info(@_);
   }
 }
 
 sub warning {
-  my ($self, $message) = @_;
+  my $self = shift;
   if ($self->{logger}) {
-    $self->{logger}->warning($message);
+    $self->{logger}->warning(@_);
   }
 }
 
 sub debug {
-  my ($self, $level, $message) = @_;
+  my $self = shift;
   if ($self->{logger}) {
-    $self->{logger}->debug($level, $message);
+    $self->{logger}->debug(@_);
+  }
+}
+
+sub error {
+  my $self = shift;
+  if ($self->{logger}) {
+    $self->{logger}->error(@_);
   }
 }
 

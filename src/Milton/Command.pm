@@ -492,10 +492,10 @@ Returns this command object to allow for method chaining.
 =cut
 
 sub info {
-  my ($self, $message) = @_;
+  my $self = shift;
 
   if (defined $self->{logger}) {
-    $self->{logger}->info($message);
+    $self->{logger}->info(@_);
   }
 
   return $self;
@@ -524,19 +524,27 @@ Returns this command object to allow for method chaining.
 =cut
 
 sub debug {
-  my ($self, $level, $message) = @_;
+  my $self = shift;
 
   if (defined $self->{logger}) {
-    $self->{logger}->debug($level, $message);
+    $self->{logger}->debug(@_);
   }
 
   return $self;
 }
 
 sub warning {
-  my ($self, $message) = @_;
+  my $self = shift;
   if (defined $self->{logger}) {
-    $self->{logger}->warning($message);
+    $self->{logger}->warning(@_);
+  }
+  return $self;
+}
+
+sub error {
+  my $self = shift;
+  if (defined $self->{logger}) {
+    $self->{logger}->error(@_);
   }
   return $self;
 }

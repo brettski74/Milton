@@ -1,25 +1,21 @@
 #!/usr/bin/perl
 
-use FindBin qw($Bin);
-
 use Path::Tiny;
-my $libdir;
-BEGIN {
-  my $libpath = path($Bin)->parent->child('lib')->child('perl5');
-  $libdir = $libpath->stringify;
-};
-
-use lib $libdir;
+use FindBin qw($RealBin);
+use lib path($RealBin)->sibling('lib', 'perl5')->stringify;
+use Milton::Config::Path;
 
 use strict;
 use warnings qw(all -uninitialized);
 
+use Path::Tiny;
 use AnyEvent;
 use Term::ReadKey;
 use Getopt::Long qw(:config no_ignore_case bundling require_order);
 use Milton::Config;
 use Milton::EventLoop;
 use Milton::Config::Utils;
+use Milton::Config::Path qw(add_search_dir standard_search_path);
 
 my $args = { config => 'psc.yaml' };
 GetOptions($args, qw( config=s
@@ -37,8 +33,8 @@ GetOptions($args, qw( config=s
                      ));
 
 my $command = shift;
-Milton::Config->addSearchDir(@{$args->{library}});
-Milton::Config::Utils::standardSearchPath();
+add_search_dir(@{$args->{library}});
+standard_search_path();
 
 my $config = Milton::Config->new($args->{config});
 

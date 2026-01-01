@@ -236,28 +236,27 @@ sub setLogger {
 }
 
 sub info {
-  my ($self, $message) = @_;
+  my $self = shift;
 
-  $self->{'logger'}->info($message) if $self->{'logger'};
+  $self->{logger}->info(@_) if $self->{logger};
 }
 
 sub warning {
-  my ($self, $message) = @_;
+  my $self = shift;
 
-  $self->{'logger'}->warning($message) if $self->{'logger'};
+  $self->{logger}->warning(@_) if $self->{logger};
 }
 
 sub error {
-  my ($self, $message) = @_;
+  my $self = shift;
 
-  $self->{'logger'}->error($message) if $self->{'logger'};
+  $self->{logger}->error(@_) if $self->{logger};
 }
 
 sub debug {
-  my ($self, $level, $message) = @_;
-  print "Log level: $level\n";
+  my $self = shift;
 
-  $self->{'logger'}->debug($level, $message) if $self->{'logger'};
+  $self->{logger}->debug(@_) if $self->{logger};
 }
 
 1;

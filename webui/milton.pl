@@ -1,23 +1,18 @@
 #!/usr/bin/perl
 
+use Path::Tiny;
+use FindBin qw($RealBin);
+use lib path($RealBin)->sibling('lib', 'perl5')->stringify;
+use Milton::Config::Path;
+
 use strict;
 use warnings qw(all -uninitialized);
-
-use FindBin qw($Bin);
-
-use Path::Tiny;
-my $libdir;
-BEGIN {
-  my $libpath = path($Bin)->parent->child('lib')->child('perl5');
-  $libdir = $libpath->stringify;
-};
-
-use lib $libdir;
 
 use strict;
 use warnings qw(all -uninitialized);
 
 use Milton::Config::Utils qw(getReflowProfiles getDeviceNames);
+use Milton::Config::Path qw(standard_search_path);
 
 use Mojolicious::Lite;
 use MiltonUI::CommandExecutor;
@@ -32,6 +27,8 @@ app->config(
     keep_alive_timeout => 300,  # 5 minutes keep-alive
   }
 );
+
+standard_search_path();
 
 # Configure WebSocket settings
 # Can't locate object method "websocket_timeout" via package "Mojolicious::Lite" at webui/web_server.pl line 28.

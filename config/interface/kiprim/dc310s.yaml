@@ -15,6 +15,9 @@ id-pattern: ^KIPRIM DC310S
 
 baudrate: 115200
 
+shutdown-commands:
+  - SYST:LOC
+
 # Sane current limits within spec
 current:
   maximum: 10.1

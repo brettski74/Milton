@@ -630,7 +630,7 @@
   function addConsoleMessage(message, level = 'info') {
     const console = document.getElementById('consoleOutput');
     const div = document.createElement('div');
-    div.className = `mb-1 ${level === 'error' ? 'text-red-400' : level === 'warn' ? 'text-yellow-400' : 'text-green-400'}`;
+    div.className = `mb-1 ${level === 'error' ? 'text-red-400' : level === 'warn' ? 'text-yellow-400' : level === 'debug' ? 'text-blue-400' : 'text-green-400'}`;
     div.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
     console.appendChild(div);
     console.scrollTop = console.scrollHeight;

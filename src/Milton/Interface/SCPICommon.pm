@@ -5,6 +5,13 @@ use warnings qw(all -uninitialized);
 
 use base qw(Milton::Interface);
 use Carp qw(croak);
+use Milton::DataLogger qw(get_namespace_debug_level);
+
+# Get the debug level for this namespace
+use constant DEBUG_LEVEL => get_namespace_debug_level();
+use constant CONNECTION_DEBUG => 10;
+use constant REQUEST_DEBUG => 50;
+use constant RESPONSE_DEBUG => 100;
 
 =head1 NAME
 
@@ -87,6 +94,13 @@ An array of SCPI command strings to send to the power supply upon connecting. Th
 commands required to setup the state of the remote control interface, such as selecting a default output
 channel. If not specified, no custom initialization commands are sent.
 
+=item shutdown-commands
+
+An array of SCPI command strings to send to the power supply upon disconnecting. This is useful for sending any
+custom commands that may be required to restore normal operation after the script exits. Note that the
+disconnect method will automatically turn off the output using the OUTP OFF command or equivalent. Things that
+you may want to consider including in this list are things like an *UNLOCK command to unlock the user interface.
+
 =item command-length
 
 The maximum length of a single SCPI command string that can be sent to the power supply. This does not include
@@ -148,6 +162,15 @@ of OUTP is used.
 sub new {
   my ($class, $config) = @_;
 
+  if (DEBUG_LEVEL >= 1) {
+    if ($config->{logger}) {
+      my $logger = $config->{logger};
+      foreach my $key (sort keys %$config) {
+        $logger->debug('Config %s: %s', $key, $config->{$key}) if !ref($config->{$key});
+      }
+    }
+  }
+
   if ($config->{'id-pattern'}) {
     $config->{'id-pattern-re'} = qr/$config->{'id-pattern'}/;
   }
@@ -163,6 +186,12 @@ sub new {
   $self->{'on-off-command'} //= 'OUTP';
 
   $self->{'command-length'} //= 10000;
+
+  if (DEBUG_LEVEL >= 10) {
+    foreach my $key (sort keys %$self) {
+      $self->debug('Object %s: %s', $key, $self->{$key}) if !ref($self->{$key});
+    }
+  }
 
   return $self;
 }
@@ -292,8 +321,10 @@ sub sendCommand {
   # Maybe should croak?
   return unless $helper;
 
+  $self->debug('Sending SCPI Command: %s', $command) if DEBUG_LEVEL >= REQUEST_DEBUG;
   my $response = $helper->sendRequest("$command\n");
   chomp $response;
+  $self->debug('Received SCPI Response: %s', $response) if DEBUG_LEVEL >= RESPONSE_DEBUG;
 
   if (defined($response) && $response ne '') {
     return split(/\s*,\s*/, $response);
@@ -428,7 +459,16 @@ sub _disconnect {
   my ($self) = @_;
 
   if ($self->{helper}) {
+    if ($self->{'shutdown-commands'}) {
+    $self->debug('Sending shutdown commands') if DEBUG_LEVEL >= CONNECTION_DEBUG;
+      foreach my $cmd (@{$self->{'shutdown-commands'}}) {
+        $self->sendCommand($cmd);
+      }
+    }
+
+    $self->debug('Turning off output') if DEBUG_LEVEL >= CONNECTION_DEBUG;
     $self->_on(0);
+    $self->debug('Disconnecting from power supply') if DEBUG_LEVEL >= CONNECTION_DEBUG;
     $self->{helper}->disconnect;
   }
 
@@ -436,5 +476,17 @@ sub _disconnect {
 
   return;
 }
+
+=head1 AUTHOR Brett Gersekowski
+
+=head1 COPYRIGHT AND LICENSE
+
+Copyright (c) 2025 Brett Gersekowski
+
+This module is part of Milton - The Makeshift Melt Master! - a system for controlling solder reflow hotplates.
+
+This software is licensed under an MIT licence. The full licence text is available in the LICENCE.md file distributed with this project.
+
+=cut
 
 1;

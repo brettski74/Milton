@@ -26,12 +26,18 @@ sub new {
 }
 
 sub info {
-  my ($self, $message) = @_;
+  my $self = shift;
 
   if ($self->{logger}) {
-    $self->{logger}->info($message);
+    $self->{logger}->info(@_);
   } else {
-    print $message, "\n";
+    my $message = shift;
+    
+    if (@_) {
+      printf "CommandExecutor: $message\n", @_;
+    } else {
+      print $message, "\n";
+    }
   }
 
   return 1;
@@ -415,7 +421,7 @@ sub commandFinished {
 sub getConfigPath {
   my ($self, @keys) = @_;
 
-  return Milton::Config::Utils::getConfigPath('psc.yaml', @keys);
+  return Milton::Config::getConfigPath('psc.yaml', @keys);
 }
 
 sub executeCommand {

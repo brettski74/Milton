@@ -5,6 +5,14 @@ use warnings qw(all -uninitialized);
 use Carp qw(croak);
 use IO::File;
 use Path::Tiny qw(path);
+use Milton::Config::Path qw(resolve_file_path search_path standard_search_path);
+use Readonly;
+use mro;
+
+use Exporter qw(import);
+our @EXPORT_OK = qw(get_namespace_debug_level $DEBUG_LEVEL_FILENAME);
+
+Readonly our $DEBUG_LEVEL_FILENAME => 'milton-debug.cfg';
 
 =head1 NAME
 
@@ -195,29 +203,43 @@ sub log {
 }
 
 sub info {
-  my ($self, $message) = @_;
+  my ($self, $message, @args) = @_;
+
+  if (@args) {
+    $message = sprintf($message, @args);
+  }
 
   $self->consoleOutput('INFO', $message);
 }
 
 sub warning {
-  my ($self, $message) = @_;
+  my ($self, $message, @args) = @_;
+
+  if (@args) {
+    $message = sprintf($message, @args);
+  }
 
   $self->consoleOutput('WARN', $message);
 }
 
 sub error {
-  my ($self, $message) = @_;
+  my ($self, $message, @args) = @_;
+
+  if (@args) {
+    $message = sprintf($message, @args);
+  }
 
   $self->consoleOutput('ERROR', $message);
 }
 
 sub debug {
-  my ($self, $level, $message) = @_;
-  
-  if ($level <= $self->{'debug-level'}) {
-    $self->consoleOutput('DEBUG', $message);
+  my ($self, $message, @args) = @_;
+
+  if (@args) {
+    $message = sprintf($message, @args);
   }
+  
+  $self->consoleOutput('DEBUG', $message);
 }
 
 sub debugLevel {
@@ -334,6 +356,106 @@ sub close {
 
   return;
 }
+
+my %DEBUG_LEVELS;
+my $DEBUG_LEVELS_LOADED = undef;
+
+# Keep the debug level loadign logic as simple and free of dependencies as possible, since this needs
+# to be callable at compile-time for efficiency.
+sub load_debug_levels {
+  return if $DEBUG_LEVELS_LOADED;
+  #print "load_debug_levels: called\n";
+
+  $DEBUG_LEVELS_LOADED = 1;
+
+  %DEBUG_LEVELS = ();
+
+  my @search_path = search_path();
+  if (!@search_path) {
+    standard_search_path();
+  }
+
+  my $path = resolve_file_path($DEBUG_LEVEL_FILENAME, 1);
+  return if !$path;
+  return if !$path->is_file;
+
+  my $pathstring = $path->stringify;
+  #print "path to debug level file: $pathstring\n";
+
+  local $_;
+  local $.;
+
+  open(DBGLVL, '<', $pathstring) || return;
+
+  while (<DBGLVL>) {
+    # Strip off any leading or trailing whitespace
+    chomp;
+    s/^\s+//;
+    s/\s+$//;
+    #print "DEBUG LEVEL line: $_\n";
+
+    next if /^#/;
+
+    if (/^((\w+::)*\w+)\s*=\s*(\d+)$/) {
+      $DEBUG_LEVELS{$1} = $3;
+      #print "DEBUG LEVEL $1 = $3\n";
+    } else {
+      warn "$pathstring:$.: Syntax error: $_\n";
+    }
+  }
+
+  CORE::close(DBGLVL);
+  #print "DEBUG LEVELS: finished\n";
+}
+
+=head1 FUNCTIONS
+
+=head2 get_namespace_debug_level($namespace)
+
+Returns the debug level for the specified namespace.
+
+=over
+
+=item $namespace
+
+An optional string identifying the namespace for which the debug level is desired. If not specified,
+it will be defaulted to the namespace of the caller. Debug levels are loaded from the milton-debug.cfg
+file, which will be loaded from the configuration search path. If an entry for the specified namespace
+is not found, then the debug level will be defaulted to 0.
+
+=item Return Value
+
+The debug level for the specified namespace.
+
+=back
+
+=cut
+
+sub get_namespace_debug_level {
+  my ($namespace) = @_;
+
+  if (!$namespace) {
+    my ($package, $filename, $line) = caller(1);
+
+    $namespace = $package;
+  }
+  #print "get_namespace_debug_level: namespace = $namespace\n";
+
+  load_debug_levels() if !$DEBUG_LEVELS_LOADED;
+
+  my $linear_isa = mro::get_linear_isa($namespace);
+  #print "get_namespace_debug_level: linear_isa = ", join(', ', @$linear_isa) ."\n";
+
+  foreach my $isa (@$linear_isa) {
+    if (exists $DEBUG_LEVELS{$isa}) {
+      #print "DEBUG_LEVEL $isa($namespace) = $DEBUG_LEVELS{$isa}\n";
+      return $DEBUG_LEVELS{$isa} || 0;
+    }
+  }
+
+  return 0;
+}
+
 
 package Milton::DataLogger::Null;
 

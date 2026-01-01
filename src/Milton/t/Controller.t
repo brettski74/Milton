@@ -7,6 +7,7 @@ use lib qw(.);
 use Test2::V0;
 
 use Milton::Controller;
+use Milton::t::MockInterface;
 
 subtest getAmbient => sub {
   my $status = {};
@@ -81,34 +82,8 @@ subtest getAmbient => sub {
 
 };
 
-subtest getPowerLimited => sub {
-  my $status = {};
-  my $c = Milton::Controller->new({ limits => { 'power-limits' => [ { temperature => 20, power => 120 }
-                                                                              , { temperature => 220, power => 120 }
-                                                                              , { temperature => 230, power => 50 }
-                                                                              ]
-                                                          , 'cut-off-temperature' => 227
-                                                          }
-                                              });
-
-  is($c->getPowerLimited({ power => 60 }), 60, 'No temperature available - pass-thru');
-  is($c->getPowerLimited({ power => 160 }), 160, 'No temperature available - pass-thru');
-
-  my @testdata = ( [ 55, 10, 55 ]
-                 , [ 155, 10, 120, 155 ]
-                 , [ 56, 20, 56 ]
-                 , [ 156, 20, 120, 156 ]
-                 , [ 75, 100, 75 ]
-                 , [ 175, 100, 120, 175 ]
-                 , [ 90, 220, 90 ]
-                 , [ 120, 220, 120 ]
-                 , [ 121, 220, 120, 121 ]
-                 , [ 120, 225, 85, 120 ]
-                 , [ 84, 225, 84 ]
-                 , [ 50, 227, 0, 50, 0 ]
-                 , [ 90, 227, 0, 90, 0 ]
-                 , [ 50, 230, 0, 50, 0 ]
-                 );
+sub test_power_limits {
+  my ($c, @testdata) = @_;
 
   foreach my $test (@testdata) {
     is($c->getPowerLimited({ power => $test->[0], temperature => $test->[1] }), $test->[2]
@@ -125,10 +100,67 @@ subtest getPowerLimited => sub {
 
     $c->enableLimits;
     $c->enableCutoff;
-
   }
+}
 
+subtest getPowerLimited => sub {
+  my $status = {};
+  my $limits = [ { temperature => 20, power => 120 }
+               , { temperature => 220, power => 120 }
+               , { temperature => 230, power => 50 }
+               ];
+  my $c = Milton::Controller->new({ limits => { 'power-limits' => $limits
+                                              , 'cut-off-temperature' => 227
+                                              }
+                                  }
+                                  , Milton::t::MockInterface->new
+                                  );
 
+  is($c->getPowerLimited({ power => 60 }), 60, 'No temperature available - pass-thru');
+  is($c->getPowerLimited({ power => 160 }), 160, 'No temperature available - pass-thru');
+
+  # Requested power, temperature, limited power, disable limits power, disable cutoff power
+  test_power_limits($c
+                  , [ 55, 10, 55 ]
+                  , [ 155, 10, 120, 155 ]
+                  , [ 56, 20, 56 ]
+                  , [ 156, 20, 120, 156 ]
+                  , [ 75, 100, 75 ]
+                  , [ 175, 100, 120, 175 ]
+                  , [ 90, 220, 90 ]
+                  , [ 120, 220, 120 ]
+                  , [ 121, 220, 120, 121 ]
+                  , [ 120, 225, 85, 120 ]
+                  , [ 84, 225, 84 ]
+                  , [ 50, 227, 0, 50, 0 ]
+                  , [ 90, 227, 0, 90, 0 ]
+                  , [ 50, 230, 0, 50, 0 ]
+                  );
+
+  $limits = [ { temperature => 20, power => 'psmax' }
+            , { temperature => 220, power => 'psmax'}
+            , { temperature => 224, power => 120 }
+            , { temperature => 230, power => 50 }
+            ];
+
+  $c = Milton::Controller->new({ limits => { 'power-limits' => $limits
+                                           , 'cut-off-temperature' => 232
+                                           }
+                               }
+                             , Milton::t::MockInterface->new({ voltage => { minimum => 1, maximum => 30 }
+                                                             , current => { minimum => 0.1, maximum => 10, measurable => 1 },
+                                                             , power => { minimum => 10, maximum => 150 }
+                                                             })
+                             );
+
+  # Requested power, temperature, limited power, disable limits power, disable cutoff power
+  test_power_limits($c
+                  , [ 55, 10, 55 ]
+                  , [ 155, 10, 150, 155 ]
+                  , [ 160, 220, 150, 160 ]
+                  , [ 145, 210, 145 ]
+                  , [ 145, 222, 135, 145 ]
+                  );
 };
 
 done_testing();

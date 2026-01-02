@@ -90,6 +90,55 @@ sub loadSupportedDevices {
   return $result;
 }
 
+sub scanSCPIUSBTMCDevices {
+  my ($self, $glob) = @_;
+  $glob //= '/dev/usbtmc[0-9]*';
+
+  my $first = !wantarray;
+  my @found;
+
+  my @ports = glob($glob);
+
+  PORT: foreach my $port (@ports) {
+    my $interface;
+
+    eval {
+      $interface = Milton::Interface::SCPI::USBTMC->new({ device => $port
+                                                        , logger => $self->{logger}
+                                                        });
+    };
+    next PORT if $@ || !$interface;
+
+    my $id = $interface->{'id-string'};
+    
+    if ($id && $id =~ /\w{6}/) {
+      $self->info('Connected to device %s on %s', $id, $port);
+
+      DEVICE: foreach my $device (@{$self->{devices}->{usbtmc}}) {
+        if ($id =~ $device->{'id-pattern-re'}) {
+          $self->info('Device %s matches. Using interface configuration file %s', $device->{displayName}, $device->{value});
+
+          # Shallow copy the device hash to avoid modifying the original.
+          my $result = { %$device };
+          $result->{device} = $port;
+          return $result if $first;
+          push @found, $result;
+          next PORT;
+        }
+      }    
+    }
+
+    my $device = $self->characterizeDevice($interface, $port);
+    if ($device) {
+      return $device if $first;
+      push @found, $device;
+    }
+    next PORT;
+  }
+
+  return @found;
+}
+
 sub scanSCPISerialDevices {
   my ($self, $glob) = @_;
   $glob //= '/dev/tty{S,USB,ACM}[0-9]*';
@@ -124,7 +173,7 @@ sub scanSCPISerialDevices {
       if ($id && $id =~ /\w{6}/) {
         $self->info('Connected to device %s on %s at %d baud', $id, $port, $baud);
 
-        foreach my $device (@{$self->{devices}->{serial}}) {
+        DEVICE: foreach my $device (@{$self->{devices}->{serial}}) {
           if ($id =~ $device->{'id-pattern-re'}) {
             $self->info('Device %s matches. Using interface configuration file %s', $device->{displayName}, $device->{value});
             
@@ -137,24 +186,11 @@ sub scanSCPISerialDevices {
           }
         }
 
-        my ($make, $model) = $interface->sendCommand('*IDN?');
-        my $portglob = $port;
-        $portglob =~ s/[0-9]+$/[0-9]*/;
-        my $filename = lc($make) .'/'. lc($model) .'.yaml';
-        $filename =~ s/[^\w\.]+/-/g;
-        my $device = { displayName => "$make $model"
-                     , value => "interface/user/$filename"
-                     , device => $port
-                     , document => { package => 'Milton::Interface::SCPI::Serial'
-                                   , 'id-pattern' => "^$make $model"
-                                   , baudrate => $baud
-                                   , 'preferred-device' => $port
-                                   , device => $portglob
-                                   }
-                     };
-        $device = $self->characterizeDevice($interface, $device);
-        return $device if $first;
-        push @found, $device;
+        my $device = $self->characterizeDevice($interface, $port);
+        if ($device) {
+          return $device if $first;
+          push @found, $device;
+        }
         next PORT;
       }
     
@@ -181,7 +217,7 @@ sub characterizeDeviceVoltage {
   for (my $v = 12; $v <= 60; $v++) {
     # Don't use setVoltage because it will try to turn the output on.
     my $response = $interface->sendCommand($interface->setVoltageCommand($v));
-    last if $response =~ /ERR/i;
+    last if !$self->isResponseValid($response);
 
     my ($vset) = $interface->sendCommand($interface->voltageSetpointCommand);
 
@@ -210,7 +246,7 @@ sub characterizeDeviceCurrent {
   my $imax = 0;
   for (my $i = 1; $i <= 20; $i += 1/2) {
     my $response = $interface->sendCommand($interface->setCurrentCommand($i));
-    last if $response =~ /ERR/i;
+    last if !$self->isResponseValid($response);
 
     my ($iset) = $interface->sendCommand($interface->currentSetpointCommand);
 
@@ -245,7 +281,7 @@ sub characterizeDevicePower {
     }
 
     my $response = $interface->sendCommand($interface->setVoltageCommand($vmax) .';'. $interface->setCurrentCommand($i));
-    last if $response =~ /ERR/i;
+    last if !$self->isResponseValid($response);
 
     my ($vset) = $interface->sendCommand($interface->voltageSetpointCommand);
     my ($iset) = $interface->sendCommand($interface->currentSetpointCommand);
@@ -263,16 +299,41 @@ sub characterizeDevicePower {
   return $pmax;
 }
 
+sub isResponseValid {
+  my ($self, $response) = @_;
+
+  return $response !~ /ERR/i;
+}
+
 sub characterizeDevice {
-  my ($self, $interface, $device) = @_;
+  my ($self, $interface, $port) = @_;
+
+  my ($make, $model) = $interface->sendCommand('*IDN?');
+  my $portglob = $port;
+  $portglob =~ s/[0-9]+$/[0-9]*/;
+  my $filename = lc($make) .'/'. lc($model) .'.yaml';
+  $filename =~ s/[^\w\.]+/-/g;
+  my $device = { displayName => "$make $model"
+               , value => "interface/user/$filename"
+               , device => $port
+               , document => { package => 'Milton::Interface::SCPI::USBTMC'
+                             , 'id-pattern' => "^$make $model"
+                             , device => $portglob
+                             }
+               };
   my $document = $device->{document};
 
   # A conservative command length limit until we know more.
   $document->{'command-length'} = 26;
 
   my $vmax = $self->characterizeDeviceVoltage($interface);
+  return if $vmax <= 0.1;
+
   my $imax = $self->characterizeDeviceCurrent($interface);
+  return if $imax <= 0.1;
+
   my $pmax = $self->characterizeDevicePower($interface, $vmax, $imax);
+  return if $pmax <= 0.1;
 
   $document->{voltage} = { maximum => $vmax + 0.0, minimum => 2 };
   $document->{current} = { maximum => $imax + 0.0, minimum => 0.5 };

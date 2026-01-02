@@ -9,7 +9,7 @@ BASEDIR=../../
 .PHONY: install install-dirs check-perl clean
 
 # Perl scripts to install
-PERL_SCRIPTS=csv2csv.pl csv2perl.pl mledit.pl
+PERL_SCRIPTS=csv2csv.pl csv2perl.pl mledit.pl scpi_scan.pl
 
 REL_PERL_SCRIPTS=$(patsubst %.pl,$(BINDIR)/%,$(PERL_SCRIPTS))
 

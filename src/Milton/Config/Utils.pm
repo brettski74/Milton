@@ -7,13 +7,13 @@ use Path::Tiny;
 use Carp qw(croak);
 
 use Exporter qw(import);
-our @EXPORT_OK = qw(find_reflow_profiles get_device_names find_device_file get_yaml_parser resolve_config_path resolve_writable_config_path);
+our @EXPORT_OK = qw(find_config_files_by_path find_reflow_profiles get_device_names find_device_file get_yaml_parser resolve_config_path resolve_writable_config_path);
 
 use YAML::PP;
 use YAML::PP::Schema::Include;
 use Scalar::Util qw(reftype);
 
-use Milton::Config qw(get_yaml_parser);
+use Milton::Config;
 use Milton::Config::Path qw(resolve_file_path search_path);
 
 =head1 NAME
@@ -174,7 +174,6 @@ sub find_config_files_by_path {
 
   my @files = ();
   my @dirs = search_path();
-  my $ypp = get_yaml_parser();
   my %seen;
 
   foreach my $dir (@dirs) {
@@ -187,34 +186,44 @@ sub find_config_files_by_path {
       }
       $seen{$relpath} = 1;
 
-      my $doc = _readConfigMetadata($file);
-      if (!defined $doc) {
-        $doc = $ypp->load_file($file);
+      my $doc = _read_config_metadata($file);
+      my $record = { value => $relpath};
+
+      if (defined $doc) {
+        $record->{name} = $doc->{name};
+        $record->{displayName} = $doc->{displayName} || $doc->{name};
+        $record->{description} = $doc->{description} || $record->{displayName};
+      }
+
+      if (!defined $doc || $validate) {
+        $record->{document} = Milton::Config->new($relpath);
         next if reftype($doc) ne 'HASH';
 
-        next if defined($validate) && !$validate->($doc);
+        next if defined($validate) && !$validate->($record->{document});
+        
+        $record->{name} //= $record->{document}->{name};
+        $record->{displayName} //= $record->{document}->{name};
+        $record->{description} //= $record->{document}->{description};
       }
 
-      my $name = $doc->{name};
-      if (!$name) {
-        $name = $file;
+      if (!$record->{displayName}) {
+        my $name = $file;
         $name =~ s/\.yaml$//;
         $name =~ s/^.*\///;
+        $record->{displayName} = $name;
       }
 
-      my $description = $doc->{description} || $name;
+      $record->{name} //= $record->{displayName};
+      $record->{description} //= $record->{displayName};
 
-      push @files, { displayName => $name
-                   , description => $description
-                   , value => $relpath
-                   };
+      push @files, $record;
     }
   }
 
   return sort { $a->{displayName} cmp $b->{displayName} } @files;
 }
 
-sub _readConfigMetadata {
+sub _read_config_metadata {
   my ($path) = @_;
   my $re = qr/^#@ (\w+):\s*(.*)$/;
 
@@ -222,8 +231,12 @@ sub _readConfigMetadata {
   my $line = $fh->getline;
   return if $line !~ /$re/;
   my $meta = { $1 => $2 };
-  while ($line = $fh->getline && $line =~ /$re/) {
-    $meta->{$1} = $2;
+  while ($line = $fh->getline) {
+    if ($line =~ /$re/) {
+      $meta->{$1} = $2;
+    } else {
+      last;
+    }
   }
 
   $fh->close;

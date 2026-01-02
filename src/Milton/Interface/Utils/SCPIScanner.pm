@@ -11,6 +11,14 @@ use Milton::ValueTools qw(timestamp);
 use Milton::Interface::SCPI::Serial;
 use Milton::Interface::SCPI::USBTMC;
 
+use Milton::DataLogger qw(get_namespace_debug_level);
+
+# Get the debug level for this namespace
+use constant DEBUG_LEVEL => get_namespace_debug_level();
+use constant DEBUG_OPERATIONS => 10;
+use constant DEBUG_PROBE_1 => 100;
+use constant DEBUG_PROBE_2 => 50;
+
 use base 'Exporter';
 our @EXPORT_OK = qw(scan_scpi_devices);
 
@@ -158,6 +166,103 @@ sub scanSCPISerialDevices {
   return @found;
 }
 
+sub characterizeDeviceVoltage {
+  my ($self, $interface) = @_;
+
+  $self->debug('Characterizing device voltage') if DEBUG_LEVEL >= DEBUG_OPERATIONS;
+
+  # Ensure that the output is off
+  $interface->on(0);
+
+  # Set the current to a relatively low value to avoid power limit issues while trying voltage set points
+  $interface->sendCommand($interface->setCurrentCommand(1));
+
+  my $vmax = 0;
+  for (my $v = 12; $v <= 60; $v++) {
+    # Don't use setVoltage because it will try to turn the output on.
+    my $response = $interface->sendCommand($interface->setVoltageCommand($v));
+    last if $response =~ /ERR/i;
+
+    my ($vset) = $interface->sendCommand($interface->voltageSetpointCommand);
+
+    $vmax = max($vmax, $vset);
+
+    $self->debug('Set voltage(%.3f) -> %.3f, max so far = %.3f', $v, $vset, $vmax) if DEBUG_LEVEL >= DEBUG_PROBE_1;
+
+    # If the set voltage command didn't apply the requested voltage, then it was probably out of range.
+    last if abs($vset - $v) > 0.01;
+  }
+
+  return $vmax;
+}
+
+sub characterizeDeviceCurrent {
+  my ($self, $interface) = @_;
+
+  $self->debug('Characterizing device current') if DEBUG_LEVEL >= DEBUG_OPERATIONS;
+
+  # Ensure that the output is off
+  $interface->on(0);
+
+  # Set the voltage to a relatively low value to avoid power limit issues while trying current set points
+  $interface->sendCommand($interface->setVoltageCommand(3));
+
+  my $imax = 0;
+  for (my $i = 1; $i <= 20; $i += 1/2) {
+    my $response = $interface->sendCommand($interface->setCurrentCommand($i));
+    last if $response =~ /ERR/i;
+
+    my ($iset) = $interface->sendCommand($interface->currentSetpointCommand);
+
+    $imax = max($imax, $iset);
+
+    $self->debug('Set current(%.3f) -> %.3f, max so far = %.3f', $i, $iset, $imax) if DEBUG_LEVEL >= DEBUG_PROBE_1;
+
+    # If the set current command didn't apply the requested current, then it was probably out of range.
+    last if abs($iset - $i) > 0.01;
+  }
+
+  return $imax;
+}
+
+sub characterizeDevicePower {
+  my ($self, $interface, $vmax, $imax) = @_;
+
+  $self->debug('Characterizing device power with vmax = %s, imax = %s', $vmax, $imax) if DEBUG_LEVEL >= DEBUG_OPERATIONS;
+
+  # Ensure that the output is off
+  $interface->on(0);
+
+  my $pmax = 0;
+
+  # Start somewhere around 1A and work our way up to the maximum power limit.
+  my $pstart = floor($vmax/5 + 1) * 5;
+  for (my $p = $pstart; $p <= 300; $p += 5) {
+    my $i = floor($p / $vmax * 1000.0) / 1000.0;
+
+    if ($i > $imax) {
+      $i = $imax;
+    }
+
+    my $response = $interface->sendCommand($interface->setVoltageCommand($vmax) .';'. $interface->setCurrentCommand($i));
+    last if $response =~ /ERR/i;
+
+    my ($vset) = $interface->sendCommand($interface->voltageSetpointCommand);
+    my ($iset) = $interface->sendCommand($interface->currentSetpointCommand);
+    my $pset = $vset * $iset;
+
+    $pmax = max($pmax, $pset);
+
+    $self->debug('Set voltage(%.3f) -> %.3f, Set current(%.3f) -> %.3f, pmax so far = %.3f', $vmax, $vset, $i, $iset, $pmax)
+            if DEBUG_LEVEL >= DEBUG_PROBE_2;
+
+    # If the set power command didn't apply the requested power, then it was probably out of range.
+    last if ($i == $imax) || (abs($iset - $i) > 0.01) || (abs($vset - $vmax) > 0.01);
+  }
+
+  return $pmax;
+}
+
 sub characterizeDevice {
   my ($self, $interface, $device) = @_;
   my $document = $device->{document};
@@ -165,42 +270,9 @@ sub characterizeDevice {
   # A conservative command length limit until we know more.
   $document->{'command-length'} = 26;
 
-  # Ensure that the output is off
-  $interface->on(0);
-
-  my ($vmax, $imax, $pmax) = (0, 0, 0);
-  for (my $v = 12; $v <= 60; $v++) {
-    # Don't use setVoltage because it will try to turn the output on.
-    my $response = $interface->sendCommand($interface->setVoltageCommand($v));
-    last if $response =~ /ERR/i;
-
-    my ($vset) = $interface->sendCommand($interface->voltageSetpointCommand);
-    my ($iset) = $interface->sendCommand($interface->currentSetpointCommand);
-    my $pset = $vset * $iset;
-
-    $vmax = max($vmax, $vset);
-    $imax = max($imax, $iset);
-    $pmax = max($pmax, $pset);
-
-    # If the set voltage command didn't apply the requested voltage, then it was probably out of range.
-    last if abs($vset - $v) > 0.01;
-  }
-
-  for (my $i = floor($imax); $i <= 20; $i += 1/2) {
-    my $response = $interface->sendCommand($interface->setCurrentCommand($i));
-    last if $response =~ /ERR/i;
-
-    my ($vset) = $interface->sendCommand($interface->voltageSetpointCommand);
-    my ($iset) = $interface->sendCommand($interface->currentSetpointCommand);
-    my $pset = $vset * $iset;
-
-    $vmax = max($vmax, $vset);
-    $imax = max($imax, $iset);
-    $pmax = max($pmax, $pset);
-
-    # If the set current command didn't apply the requested current, then it was probably out of range.
-    last if abs($iset - $i) > 0.01;
-  }
+  my $vmax = $self->characterizeDeviceVoltage($interface);
+  my $imax = $self->characterizeDeviceCurrent($interface);
+  my $pmax = $self->characterizeDevicePower($interface, $vmax, $imax);
 
   $document->{voltage} = { maximum => $vmax + 0.0, minimum => 2 };
   $document->{current} = { maximum => $imax + 0.0, minimum => 0.5 };

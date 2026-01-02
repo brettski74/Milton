@@ -1,17 +1,17 @@
-#@ name: Uni-Trend UDP6721
-#@ description: Standard configuration for the Uni-Trend UDP6721 power supply.
+#@ name: Uni-Trend UDP6720
+#@ description: Standard configuration for the Uni-Trend UDP6720 power supply.
 #@ vmax: 62
 #@ imax: 8.2
 #@ pmax: 180
 ###
 package: Milton::Interface::SCPI::Serial
 
-# The UDP6721 has RS-232 serial ports operating at 9600 baud.
+# The UDP6720 has RS-232 serial ports operating at 9600 baud.
 # This should pick up all ports matching /dev/ttyS<number> and /dev/ttyUSB<number>
 device: /dev/ttyS[0-9]*
 
-# The id string should being with Uni-Trend UDP6721
-id-pattern: ^Uni-Trend UDP6721
+# The id string should being with Uni-Trend UDP6720
+id-pattern: ^Uni-Trend UDP6720
 
 command-length: 26
 
@@ -19,7 +19,7 @@ baudrate: 9600
 
 # Sane current limits within spec
 current:
-  maximum: 8.1
+  maximum: 5.1
   minimum: 0.5
   measurable: 0.1
 

@@ -302,7 +302,7 @@ sub identify {
   } # else just accept it if we have no pattern for identification purposes
 
   $self->{'id-string'} = $id;
-  $self->info("Connected to $id on $helper->{'connected-device'}");
+  $self->info("Connected to $id on $helper->{'connected-device'}") if $id;
 
   return;
 }
@@ -326,6 +326,8 @@ sub sendCommand {
   chomp $response;
   $self->debug('Received SCPI Response: %s', $response) if DEBUG_LEVEL >= RESPONSE_DEBUG;
 
+  # Remove trailing whitespace from the response
+  $response =~ s/\s*$//;
   if (defined($response) && $response ne '') {
     return split(/\s*,\s*/, $response);
   }
@@ -463,7 +465,7 @@ sub _disconnect {
     $self->_on(0);
 
     if ($self->{'shutdown-commands'}) {
-    $self->debug('Sending shutdown commands') if DEBUG_LEVEL >= CONNECTION_DEBUG;
+      $self->debug('Sending shutdown commands') if DEBUG_LEVEL >= CONNECTION_DEBUG;
       foreach my $cmd (@{$self->{'shutdown-commands'}}) {
         $self->sendCommand($cmd);
       }

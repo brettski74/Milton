@@ -1,33 +1,33 @@
-#@ name: Siglent SPD1305X
-#@ description: Standard configuration for the Siglent SPD1305X power supply.
-#@ vmax: 30
-#@ imax: 5
-#@ pmax: 150
+#@ name: Siglent SPD1168X
+#@ description: Standard configuration for the Siglent SPD1168X power supply.
+#@ vmax: 16
+#@ imax: 8
+#@ pmax: 128
 ###
 package: Milton::Interface::SCPI::USBTMC
 
-# The SPD1305X is a USBTMC based device using the NI-VISA implementation of the TMC protocl.
+# The SPD1168X is a USBTMC based device using the NI-VISA implementation of the TMC protocl.
 # Compatible linux installations should create a USBTMC device matching the /dev/usbtmc[0-9]* pattern.
 device: /dev/usbtmc[0-9]*
 
-# The id string should being with Siglent SPD1305X
-id-pattern: ^Siglent .*SPD1305X
+# The id string should being with Siglent SPD1168X
+id-pattern: ^Siglent .*SPD1168X
 
 shutdown-commands:
   - "*UNLOCK"
 
 # Sane current limits within spec
 current:
-  maximum: 5.0
+  maximum: 8.0
   minimum: 0.5
   measurable: 0.1
 
 # Sane voltage limits within spec
 voltage:
-  maximum: 30
+  maximum: 16
   minimum: 2
 
 # Sane power limits within spec
 power:
-  maximum: 149.5
+  maximum: 127.5
   minimum: 1

@@ -8,6 +8,15 @@ use Carp qw(croak);
 use Path::Tiny qw(path);
 use Milton::Interface::IOHelper qw(device_compare);
 
+use Milton::DataLogger qw(get_namespace_debug_level);
+
+# Get the debug level for this namespace
+use constant DEBUG_LEVEL => get_namespace_debug_level();
+use constant DEVICE_DEBUG => 20;
+
+use Exporter qw(import);
+our @EXPORT_OK = qw(serial_port_exists);
+
 =head1 NAME
 
 Milton::Interface::SerialPortHelper - IOHelper implementation for serial interfaces
@@ -117,21 +126,23 @@ sub serial_port_exists {
   my ($port) = @_;
 
   if (-e $port) {
-    if ($port =~ /^\/dev\/(ttyS[0-9]+)$/) {
-      my $dev = $1;
-      if (-d "/sys/class/tty/$dev/device/driver") {
-        my $irq_file = path("/sys/class/tty/$dev/irq");
-        my $irq = $irq_file->slurp;
-        chomp $irq;
-        if ($irq > 0) {
-          return 1;
-        }
+    # Get the major device number for the port.
+    my $major = ((stat($port))[6] & 0xff00) >> 8;
+
+    # Standard serial devices are major device number 4.
+    if ($major == 4) {
+      my $fh = IO::File->new($port, 'r');
+      my $ok = undef;
+      if ($fh) {
+        my $tty = POSIX::Termios->new();
+        $ok = $tty->getattr($fh->fileno);
+        $fh->close;
       }
-      # No driver directory or IRQ is not non-zero, so the port does not exist.
-      return;
+
+      return if !$ok;
     }
 
-    # Device file exists and not a standard 16550 UART, so assume it's good.
+    # No reason to doubt it, so assume it's good.
     return 1;
   }
 
@@ -192,6 +203,8 @@ sub tryConnection {
   my ($self, $device) = @_;
 
   croak ref($self) .": Already connected." if $self->{serial};
+
+  Device::SerialPort::nocarp;
 
   eval {
     my $serial = Device::SerialPort->new($device);

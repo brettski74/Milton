@@ -33,6 +33,3 @@ voltage:
 power:
   maximum: 299
   minimum: 1
-
-calibration: !include dc310s-cal.yaml?
-

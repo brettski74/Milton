@@ -1,0 +1,39 @@
+#@ name: Rigol DP711
+#@ description: Standard configuration for the Rigol DP711 power supply.
+#@ vmax: 30
+#@ imax: 5
+#@ pmax: 150
+###
+package: Milton::Interface::SCPI::Serial
+
+# The Rigol DP711 has RS-232 serial ports operating at 9600 baud by default.
+# This should pick up all ports matching /dev/ttyS<number> and /dev/ttyUSB<number>
+device: /dev/ttyS[0-9]*
+
+# The id string should being with Rigol DP711
+id-pattern: ^Rigol DP711
+
+# Conservative command length limit until we know more.
+command-length: 26
+
+# Default baud rate is 9600 baud, but it also supports baud rates from 7200 up to 115200.
+baudrate: 9600
+
+shutdown-commands:
+  - SYST:LOC
+
+# Sane current limits within spec
+current:
+  maximum: 5.0
+  minimum: 0.5
+  measurable: 0.1
+
+# Sane voltage limits within spec
+voltage:
+  maximum: 30
+  minimum: 2
+
+# Sane power limits within spec
+power:
+  maximum: 149.5
+  minimum: 1

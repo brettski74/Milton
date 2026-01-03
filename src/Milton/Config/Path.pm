@@ -7,13 +7,13 @@ use Path::Tiny;
 use Exporter qw(import);
 use Carp qw(croak);
 
-our @EXPORT_OK = qw(add_search_dir clear_search_path search_path resolve_file_path standard_search_path);
+our @EXPORT_OK = qw(add_search_dir clear_search_path search_path resolve_file_path standard_search_path resolve_writable_config_path);
 
 my @search_path;
 
-=head1 DESCRIPTION
+=head1 NAME
 
-Functions for managing the search path for configuration files.
+Milton::Config::Path - Functions for managing the configuration file search path for Milton.
 
 =head1 SYNOPSIS
 
@@ -31,6 +31,18 @@ Functions for managing the search path for configuration files.
 
   my $full_path = resolve_file_path('config.yaml');
   my $optional_full_path = resolve_file_path('optional.yaml', 1);
+
+=head1 DESCRIPTION
+
+This module provides a set of standard functions for managing the search path for Milton configuration. This
+module should avoid any dependencies on other Milton modules and should solely focus on the search path
+management. Any functions that require additional dependencies should be places in the Milton::Config::Utils
+module.
+
+Note that loading this module should ensure that the MILTON_BASE environment variable is set. If it was already
+set before the current script started running, it will simply be that value. If it was not set, it will be
+derived as the parent directory of wherever the current script was loaded from on the assumption that the
+script was installed in $MILTON_BASE/bin.
 
 =head1 SUBROUTINES
 
@@ -175,6 +187,43 @@ sub resolve_file_path {
   }
 
   return $path;
+}
+
+=head2 resolve_writable_config_path($path)
+
+Resolve the path to a configuration file that will be written by the current user.
+
+The configuration file framework assumes that the first directory in the search path is the user's custom
+configuration directory, so this function will always resolve relative paths into this directory, regardless
+of whether the file already exists or not. This function should only be used in cases where the intention
+is to write configuration out to the resolved path.
+
+=over
+
+=item $path
+
+The relative path to which the configuration will be written. Absolute paths are not permitted here and will
+result in an error.
+
+=item Return Value
+
+A Path::Tiny object representing the fully qualified path to the configuration file that will be written.
+
+=back
+
+=cut
+
+sub resolve_writable_config_path {
+  my ($path) = @_;
+  my @search_path = search_path();
+
+  if ($path =~ /^\//) {
+    croak "Absolute paths are not permitted for writable configuration files: $path";
+  }
+
+  my $fullpath = path($search_path[0], $path);
+
+  return $fullpath;
 }
 
 # Ensure that the MILTON_BASE environment variable is always set in milton scripts.

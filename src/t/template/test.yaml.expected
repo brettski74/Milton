@@ -1,0 +1,15 @@
+# The sample period to use.
+period: 1.5
+
+# The interface configuration
+interface: !include test.yaml
+
+fan:
+  interface:
+    package: Milton::Interface::DPS
+    voltage: 13
+    current: 1
+    duration: 600
+    shutdown-on-signal: false
+    enabled: true
+

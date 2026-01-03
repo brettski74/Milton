@@ -23,7 +23,8 @@ use base 'Exporter';
 our @EXPORT_OK = qw(scan_scpi_devices);
 
 use Milton::Interface::SerialPortHelper qw(serial_port_exists);
-use Milton::Config::Utils qw(find_config_files_by_path resolve_writable_config_path);
+use Milton::Config::Utils qw(find_config_files_by_path);
+use Milton::Config::Path qw(resolve_writable_config_path);
 use Milton::Config qw(get_yaml_parser);
 
 Readonly my @BAUD_RATE => ( 115200, 9600, 19200, 38400, 57600, 4800 );

@@ -7,7 +7,7 @@ use Path::Tiny;
 use Carp qw(croak);
 
 use Exporter qw(import);
-our @EXPORT_OK = qw(find_config_files_by_path find_reflow_profiles get_device_names find_device_file get_yaml_parser resolve_config_path resolve_writable_config_path);
+our @EXPORT_OK = qw(find_config_files_by_path find_reflow_profiles get_device_names find_device_file get_yaml_parser);
 
 use YAML::PP;
 use YAML::PP::Schema::Include;
@@ -68,85 +68,6 @@ sub find_device_file {
   return $name;
 }
 
-=head2 findInterfaceConfigFiles
-
-Returns 
-=head2 resolve_config_path($path, $optional)
-
-Resolve the path to a configuration file.
-
-This method tries to resolve the path to an existing configuration file using the standard configuration
-search path. This method should be used when intending to read the configuration file that is found.
-
-=over
-
-=item $path
-
-The path to the configuration file to resolve. Absolute paths are allowed and will eb returned unchanged.
-Relative paths are resolved using the current configuration file search path.
-
-=item $optional
-
-Defaults to false.
-
-If true, a file with the corresponding path does not need to exist and if the file is not found, relative
-paths will be referenced to the first directory in the serach path, consistent with the behaviour of the
-resolve_writable_config_path function.
-
-If false, an error will be thrown if the file is not found.
-
-=item Return Value
-
-The fully qualified path to the configuration file that will be read.
-
-=back
-
-=cut
-
-sub resolve_config_path {
-  my ($path, $optional) = @_;
-  my $fullpath = resolve_file_path($path, $optional);
-
-  return $fullpath->stringify;
-}
-
-=head2 resolve_writable_config_path($path)
-
-Resolve the path to a configuration file that will be written by the current user.
-
-The configuration file framework assumes that the first directory in the search path is the user's custom
-configuration directory, so this function will always resolve relative paths into this directory, regardless
-of whether the file already exists or not. This function should only be used in cases where the intention
-is to write configuration out to the resolved path.
-
-=over
-
-=item $path
-
-The relative path to which the configuration will be written. Absolute paths are not permitted here and will
-result in an error.
-
-=item Return Value
-
-The fully qualified path to the configuration file that will be written.
-
-=back
-
-=cut
-
-sub resolve_writable_config_path {
-  my ($path) = @_;
-  my @search_path = search_path();
-
-  if ($path =~ /^\//) {
-    croak "Absolute paths are not permitted for writable configuration files: $path";
-  }
-
-  my $fullpath = path($search_path[0], $path);
-
-  return $fullpath->stringify;
-}
-
 =head2 find_config_files_by_path($path, $validate)
 
 Find all configuration files in the search path that match the given path.
@@ -168,6 +89,9 @@ example, you could use this to only include files that include a defined value f
 =back
 
 =cut
+
+# Note: This function is dependent on the Milton::Config module and therefore should not be moved to
+# Milton::Config::Path.
 
 sub find_config_files_by_path {
   my ($path, $validate) = @_;

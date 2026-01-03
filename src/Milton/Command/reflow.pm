@@ -7,7 +7,7 @@ use Carp qw(croak);
 use IO::File;
 use Milton::Math::Util qw(setDebug setDebugWriter);
 use Milton::Config qw(get_yaml_parser);
-use Milton::Config::Utils qw(resolve_writable_config_path);
+use Milton::Config::Path qw(resolve_writable_config_path);
 use Milton::DataLogger qw(get_namespace_debug_level);
 
 # Get the debug level for this namespace
@@ -178,7 +178,7 @@ sub postprocess {
     }
     
     # Remember optional flag to allow for non-existent files during initial setup and calibration.
-    $filename = resolve_writable_config_path($filename);
+    $filename = resolve_writable_config_path($filename)->stringify;
 
     my $fh = $self->replaceFile($filename);
     my @calibration = $self->{controller}->getTemperaturePoints;
@@ -204,7 +204,7 @@ sub postprocess {
       $filename .= '.yaml';
     }
     # Remember optional flag to allow for non-existent files during initial setup and calibration.
-    $filename = resolve_writable_config_path($filename);
+    $filename = resolve_writable_config_path($filename)->stringify;
 
     my $csvfile = $filename;
     $csvfile =~ s/\.yaml$/.csv/;

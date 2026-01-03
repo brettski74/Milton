@@ -84,4 +84,4 @@ subtest 'Constructor' => sub {
      );
 };
 
-1;
+done_testing();

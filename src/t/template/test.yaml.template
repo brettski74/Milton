@@ -1,0 +1,15 @@
+# The sample period to use.
+period: 1.5
+
+# The interface configuration
+interface: !include {{interface}}
+
+fan:
+  interface:
+    package: {{fan-package}}
+    voltage: {{fan-voltage}}
+    current: {{fan-current}}
+    duration: {{fan-duration}}
+    shutdown-on-signal: {{shutdown-on-signal}}
+    enabled: true
+

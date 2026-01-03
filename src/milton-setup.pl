@@ -175,7 +175,11 @@ sub copy_file {
 ### Check whether we want a shared installation or a user local installation.
 ###
 my $shared_install = boolify(prompt(<<'EOS', 'no'));
-Installing a shared instance may require sudo access and prompt for your password once or more during setup.
+################################################################################
+################################################################################
+################################################################################
+Installing a shared instance may require sudo access and prompt for your
+password once or more during setup.
 
 Install a shared instance?
 EOS
@@ -212,6 +216,9 @@ my $method_list = join("\n    ", map { $_->name() } sort { $a->name cmp $b->name
 my @methods;
 while (!defined $methods[0]) {
   my $method = prompt(<<"EOS", $available_methods->[0]->name());
+################################################################################
+################################################################################
+################################################################################
 The following methods are available for installing perl modules:
 
     $method_list
@@ -294,6 +301,9 @@ EOS
 ### Figure out the power supply interface details
 ###
 print <<'EOS';
+################################################################################
+################################################################################
+################################################################################
 We need to determine how to connect to your power supply. Do you wish to:
 
   1) Scan for supported power supplies (Recommended)
@@ -338,10 +348,14 @@ if ($edit) {
 sub scan_for_power_supplies {
   my ($scanner) = @_;
   print <<'EOS';
-We will now scan for a SCPI power supply. Please ensure that your power supply is connected
-and powered on. It is advisable to power off or disconnect any other test equipment that
-may currently be connected to your computer to minimize the risk of unintended consequences
-or detecting an unwanted instrument.
+################################################################################
+################################################################################
+################################################################################
+We will now scan for a SCPI power supply. Please ensure that your power supply
+is connected and powered on. It is advisable to power off or disconnect any
+other test equipment that may currently be connected to your computer to
+minimize the risk of unintended consequences or detecting an unwanted
+instrument.
 
 Press ENTER when you are ready to commence the scan.
 EOS
@@ -462,22 +476,26 @@ if ($miltonenv) {
 }
 
 print <<'EOS';
-Installation is complete, however you may wish to ensure that your path is updated to include
-Milton's binaries. The file .miltonenv in your home directory can be sourced in your profile
-for this purpose.
+################################################################################
+################################################################################
+################################################################################
+Installation is complete, however you may wish to ensure that your path is
+updated to include Milton's binaries. The file .miltonenv in your home directory
+can be sourced in your profile for this purpose.
 
-You will likely need to do some calibration of your hotplate before you can accurately measure
-or control its temperature. Please see the instructions on calibration at
-https://github.com/brettski74/Milton/CALIBRATION.md
+You will likely need to do some calibration of your hotplate before you can
+accurately measure or control its temperature. Please see the instructions on
+calibration at https://github.com/brettski74/Milton/CALIBRATION.md
 
-If you still need instructions on how to setup and assemble your hotplate, you can find more
-resources on this at https://github.com/brettski74/Milton/resources
+If you still need instructions on how to setup and assemble your hotplate, you
+can find more resources on this at https://github.com/brettski74/Milton/resources
 
 You can start the Milton web interface by running the command:
 
     milton daemon
 
-or if you want to start it on a port other than the default port of 3000, you can use:
+or if you want to start it on a port other than the default port of 3000, you
+can use:
 
     milton daemon -l http://*:4000
 

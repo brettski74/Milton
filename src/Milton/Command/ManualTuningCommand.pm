@@ -30,9 +30,9 @@ sub processSamples {
     }
   }
 
-  $rmean /= $rcount;
-  $tmean /= $tcount;
-  $pmean /= $pcount;
+  $rmean /= $rcount if $rcount > 0;
+  $tmean /= $tcount if $tcount > 0;
+  $pmean /= $pcount if $pcount > 0;
   $self->info("resistance: $rmean, temperature: $tmean, power: $pmean, counts: [ $rcount, $tcount, $pcount ]");
 
   @$samples = ();

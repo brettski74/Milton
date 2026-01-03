@@ -468,7 +468,7 @@ if ($miltonenv) {
   } else {
     $miltonenv->print("MILTON_BASE=$ENV{MILTON_BASE}\n");
   }
-  $miltonenv->print("PATH=$MILTON_BASE/bin:$PATH\m");
+  $miltonenv->print('PATH=$MILTON_BASE/bin:$PATH' . "\n");
   $miltonenv->print("export MILTON_BASE PATH\n");
   $miltonenv->close;
 } else {

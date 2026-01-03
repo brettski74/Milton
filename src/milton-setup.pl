@@ -394,7 +394,7 @@ EOS
     return
   }
 
-  return $device->{value};
+  return $found[$choice - 1]->{value};
 }
 
 sub select_power_supply {

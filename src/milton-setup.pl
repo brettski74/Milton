@@ -433,7 +433,7 @@ sub select_power_supply {
 sub select_power_supply_model {
   my ($scanner, $manufacturer) = @_;
 
-  my $devices = $devices->{$manufacturer};
+  my $devices = $scanner->{devices}->{$manufacturer};
   my @models = sort { $a->{displayName} cmp $b->{displayName} } @$devices;
 
   print "Select from the following models:\n\n";

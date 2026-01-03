@@ -228,7 +228,11 @@ sub _connect {
 
   # Retrieve all the current state of the power supply
   my ($vset) = $self->sendCommand($self->voltageSetpointCommand());
+  return unless $vset > 0;
+
   my ($iset) = $self->sendCommand($self->currentSetpointCommand());
+  return unless $iset > 0;
+
   my ($on) = $self->sendCommand($self->onOffCommand());
   $on = ($on eq 'ON') ? 1 : 0;
   my ($volts, $amps) = $self->_poll;

@@ -14,7 +14,7 @@ use base qw(Milton::Interface::SCPICommon);
 sub new {
   my $class = shift;
 
-  my $self = $class->SUPER::new({});
+  my $self = $class->SUPER::new({ logger => Milton::DataLogger->new({ enabled => 1, tee => 1 }) });
 
   $self->addMock(@_);
 
@@ -24,11 +24,77 @@ sub new {
 sub initializeConnection {
   my ($self) = @_;
 
-  if (!$self->{logger}) {
-    $self->{logger} = Milton::DataLogger->new({ enabled => 1, tee => 1 });
-  }
+  my $helper = Milton::Interface::Utils::t::SCPIMock::Mock::Helper->new({ logger => $self->{logger}, device => 'dummy' });
 
-  return;
+  return $helper;
+}
+
+sub addMock {
+  my $self = shift;
+
+  $self->{helper}->addMock(@_);
+
+  return $self;
+}
+
+sub addSetpointMock {
+  my $self = shift;
+
+  $self->{helper}->addSetpointMock(@_);
+
+  return $self;
+}
+
+sub suffix {
+  my $self = shift;
+
+  return $self->{helper}->suffix(@_);
+}
+
+sub setMaxCommandLength {
+  my $self = shift;
+
+  return $self->{helper}->setMaxCommandLength(@_);
+}
+
+package Milton::Interface::Utils::t::SCPIMock::Mock::Helper;
+
+use strict;
+use warnings qw(all -uninitialized);
+use base qw(Milton::Interface::IOHelper);
+use Milton::DataLogger qw(get_namespace_debug_level);
+
+# Get the debug level for this namespace
+use constant DEBUG_LEVEL => get_namespace_debug_level('Milton::Interface::Utils::t::SCPIMock::Mock');
+use constant REQUEST_DEBUG => 50;
+use constant RESPONSE_DEBUG => 100;
+
+sub new {
+  my ($class, $self) = @_;
+
+  $self->{mock}->{'VOLT?'} //= '3.00';
+  $self->{mock}->{'CURR?'} //= '1.000';
+
+  $self = $class->SUPER::new($self);
+
+  return $self;
+}
+
+sub tryConnection {
+  return 1;
+}
+
+sub connect {
+  my $self = shift;
+  return $self;
+}
+
+sub disconnect {
+  my $self = shift;
+
+  $self->SUPER::disconnect;
+
+  return $self;
 }
 
 sub addMock {
@@ -66,8 +132,9 @@ sub setMaxCommandLength {
   return $self;
 }
 
-sub sendCommand {
+sub sendRequest {
   my ($self, $request) = @_;
+  chomp $request;
   $self->debug('Sending SCPI Command: %s', $request) if DEBUG_LEVEL >= REQUEST_DEBUG;
 
   if ($self->{'max-command-length'} <= 0 || length($request) <= $self->{'max-command-length'}) {
@@ -75,7 +142,7 @@ sub sendCommand {
       my @requests = split(/;/, $request);
       my $error = undef;
       foreach my $req (@requests) {
-        my $response = $self->sendCommand($req);
+        my $response = $self->sendRequest($req);
         $error = $response =~ /ERR/i;
         last if $error;
       }

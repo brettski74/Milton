@@ -20,6 +20,7 @@ use constant DEBUG_LEVEL => get_namespace_debug_level();
 use constant DEBUG_OPERATIONS => 10;
 use constant DEBUG_PROBE_1 => 100;
 use constant DEBUG_PROBE_2 => 50;
+use constant DEBUG_OP_PARAMS => 70;
 
 use base 'Exporter';
 our @EXPORT_OK = qw(scan_scpi_devices);
@@ -177,7 +178,7 @@ sub scanSCPISerialDevices {
                                                           , logger => $self->{logger}
                                                           });
       };
-      next PORT if $@;
+      next BAUD if $@;
 
       my $id = $interface->{'id-string'};
       
@@ -222,7 +223,7 @@ sub characterizeDeviceVoltage {
   # Ensure that the output is off
   $interface->on(0);
 
-  my $vmax = $interface->getVoltageSetpoint($interface);
+  my $vmax = $self->getVoltageSetpoint($interface);
   my $vstart = max(12, floor($vmax)+1);
 
   # Set the current to a relatively low value to avoid power limit issues while trying voltage set points
@@ -379,13 +380,11 @@ sub testCommandLength {
     my $query = shift @queries;
     my $expected = shift @queries;
 
-    my $response = $interface->sendCommand($query);
-    
+    my ($response) = $interface->sendCommand($query);
 
     # If the expected value is a number, then try numeric comparison as well
     return if $response ne $expected
            && ($expected !~ /^\d+(\.\d+)?$/ || $response != $expected);
-
   }
 
   $self->{'command-length'} = max($self->{'command-length'}, length($command));
@@ -461,7 +460,7 @@ sub characterizeCommandLength {
   my $volt;
   for (my $precision = 1; $precision <= 6; $precision++) {
     $result = $self->performCommandLengthTest($interface
-                                            , "$setVoltage %s;$setCurrent $curr"
+                                            , "$setCurrent $curr;$setVoltage %s"
                                             , $precision
                                             , 12.7654321
                                             , $interface->currentSetpointCommand, $curr
@@ -473,6 +472,39 @@ sub characterizeCommandLength {
 
     # Set the voltage and current to something difference so it doesn't throw off the next test
     $interface->sendCommand("$setVoltage 3;$setCurrent 2");
+  }
+
+  $result = $self->performCommandLengthTest($interface
+                                          , "OUTP OFF;$setVoltage 1;$setCurrent %d"
+                                          , 1, 1.0
+                                          , $interface->currentSetpointCommand, 1
+                                          , $interface->voltageSetpointCommand
+                                          );
+
+  for (my $precision = 1; $precision <= 6; $precision++) {
+    $result = $self->performCommandLengthTest($interface
+                                            , "OUTP OFF;$setVoltage 3;$setCurrent %s"
+                                            , $precision
+                                            , 1.2345678
+                                            , $interface->voltageSetpointCommand, 3
+                                            , $interface->currentSetpointCommand
+                                            );
+  
+    last if !$result;
+    $curr = $result;
+  }
+
+  for (my $precision = 1; $precision <= 6; $precision++) {
+    $result = $self->performCommandLengthTest($interface
+                                            , "OUTP OFF;$setCurrent $curr;$setVoltage %s"
+                                            , $precision
+                                            , 12.87654321
+                                            , $interface->currentSetpointCommand, $curr
+                                            , $interface->voltageSetpointCommand
+                                            );
+  
+    last if !$result;
+    $volt = $result;
   }
 
   $self->debug('Successfully reached command-length of %d', $self->{'command-length'}) if DEBUG_LEVEL >= DEBUG_OPERATIONS;
@@ -513,7 +545,7 @@ sub characterizeVoltage {
   my ($self, $interface) = @_;
 
   # Get the current voltage set point
-  my ($vset) = $interface->getVoltageSetpoint($interface);
+  my ($vset) = $self->getVoltageSetpoint($interface);
   
 }
 
@@ -535,9 +567,6 @@ sub characterizeDevice {
                };
   my $document = $device->{document};
 
-  # A conservative command length limit until we know more.
-  $document->{'command-length'} = 26;
-
   my $vmax = $self->characterizeDeviceVoltage($interface);
   return if $vmax <= 0.1;
 
@@ -547,9 +576,12 @@ sub characterizeDevice {
   my $pmax = $self->characterizeDevicePower($interface, $vmax, $imax);
   return if $pmax <= 0.1;
 
+  my $commandLength = $self->characterizeCommandLength($interface);
+
   $document->{voltage} = { maximum => $vmax + 0.0, minimum => 2 };
   $document->{current} = { maximum => $imax + 0.0, minimum => 0.5 };
   $document->{power} = { maximum => $pmax + 0.0, minimum => 1 };
+  $document->{'command-length'} = $commandLength;
 
   my $path = resolve_writable_config_path($device->{value});
   my $dir = path($path)->parent;

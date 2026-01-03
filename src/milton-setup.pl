@@ -464,7 +464,7 @@ my $miltonenv = IO::File->new($miltonenv_path, 'w');
 if ($miltonenv) {
   my $homelen = length($ENV{HOME});
   if ($homelen > 0 && $ENV{HOME} eq substr($ENV{MILTON_BASE}, 0, $homelen)) {
-    $miltonenv->print('MILTON_BASE=$HOME/'. substr($ENV{MILTON_BASE}, $homelen). "\n");
+    $miltonenv->print('MILTON_BASE=$HOME/'. substr($ENV{MILTON_BASE}, $homelen+1). "\n");
   } else {
     $miltonenv->print("MILTON_BASE=$ENV{MILTON_BASE}\n");
   }

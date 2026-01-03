@@ -319,7 +319,7 @@ while ($choice < 1 || $choice > 3) {
 my $scanner = Milton::Interface::Utils::SCPIScanner->new();
 
 my $template = Milton::Config::Template->new(template => 'psc.yaml.template');
-$template->setParameterValue(interface => 'interface/user.yaml');
+$template->setParameterValue('interface-config', 'interface/user.yaml');
 
 my $edit = 1;
 
@@ -327,14 +327,14 @@ if ($choice == 1) {
   my $interface = scan_for_power_supplies($scanner, $template);
 
   if ($interface) {
-    $template->setParameterValue(interface => $interface);
+    $template->setParameterValue('interface-config', $interface);
     $edit = undef;
   }
 } elsif ($choice == 2) {
   my $interface = select_power_supply($scanner, $template);
 
   if ($interface) {
-    $template->setParameterValue(interface => $interface);
+    $template->setParameterValue('interface-config', $interface);
     $edit = undef;
   }
 }

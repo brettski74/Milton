@@ -271,11 +271,207 @@ if ( ! -f 'config.mk' ) {
 }
 
 ###
-### Install Milton Software
+### Install Milton Software if required
 ###
-system 'make', 'install-dirs', 'install', 'install-config';
+if ( -e './install.sh' && -e './Makefile' ) {
+  system 'make', 'install-dirs', 'install', 'install-config';
+}
 
+###
+### Figure out the power supply interface details
+###
+print <<'EOS';
+We need to determine how to connect to your power supply. Do you wish to:
 
+  1) Scan for supported power supplies (Recommended)
+  2) Select a supported power supply from a list of known, supported power supplies.
+  3) Manually edit the configuration after installation.
+EOS
+my $choice;
+while ($choice < 1 || $choice > 3) {
+  $choice = prompt('Selection ([1], 2 or 3)?', '1');
+  chomp $choice;
+}
+
+my $scanner = Milton::Interface::Utils::SCPIScanner->new();
+
+my $template = Milton::Config::Template->new(template => 'psc.yaml.template');
+$template->setParameterValue(interface => 'interface/user.yaml');
+
+my $edit = 1;
+
+if ($choice == 1) {
+  my $interface = scan_for_power_supplies($scanner, $template);
+
+  if ($interface) {
+    $template->setParameterValue(interface => $interface);
+    $edit = undef;
+  }
+} elsif ($choice == 2) {
+  my $interface = select_power_supply($scanner, $template);
+
+  if ($interface) {
+    $template->setParameterValue(interface => $interface);
+    $edit = undef;
+  }
+}
+
+$template->render();
+
+if ($edit) {
+  system 'mledit';
+}
+
+sub scan_for_power_supplies {
+  my ($scanner) = @_;
+  print <<'EOS';
+We will now scan for a SCPI power supply. Please ensure that your power supply is connected
+and powered on. It is advisable to power off or disconnect any other test equipment that
+may currently be connected to your computer to minimize the risk of unintended consequences
+or detecting an unwanted instrument.
+
+Press ENTER when you are ready to commence the scan.
+EOS
+  <STDIN>;
+
+  my @found = $scanner->scan_scpi_devices();
+  my $extra;
+
+  if (@found) {
+    print "The following power supplies were found:\n";
+
+    foreach my $i (0..$#found) {
+      printf "  %d) %s (%s)\n", $i + 1, $found[$i]->{displayName}, $found[$i]->{device};
+    }
+
+    $extra = ' or 1-'.scalar(@found);
+
+  } else {
+    print "No power supplies were found. Would you like to:\n\n";
+  }
+
+  print <<'EOS';
+  S) Select from a list of supported instruments instead
+  M) Manually edit the configuration after installation
+
+EOS
+
+  my $choice;
+  while ($choice ne 'S' && $choice ne 'M' && ($choice < 1 || $choice > @found)) {
+    $choice = uc(prompt('Selection ([S] or M'.$extra.'?'));
+  }
+
+  if ($choice eq 'S') {
+    return select_power_supply($scanner);
+  } elsif ($choice eq 'M') {
+    return
+  }
+
+  return $device->{value};
+}
+
+sub select_power_supply {
+  my ($scanner) = @_;
+
+  # Shallow copy so we can remove the serial and usbtmc hashes, since they're not manufacturers.
+  my $devices = { %{$scanner->{devices}} };
+  delete $devices->{serial};
+  delete $devices->{usbtmc};
+
+  my @manufacturers = sort keys %$devices;
+
+  print "Select from the following manufacturers:\n\n";
+
+  for(my $i =0; $i < @manufacturers; $i++) {
+    printf "  %d) %s\n", $i + 1, $manufacturers[$i];
+  }
+
+  print "  S) Scan for a supported power supply instead\n";
+  print "  M) Manually edit the configuration after installation\n\n";
+
+  my $choice;
+  while ($choice ne 'S' && $choice ne 'M' && ($choice < 1 || $choice > @manufacturers)) {
+    $choice = uc(prompt('Selection ([S] or M or 1-'.scalar(@manufacturers).')?'));
+  }
+
+  if ($choice eq 'S') {
+    return scan_for_power_supply_models($scanner, $manufacturer);
+  } elsif ($choice eq 'M') {
+    return;
+  }
+
+  return select_power_supply_model($scanner, $manufacturers[$choice - 1]);
+}
+
+sub select_power_supply_model {
+  my ($scanner, $manufacturer) = @_;
+
+  my $devices = $devices->{$manufacturer};
+  my @models = sort { $a->{displayName} cmp $b->{displayName} } @$devices;
+
+  print "Select from the following models:\n\n";
+
+  for(my $i =0; $i < @models; $i++) {
+    printf "  %d) %s\n", $i + 1, $models[$i]->{displayName};
+  }
+  
+  print "  S) Scan for a supported power supply instead\n";
+  print "  M) Manually edit the configuration after installation\n\n";
+
+  my $choice;
+  while ($choice ne 'S' && $choice ne 'M' && ($choice < 1 || $choice > @models)) {
+    $choice = uc(prompt('Selection ([S] or M or 1-'.scalar(@models).')?'));
+  }
+
+  if ($choice eq 'S') {
+    return scan_for_power_supply_models($scanner);
+  } elsif ($choice eq 'M') {
+    return;
+  }
+
+  return @models[$choice - 1]->{value};
+}
+
+my $miltonenv_path = "$ENV{HOME}/.miltonenv";
+my $miltonenv = IO::File->new($miltonenv_path, 'w');
+if ($miltonenv) {
+  my $homelen = length($ENV{HOME});
+  if ($homelen > 0 && $ENV{HOME} eq substr($ENV{MILTON_BASE}, 0, $homelen)) {
+    $miltonenv->print('MILTON_BASE=$HOME/'. substr($ENV{MILTON_BASE}, $homelen). "\n");
+  } else {
+    $miltonenv->print("MILTON_BASE=$ENV{MILTON_BASE}\n");
+  }
+  $miltonenv->print("PATH=$MILTON_BASE/bin:$PATH\m");
+  $miltonenv->print("export MILTON_BASE PATH\n");
+  $miltonenv->close;
+} else {
+  warn "Failed to open $miltonenv_path for writing: $!";
+}
+
+print <<'EOS';
+Installation is complete, however you may wish to ensure that your path is updated to include
+Milton's binaries. The file .miltonenv in your home directory can be sourced in your profile
+for this purpose.
+
+You will likely need to do some calibration of your hotplate before you can accurately measure
+or control its temperature. Please see the instructions on calibration at
+https://github.com/brettski74/Milton/CALIBRATION.md
+
+If you still need instructions on how to setup and assemble your hotplate, you can find more
+resources on this at https://github.com/brettski74/Milton/resources
+
+You can start the Milton web interface by running the command:
+
+    milton daemon
+
+or if you want to start it on a port other than the default port of 3000, you can use:
+
+    milton daemon -l http://*:4000
+
+Issues can be reported at https://github.com/brettski74/Milton/issues
+
+Thank you for using Milton!
+EOS
 
 # Write the .miltonenv file
 

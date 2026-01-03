@@ -277,6 +277,16 @@ if ( -e './install.sh' && -e './Makefile' ) {
   system 'make', 'install-dirs', 'install', 'install-config';
 }
 
+# Load required modules now that we can be confident that they're installed.
+eval <<'EOS';
+use lib "$ENV{MILTON_BASE}/lib/perl5";
+
+use Milton::Interface::Utils::SCPIScanner;
+use Milton::Config::Template;
+use IO::File;
+use Path::Tiny;
+EOS
+
 ###
 ### Figure out the power supply interface details
 ###

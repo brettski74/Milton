@@ -193,6 +193,9 @@ if ($shared_install) {
   system 'mkdir', '-p', "$cfg{MILTON_BASE}";
 }
 
+# Set the MILTON_BASE environment variable so it can be used to set the configuraton search path later.
+$ENV{MILTON_BASE} = $cfg{MILTON_BASE};
+
 ###
 ### Make sure that we can load libraries from the target installation directory.
 ###

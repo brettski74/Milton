@@ -5,7 +5,7 @@ use warnings qw(all -uninitialized -digit);
 use Carp qw(croak);
 use base qw(Exporter);
 
-our @EXPORT_OK = qw(boolify checkMinimum checkMaximum checkMinMax dirname hexToNumber readCSVData writeCSVData timestamp);
+our @EXPORT_OK = qw(boolify checkMinimum checkMaximum checkMinMax dirname hexToNumber prompt readCSVData writeCSVData timestamp);
 
 =head1 NAME
 
@@ -166,6 +166,42 @@ sub hexToNumber {
   for (my $i=0; $i<@_; $i++) {
     $_[$i] = hex($_[$i]);
   }
+}
+
+=hedd2 prompt($message, $default)
+
+Prompt the user for a value.
+
+=over
+
+=item $message
+
+The message to display to the user.
+
+=item $default
+
+The default value to return if the user enters a blank response.
+
+=back
+
+=cut
+
+sub prompt {
+  my ($message, $default) = @_;
+
+  print "$message ";
+  print "[$default] " if defined $default;
+
+  my $value = <STDIN>;
+  chomp $value;
+  $value =~ s/^\s+//;
+  $value =~ s/\s+$//;
+
+  if ($value eq '') {
+    return $default;
+  }
+
+  return $value;
 }
 
 =head2 readCSVData($filename)

@@ -7,6 +7,7 @@ use Test2::V0;
 
 use Milton::Interface::Utils::SCPIScanner;
 use Milton::Config::Path qw(clear_search_path add_search_dir search_path);
+use Milton::Interface::Utils::t::SCPIMock;
 
 clear_search_path();
 add_search_dir('t');
@@ -82,6 +83,36 @@ subtest 'Constructor' => sub {
      }
      , 'Rigol[0] - Rigol DP711'
      );
+};
+
+subtest 'Characterize Precision and Length' => sub {
+  my $scanner = Milton::Interface::Utils::SCPIScanner->new();
+
+  my $mock = Milton::Interface::Utils::t::SCPIMock->new;
+  $mock->addSetpointMock('VOLT', precision => 2, default => 1.5);
+  $mock->addSetpointMock('CURR', precision => 3, default => 1.25);
+
+  is($scanner->characterizeVoltagePrecision($mock), 2, 'Voltage precision');
+  is($scanner->{'voltage-precision'}, 2, 'Scanner voltage precision set');
+  is($mock->{'voltage-format'}, '.2f', 'Interface voltage format set');
+  is($scanner->{'command-length'}, 9, 'Command length set');
+
+  is($scanner->characterizeCurrentPrecision($mock), 3, 'Current precision');
+  is($scanner->{'current-precision'}, 3, 'Scanner current precision set');
+  is($mock->{'current-format'}, '.3f', 'Interface current format set');
+  is($scanner->{'command-length'}, 10, 'Command length set');
+
+  # We can't guarantee character accuracy in command length detection due to the
+  # set of test commands we're able to send.
+  $mock->setMaxCommandLength(12);
+  my $detectedLength = $scanner->characterizeCommandLength($mock);
+  cmp_ok($detectedLength, '<=', 12, '<=12');
+  cmp_ok($detectedLength, '>=', 10, '>=10');
+
+  $mock->setMaxCommandLength(26);
+  $detectedLength = $scanner->characterizeCommandLength($mock);
+  cmp_ok($detectedLength, '<=', 26, '<=26');
+  cmp_ok($detectedLength, '>=', 21, '>=21');
 };
 
 done_testing();

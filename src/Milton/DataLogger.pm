@@ -58,9 +58,11 @@ sub new {
   } else {
     bless $self, $class;
     $self->{filename} = $self->_expandFilename($self->{filename});
-    my $logpath = path($self->{filename})->parent;
-    $logpath->mkpath if !$logpath->exists;
-    $self->{fh} = IO::File->new($self->{filename}, 'w') || croak "Failed to open log file $self->{filename}: $!";
+    if ($self->{filename}) {
+      my $logpath = path($self->{filename})->parent;
+      $logpath->mkpath if !$logpath->exists;
+      $self->{fh} = IO::File->new($self->{filename}, 'w') || croak "Failed to open log file $self->{filename}: $!";
+    }
     $self->rebuild;
     $self->{buffer} = [];
 

@@ -1,5 +1,7 @@
 package Milton::Interface::Utils::SCPIScanner;
 
+use lib '.';
+
 use strict;
 use warnings qw(all -uninitialized);
 use Readonly;
@@ -7,7 +9,7 @@ use IO::File;
 use Path::Tiny qw(path);
 use List::Util qw(max);
 use POSIX qw(floor);
-use Milton::ValueTools qw(timestamp);
+use Milton::ValueTools qw(timestamp prompt);
 use Milton::Interface::SCPI::Serial;
 use Milton::Interface::SCPI::USBTMC;
 
@@ -220,12 +222,16 @@ sub characterizeDeviceVoltage {
   # Ensure that the output is off
   $interface->on(0);
 
+  my $vmax = $interface->getVoltageSetpoint($interface);
+  my $vstart = max(12, floor($vmax)+1);
+
   # Set the current to a relatively low value to avoid power limit issues while trying voltage set points
   $interface->sendCommand($interface->setCurrentCommand(1));
 
-  my $vmax = 0;
-  for (my $v = 12; $v <= 60; $v++) {
+  for (my $v = $vstart; $v <= 60; $v++) {
     # Don't use setVoltage because it will try to turn the output on.
+    my $cmd = $interface->setVoltageCommand($v);
+
     my $response = $interface->sendCommand($interface->setVoltageCommand($v));
     last if !$self->isResponseValid($response);
 
@@ -309,10 +315,206 @@ sub characterizeDevicePower {
   return $pmax;
 }
 
+sub characterizeVoltagePrecision {
+  my ($self, $interface) = @_;
+
+  my $valid = undef;
+  my $commandLength = delete $self->{'command-length'};
+
+  # More than 6 digits of precision is not useful
+  for (my $precision = 1; $precision <= 6; $precision++) {
+    my $voltage = '1.'. ('2' x $precision);
+
+    $interface->{'voltage-format'} = '.'. $precision .'f';
+    last if !$self->testCommandLength($interface
+                                    , $interface->setVoltageCommand($voltage)
+                                    , $interface->voltageSetpointCommand, $voltage
+                                    );
+
+    $valid = $precision;
+  }
+
+  $self->{'command-length'} = max($commandLength, $self->{'command-length'});
+  $self->{'voltage-precision'} = $valid;
+  $interface->{'voltage-format'} = '.'. $valid .'f';
+
+  return $valid;
+}
+
+sub characterizeCurrentPrecision {
+  my ($self, $interface) = @_;
+
+  my $valid = undef;
+  my $commandLength = delete $self->{'command-length'};
+
+  # More than 6 digits of precision is not useful
+  for (my $precision = 1; $precision <= 6; $precision++) {
+    my $current = '1.'. ('2' x $precision);
+    
+    $interface->{'current-format'} = '.'. $precision .'f';
+    last if !$self->testCommandLength($interface
+                                    , $interface->setCurrentCommand($current)
+                                    , $interface->currentSetpointCommand, $current
+                                    );
+
+    $valid = $precision;
+  }
+
+  $self->{'command-length'} = max($commandLength, $self->{'command-length'});
+  $self->{'current-precision'} = $valid;
+  $interface->{'current-format'} = '.'. $valid .'f';
+
+  return $valid;
+}
+
+sub testCommandLength {
+  my ($self, $interface, $command, @queries) = @_;
+
+  return 1 if $self->{'command-length'} > 0 && length($command) <= $self->{'command-length'};
+
+  my $response = $interface->sendCommand($command);
+  return if $response =~ /ERR/i;
+
+  while (@queries) {
+    my $query = shift @queries;
+    my $expected = shift @queries;
+
+    my $response = $interface->sendCommand($query);
+    
+
+    # If the expected value is a number, then try numeric comparison as well
+    return if $response ne $expected
+           && ($expected !~ /^\d+(\.\d+)?$/ || $response != $expected);
+
+  }
+
+  $self->{'command-length'} = max($self->{'command-length'}, length($command));
+
+  return 1;
+}
+
+sub performCommandLengthTest {
+  my ($self, $interface, $requestFmt, $precision, $value, @queries) = @_;
+
+  my $numFormat = '%.'. $precision .'f';
+  my $formattedValue = sprintf($numFormat, $value);
+  my $request = sprintf($requestFmt, $formattedValue);
+
+  return $formattedValue if $self->testCommandLength($interface, $request, @queries, $formattedValue);
+  return;
+}
+
+sub characterizeCommandLength {
+  my ($self, $interface) = @_;
+
+  $self->debug('Characterizing command length') if DEBUG_LEVEL >= DEBUG_OPERATIONS;
+
+  my $setVoltage = $interface->setVoltageCommand(1);
+  $setVoltage =~ s/\s+\S+$//;
+
+  my $setCurrent = $interface->setCurrentCommand(1);
+  $setCurrent =~ s/\s+\S+$//;
+
+  # Send a series of commands to the power supply of varying lengths to determine whether
+  # the power supply can handle commands of that length
+  # Each row consists of a test command, followed by a series of query-response pairs to
+  # validate the success of the command. If all of the queries receive the expected
+  # response, then the command is assumed to have completely worked and commands of that
+  # length are valid. If any of the queries receive an unexpected response, then the
+  # command is assumed to have failed for some reason, possibly because the command was
+  # too long.
+
+  # Voltage and current commands to maximum precision should have already been sent, so 
+  # send combinations, now.
+  my $curr = 1;
+  my $result;
+  for (my $precision = 1; $precision <= 6; $precision++) {
+    $result = $self->performCommandLengthTest($interface
+                                            , "$setVoltage 2;$setCurrent %s"
+                                            , $precision
+                                            , 1.2345678
+                                            , $interface->voltageSetpointCommand, 2
+                                            , $interface->currentSetpointCommand
+                                            );
+    
+    last if !$result;
+    $curr = $result;
+
+    # Set the voltage and current to something difference so it doesn't throw off the next test
+    $interface->sendCommand("$setVoltage 3;$setCurrent 2");
+  }
+
+  $result = $self->performCommandLengthTest($interface
+                                          , "$setVoltage %d;$setCurrent $curr"
+                                          , 1, 12
+                                          , $interface->currentSetpointCommand, $curr
+                                          , $interface->voltageSetpointCommand
+                                          );
+
+  $result = $self->performCommandLengthTest($interface
+                                          , "$setVoltage %s;$setCurrent $curr"
+                                          , 1, 1.22
+                                          , $interface->currentSetpointCommand, $curr
+                                          , $interface->voltageSetpointCommand
+                                          );
+
+  my $volt;
+  for (my $precision = 1; $precision <= 6; $precision++) {
+    $result = $self->performCommandLengthTest($interface
+                                            , "$setVoltage %s;$setCurrent $curr"
+                                            , $precision
+                                            , 12.7654321
+                                            , $interface->currentSetpointCommand, $curr
+                                            , $interface->voltageSetpointCommand
+                                            );
+    
+    last if !$result;
+    $volt = $result;
+
+    # Set the voltage and current to something difference so it doesn't throw off the next test
+    $interface->sendCommand("$setVoltage 3;$setCurrent 2");
+  }
+
+  $self->debug('Successfully reached command-length of %d', $self->{'command-length'}) if DEBUG_LEVEL >= DEBUG_OPERATIONS;
+  return $self->{'command-length'};
+}
+
+sub characterizeShutdown {
+  return;
+}
+
 sub isResponseValid {
   my ($self, $response) = @_;
 
   return $response !~ /ERR/i;
+}
+
+# Use our own simple, direct command to avoid any potential Interface class smarts getting in the way
+sub getVoltageSetpoint {
+  my ($self, $interface) = @_;
+
+  my $response = $interface->sendCommand($interface->voltageSetpointCommand);
+  return if !$self->isResponseValid($response);
+
+  return $response;
+}
+
+# Use our own simple, direct command to avoid any potential Interface class smarts getting in the way
+sub getCurrentSetpoint {
+  my ($self, $interface) = @_;
+
+  my $response = $interface->sendCommand($interface->currentSetpointCommand);
+  return if !$self->isResponseValid($response);
+
+  return $response;
+}
+
+sub characterizeVoltage {
+  my ($self, $interface) = @_;
+
+  # Get the current voltage set point
+  my ($vset) = $interface->getVoltageSetpoint($interface);
+  
 }
 
 sub characterizeDevice {

@@ -351,19 +351,7 @@ the default value will be returned.
 sub prompt {
   my ($self, $prompt, $default) = @_;
 
-  print "$prompt ";
-  print "[$default] " if defined $default;
-
-  my $value = <STDIN>;
-  chomp $value;
-  $value =~ s/^\s+//;
-  $value =~ s/\s+$//;
-
-  if ($value eq '') {
-    return $default;
-  }
-
-  return $value;
+  return Milton::Command::ValueTools::prompt($prompt, $default);
 }
 
 =head2 setLogger($logger)

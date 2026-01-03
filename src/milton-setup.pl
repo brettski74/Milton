@@ -79,10 +79,18 @@ sub prompt {
   my ($prompt, $default) = @_;
   chomp $prompt;
 
-  print "$prompt [$default]\n";
+  print "$prompt ";
+  
+  if (defined($default)) {
+    print "[$default]";
+  }
+  
+  print "\n";
 
   my $choice = <STDIN>;
   chomp $choice;
+  $choice =~ s/^\s+//;
+  $choice =~ s/\s+$//;
 
   if ($choice eq '' || !defined($choice)) {
     $choice = $default;
@@ -422,7 +430,7 @@ sub select_power_supply {
   }
 
   if ($choice eq 'S') {
-    return scan_for_power_supply_models($scanner, $manufacturer);
+    return scan_for_power_supplies($scanner, $manufacturer);
   } elsif ($choice eq 'M') {
     return;
   }

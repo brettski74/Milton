@@ -347,7 +347,7 @@ Press ENTER when you are ready to commence the scan.
 EOS
   <STDIN>;
 
-  my @found = $scanner->scan_scpi_devices();
+  my @found = $scanner->scanSCPIDevices();
   my $extra;
 
   if (@found) {

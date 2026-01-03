@@ -91,6 +91,15 @@ sub loadSupportedDevices {
   return $result;
 }
 
+sub scanSCPIDevices {
+  my ($self) = @_;
+
+  my @found = $self->scanSCPISerialDevices;
+  push @found, $self->scanSCPIUSBTMCDevices;
+
+  return @found;
+}
+
 sub scanSCPIUSBTMCDevices {
   my ($self, $glob) = @_;
   $glob //= '/dev/usbtmc[0-9]*';

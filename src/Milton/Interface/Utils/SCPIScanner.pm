@@ -131,6 +131,10 @@ sub scanSCPIUSBTMCDevices {
         if ($id =~ $device->{'id-pattern-re'}) {
           $self->info('Device %s matches. Using interface configuration file %s', $device->{displayName}, $device->{value});
 
+          if ($device->{document}->{'shutdown-commands'} && @{$device->{document}->{'shutdown-commands'}} > 0) {
+            $interface->{'shutdown-commands'} = $device->{document}->{'shutdown-commands'};
+          }
+
           # Shallow copy the device hash to avoid modifying the original.
           my $result = { %$device };
           $result->{device} = $port;
@@ -189,6 +193,10 @@ sub scanSCPISerialDevices {
           DEVICE: foreach my $device (@{$self->{devices}->{serial}}) {
             if ($id =~ $device->{'id-pattern-re'}) {
               $self->info('Device %s matches. Using interface configuration file %s', $device->{displayName}, $device->{value});
+
+              if ($device->{document}->{'shutdown-commands'} && @{$device->{document}->{'shutdown-commands'}} > 0) {
+                $interface->{'shutdown-commands'} = $device->{document}->{'shutdown-commands'};
+              }
             
               # Shallow copy the device hash to avoid modifying the original.
               my $result = { %$device };

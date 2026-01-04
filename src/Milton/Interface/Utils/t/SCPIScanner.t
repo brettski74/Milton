@@ -8,6 +8,7 @@ use Test2::V0;
 use Milton::Interface::Utils::SCPIScanner;
 use Milton::Config::Path qw(clear_search_path add_search_dir search_path);
 use Milton::Interface::Utils::t::SCPIMock;
+use Milton::t::MockIO qw(inject_prompt add_response clear_responses);
 
 clear_search_path();
 add_search_dir('t');
@@ -113,6 +114,45 @@ subtest 'Characterize Precision and Length' => sub {
   $detectedLength = $scanner->characterizeCommandLength($mock);
   cmp_ok($detectedLength, '<=', 26, '<=26');
   cmp_ok($detectedLength, '>=', 21, '>=21');
+};
+
+subtest 'Characterize Shutdown Commands' => sub {
+  my $newmock = sub {
+    my $mock = Milton::Interface::Utils::t::SCPIMock->new;
+    $mock->addSetpointMock('VOLT', precision => 2, default => 1.5);
+    $mock->addSetpointMock('CURR', precision => 3, default => 1.25);
+    $mock->addMock('*UNLOCK', '', 'SYST:LOC', '');
+    return $mock;
+  };
+
+  my $scanner = Milton::Interface::Utils::SCPIScanner->new();
+  my $mock = $newmock->();
+  inject_prompt('Milton::Interface::Utils::SCPIScanner');
+  clear_responses();
+  add_response(qw(N Y Y Y Y Y Y Y));
+  my $shutdownCommands = $scanner->characterizeShutdown($mock);
+  is($shutdownCommands, [ '*UNLOCK' ], 'Selected *UNLOCK');
+
+  $mock = $newmock->();
+  clear_responses();
+  add_response(qw(N N Y Y Y Y Y Y Y Y Y Y));
+  $shutdownCommands = $scanner->characterizeShutdown($mock);
+  is($shutdownCommands, [ 'SYST:LOC' ], 'Selected SYST:LOC');
+
+  $mock = $newmock->();
+  $mock->{'shutdown-commands'} = undef;
+  clear_responses();
+  add_response(qw(Y Y Y Y Y Y Y Y Y Y Y));
+  $shutdownCommands = $scanner->characterizeShutdown($mock);
+  is($shutdownCommands, undef, 'Never locked');
+  ok(!exists($mock->{'shutdown-commands'}), 'Shutdown commands not set');
+
+  $mock = $newmock->();
+  clear_responses();
+  add_response(qw(N N N N N N N N N N N));
+  $shutdownCommands = $scanner->characterizeShutdown($mock);
+  is($shutdownCommands, undef, 'Selected nothing');
+  ok(!exists($mock->{'shutdown-commands'}), 'Shutdown commands not set');
 };
 
 done_testing();

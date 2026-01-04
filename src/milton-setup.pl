@@ -280,12 +280,9 @@ foreach my $dependency (@$DEPS) {
 ###
 ### Set up config.mk if not already present.
 ###
-if ( ! -f 'config.mk' ) {
-  if ($shared_install) {
-    copy_file 'config.mk.global', 'config.mk';
-  } else {
-    copy_file 'config.mk.local', 'config.mk';
-  }
+my $config_mk = $shared_install ? 'config.mk.global' : 'config.mk.local';
+if ( -f 'Makefile' && -f $config_mk && -f ! -f 'config.mk' ) {
+  copy_file $config_mk, 'config.mk';
 }
 
 ###
@@ -364,6 +361,9 @@ is connected and powered on. It is advisable to power off or disconnect any
 other test equipment that may currently be connected to your computer to
 minimize the risk of unintended consequences or detecting an unwanted
 instrument.
+
+The scan may require user input from time to time, so remain nearby in case user
+input is require.
 
 Press ENTER when you are ready to commence the scan.
 EOS

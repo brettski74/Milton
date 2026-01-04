@@ -178,33 +178,34 @@ sub scanSCPISerialDevices {
                                                           , logger => $self->{logger}
                                                           });
       };
-      next BAUD if $@;
 
-      my $id = $interface->{'id-string'};
+      if ($interface) {
+        my $id = $interface->{'id-string'};
       
-      # Assume that a valid id string will have a string of at least 6 alphanumeric characters
-      if ($id && $id =~ /\w{6}/) {
-        $self->info('Connected to device %s on %s at %d baud', $id, $port, $baud);
+        # Assume that a valid id string will have a string of at least 6 alphanumeric characters
+        if ($id && $id =~ /\w{6}/) {
+          $self->info('Connected to device %s on %s at %d baud', $id, $port, $baud);
 
-        DEVICE: foreach my $device (@{$self->{devices}->{serial}}) {
-          if ($id =~ $device->{'id-pattern-re'}) {
-            $self->info('Device %s matches. Using interface configuration file %s', $device->{displayName}, $device->{value});
+          DEVICE: foreach my $device (@{$self->{devices}->{serial}}) {
+            if ($id =~ $device->{'id-pattern-re'}) {
+              $self->info('Device %s matches. Using interface configuration file %s', $device->{displayName}, $device->{value});
             
-            # Shallow copy the device hash to avoid modifying the original.
-            my $result = { %$device };
-            $result->{device} = $port;
-            return $result if $first;
-            push @found, $result;
-            next PORT;
+              # Shallow copy the device hash to avoid modifying the original.
+              my $result = { %$device };
+              $result->{device} = $port;
+              return $result if $first;
+              push @found, $result;
+              next PORT;
+            }
           }
-        }
 
-        my $device = $self->characterizeDevice($interface, $port);
-        if ($device) {
-          return $device if $first;
-          push @found, $device;
+          my $device = $self->characterizeDevice($interface, $port);
+          if ($device) {
+            return $device if $first;
+            push @found, $device;
+          }
+          next PORT;
         }
-        next PORT;
       }
     
       # Insert a delay between baud rate changes to allow the power supply to settle and be ready for a new command.
@@ -233,7 +234,7 @@ sub characterizeDeviceVoltage {
     # Don't use setVoltage because it will try to turn the output on.
     my $cmd = $interface->setVoltageCommand($v);
 
-    my $response = $interface->sendCommand($interface->setVoltageCommand($v));
+    my ($response) = $interface->sendCommand($interface->setVoltageCommand($v));
     last if !$self->isResponseValid($response);
 
     my ($vset) = $interface->sendCommand($interface->voltageSetpointCommand);
@@ -262,7 +263,7 @@ sub characterizeDeviceCurrent {
 
   my $imax = 0;
   for (my $i = 1; $i <= 20; $i += 1/2) {
-    my $response = $interface->sendCommand($interface->setCurrentCommand($i));
+    my ($response) = $interface->sendCommand($interface->setCurrentCommand($i));
     last if !$self->isResponseValid($response);
 
     my ($iset) = $interface->sendCommand($interface->currentSetpointCommand);
@@ -297,7 +298,7 @@ sub characterizeDevicePower {
       $i = $imax;
     }
 
-    my $response = $interface->sendCommand($interface->setVoltageCommand($vmax) .';'. $interface->setCurrentCommand($i));
+    my ($response) = $interface->sendCommand($interface->setVoltageCommand($vmax) .';'. $interface->setCurrentCommand($i));
     last if !$self->isResponseValid($response);
 
     my ($vset) = $interface->sendCommand($interface->voltageSetpointCommand);
@@ -512,7 +513,47 @@ sub characterizeCommandLength {
 }
 
 sub characterizeShutdown {
-  return;
+  my ($self, $interface) = @_;
+  my @commands_to_try = qw( *UNLOCK SYST:LOC );
+  my $cmd;
+
+  TRY: while ($cmd || @commands_to_try) {
+    my $choice = undef;
+    while (!defined($choice)) {
+      $choice = prompt("Test the user interface on your power supply - the buttons, knobs, etc. Are they working? (Y/N)?");
+      $choice = uc($choice);
+
+      if ($choice ne 'Y' && $choice ne 'N') {
+        $choice = undef;
+      }
+    }
+
+    if ($choice eq 'N') {
+      $cmd = shift @commands_to_try;
+      $self->debug('Trying shutdown command: %s', $cmd) if DEBUG_LEVEL >= DEBUG_PROBE_2;
+      my ($response) = $interface->sendCommand($cmd);
+      if (!$self->isResponseValid($response)) {
+        $cmd = undef;
+      }
+    } elsif ($choice eq 'Y') {
+      last TRY;
+    }
+  }
+
+  if ($cmd) {
+    if (!$interface->{'shutdown-commands'}) {
+      $interface->{'shutdown-commands'} = [ $cmd ];
+    } else {
+      push @{$interface->{'shutdown-commands'}}, $cmd;
+    }
+  }
+
+  if (!defined($interface->{'shutdown-commands'}) || !@{$interface->{'shutdown-commands'}}) {
+    delete $interface->{'shutdown-commands'};
+    return;
+  }
+
+  return $interface->{'shutdown-commands'};
 }
 
 sub isResponseValid {
@@ -525,7 +566,7 @@ sub isResponseValid {
 sub getVoltageSetpoint {
   my ($self, $interface) = @_;
 
-  my $response = $interface->sendCommand($interface->voltageSetpointCommand);
+  my ($response) = $interface->sendCommand($interface->voltageSetpointCommand);
   return if !$self->isResponseValid($response);
 
   return $response;
@@ -535,7 +576,7 @@ sub getVoltageSetpoint {
 sub getCurrentSetpoint {
   my ($self, $interface) = @_;
 
-  my $response = $interface->sendCommand($interface->currentSetpointCommand);
+  my ($response) = $interface->sendCommand($interface->currentSetpointCommand);
   return if !$self->isResponseValid($response);
 
   return $response;
@@ -577,6 +618,10 @@ sub characterizeDevice {
   return if $pmax <= 0.1;
 
   my $commandLength = $self->characterizeCommandLength($interface);
+  my $shutdownCommands = $self->characterizeShutdown($interface);
+  if ($shutdownCommands) {
+    $document->{'shutdown-commands'} = $shutdownCommands;
+  }
 
   $document->{voltage} = { maximum => $vmax + 0.0, minimum => 2 };
   $document->{current} = { maximum => $imax + 0.0, minimum => 0.5 };
@@ -599,10 +644,14 @@ sub characterizeDevice {
 # command prior to disconnecting. If your power supply stops responding to the buttons,
 # knobs or other controls on it, you may need to add one or more shutdown commands such
 # as some of the examples below.
+#
+# You may need to check your power supply's programming manual to determine the correct
+# procedures for locking and unlocking the user interface.
+#
 # shutdown-commands:
 #   - "*UNLOCK"
 #   - SYST:LOC
-#
+# 
 ### Generated by Milton::Interface::Utils::SCPIScanner on $now
 EOS
     $fh->close;

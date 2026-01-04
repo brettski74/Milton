@@ -440,7 +440,7 @@ sub select_power_supply {
     if (@manufacturers > 1) {
       $extra .= '-'.scalar(@manufacturers);
     }
-    $choice = uc(prompt('Selection (S or M or 1'.$extra.')?', 'S'));
+    $choice = uc(prompt('Selection (S or M or '.$extra.')?', 'S'));
   }
 
   if ($choice eq 'S') {
@@ -473,7 +473,7 @@ sub select_power_supply_model {
     if (@models > 1) {
       $extra .= '-'.scalar(@models);
     }
-    $choice = uc(prompt('Selection (S or M or 1'.$extra.')?', 'S'));
+    $choice = uc(prompt('Selection (S or M or '.$extra.')?', 'S'));
   }
 
   if ($choice eq 'S') {

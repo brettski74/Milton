@@ -317,7 +317,7 @@ We need to determine how to connect to your power supply. Do you wish to:
 EOS
 my $choice;
 while ($choice < 1 || $choice > 3) {
-  $choice = prompt('Selection ([1], 2 or 3)?', '1');
+  $choice = prompt('Selection (1, 2 or 3)?', '1');
   chomp $choice;
 }
 
@@ -327,16 +327,17 @@ my $template = Milton::Config::Template->new(template => 'psc.yaml.template');
 $template->setParameterValue('interface-config', 'interface/user.yaml');
 
 my $edit = 1;
+my $interface;
 
 if ($choice == 1) {
-  my $interface = scan_for_power_supplies($scanner, $template);
+  $interface = scan_for_power_supplies($scanner, $template);
 
   if ($interface) {
     $template->setParameterValue('interface-config', $interface);
     $edit = undef;
   }
 } elsif ($choice == 2) {
-  my $interface = select_power_supply($scanner, $template);
+  $interface = select_power_supply($scanner, $template);
 
   if ($interface) {
     $template->setParameterValue('interface-config', $interface);
@@ -375,7 +376,7 @@ EOS
   <STDIN>;
 
   my @found = $scanner->scanSCPIDevices();
-  my $extra;
+  my $extra='';
 
   if (@found) {
     print "The following power supplies were found:\n";
@@ -384,7 +385,11 @@ EOS
       printf "  %d) %s (%s)\n", $i + 1, $found[$i]->{displayName}, $found[$i]->{device};
     }
 
-    $extra = ' or 1-'.scalar(@found);
+    if (@found > 1) {
+      $extra = ' or 1-'.scalar(@found);
+    } elsif(@found == 1) {
+      $extra = ' or 1';
+    }
 
   } else {
     print "No power supplies were found. Would you like to:\n\n";
@@ -398,7 +403,7 @@ EOS
 
   my $choice;
   while ($choice ne 'S' && $choice ne 'M' && ($choice < 1 || $choice > @found)) {
-    $choice = uc(prompt('Selection ([S] or M'.$extra.'?'));
+    $choice = uc(prompt('Selection (S or M'.$extra.')?', 'S'));
   }
 
   if ($choice eq 'S') {
@@ -431,7 +436,11 @@ sub select_power_supply {
 
   my $choice;
   while ($choice ne 'S' && $choice ne 'M' && ($choice < 1 || $choice > @manufacturers)) {
-    $choice = uc(prompt('Selection ([S] or M or 1-'.scalar(@manufacturers).')?'));
+    my $extra = 1;
+    if (@manufacturers > 1) {
+      $extra .= '-'.scalar(@manufacturers);
+    }
+    $choice = uc(prompt('Selection (S or M or 1'.$extra.')?', 'S'));
   }
 
   if ($choice eq 'S') {
@@ -460,7 +469,11 @@ sub select_power_supply_model {
 
   my $choice;
   while ($choice ne 'S' && $choice ne 'M' && ($choice < 1 || $choice > @models)) {
-    $choice = uc(prompt('Selection ([S] or M or 1-'.scalar(@models).')?'));
+    my $extra = 1;
+    if (@models > 1) {
+      $extra .= '-'.scalar(@models);
+    }
+    $choice = uc(prompt('Selection (S or M or 1'.$extra.')?', 'S'));
   }
 
   if ($choice eq 'S') {

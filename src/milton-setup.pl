@@ -357,10 +357,15 @@ sub scan_for_power_supplies {
 ################################################################################
 ################################################################################
 We will now scan for a SCPI power supply. Please ensure that your power supply
-is connected and powered on. It is advisable to power off or disconnect any
-other test equipment that may currently be connected to your computer to
-minimize the risk of unintended consequences or detecting an unwanted
-instrument.
+is:
+
+  1) Connected to your computer
+  2) Powered on
+  3) Disconnected from any load
+
+It is advisable to power off or disconnect any other test equipment that may
+currently be connected to your computer to minimize the risk of unintended
+consequences or detecting an unwanted instrument.
 
 The scan may require user input from time to time, so remain nearby in case user
 input is require.

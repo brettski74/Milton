@@ -120,14 +120,15 @@ sub find_config_files_by_path {
       }
 
       if (!defined $doc || $validate) {
-        $record->{document} = Milton::Config->new($relpath);
+        $doc = Milton::Config->new($relpath);
+        $record->{document} = $doc;
         next if reftype($doc) ne 'HASH';
 
-        next if defined($validate) && !$validate->($record->{document});
+        next if defined($validate) && !$validate->($doc);
         
-        $record->{name} //= $record->{document}->{name};
-        $record->{displayName} //= $record->{document}->{name};
-        $record->{description} //= $record->{document}->{description};
+        $record->{name} //= $doc->{name};
+        $record->{displayName} //= $doc->{name};
+        $record->{description} //= $doc->{description};
       }
 
       if (!$record->{displayName}) {

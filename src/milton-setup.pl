@@ -1,8 +1,8 @@
 #!/usr/bin/perl
 
 use strict refs;
-
-my %cfg;
+use FindBin qw($RealBin);
+use File::Spec
 
 my $DEPS = 
 [ { name => 'AnyEvent'                    , version => '70.17', pacman => 'perl-anyevent'         , apt => 'libanyevent-perl'          }
@@ -179,40 +179,56 @@ sub copy_file {
   system 'cp', '-v', $source, $destination;
 }
 
-###
-### Check whether we want a shared installation or a user local installation.
-###
-my $shared_install = boolify(prompt(<<'EOS', 'no'));
-################################################################################
-################################################################################
-################################################################################
-Installing a shared instance may require sudo access and prompt for your
-password once or more during setup.
-
-Install a shared instance?
-EOS
-
-###
-### Ensure that the target installation directory exists.
-###
-if ($shared_install) {
-  $cfg{MILTON_BASE} = '/opt/milton';
-  system 'sudo', 'mkdir', '-p', $cfg{MILTON_BASE};
-  system 'sudo', 'chown', $ENV{USER}, $cfg{MILTON_BASE};
-  system 'sudo', 'chmod', '755', $cfg{MILTON_BASE};
-} else {
-  $cfg{MILTON_BASE} = "$ENV{HOME}/.local/milton";
-  system 'mkdir', '-p', "$cfg{MILTON_BASE}";
+sub startsWith {
+  my ($string, $prefix) = @_;
+  return substr($string, 0, length($prefix)) eq $prefix;
 }
 
-# Set the MILTON_BASE environment variable so it can be used to set the configuraton search path later.
-$ENV{MILTON_BASE} = $cfg{MILTON_BASE};
+###
+### Determine MILTON_BASE if it's not set, but without the benefit of Milton::Config::Path, since we may not be able to find it yet.
+### Can't check if the MILTON_BASE directory exists yet, since it may not have been created if installing from source.
+###
+if (!defined $ENV{MILTON_BASE}) {
+  my $milton_base = $RealBin;
+  if ($milton_base =~ /\/bin$/) {
+    if (-f "$RealBin/milton-setup" -a -f "$RealBin/milton" -a -f "$RealBin/psc") {
+      $milton_base =~ s/\/bin$//;
+      $ENV{MILTON_BASE} = $milton_base;
+    }
+  } elsif ($milton_base =~ /\/src$/) {
+    if (-f '$RealBin/../install.sh') {
+      exec '$RealBin/../install.sh';
+    }
+  }
+}
+
+if (!defined $ENV{MILTON_BASE}) {
+  die "Unable to determine MILTON_BASE. Consider manually setting the MILTON_BASE environment variable before attempting to run this script again.\n";
+}
+
+my $shared_install;
+
+# Check if this is a shared installation.
+if (startsWith($ENV{MILTON_BASE}, $ENV{HOME})) {
+  $shared_install = 0;
+} else {
+  $shared_install = 1;
+
+  ###
+  ### Ensure that the target installation directory exists.
+  ###
+  if (!-d $MILTON_BASE) {
+    system 'sudo', 'mkdir', '-p', $ENV{MILTON_BASE};
+    system 'sudo', 'chown', $ENV{USER}, $ENV{MILTON_BASE};
+    system 'sudo', 'chmod', '755', $ENV{MILTON_BASE};
+  }
+}
 
 ###
 ### Make sure that we can load libraries from the target installation directory.
 ###
-eval "use lib '$cfg{MILTON_BASE}/lib/perl5'";
-$ENV{PERL5LIB} = "$cfg{MILTON_BASE}/lib/perl5:$ENV{PERL5LIB}";
+eval "use lib '$ENV{MILTON_BASE}/lib/perl5'";
+$ENV{PERL5LIB} = "$ENV{MILTON_BASE}/lib/perl5:$ENV{PERL5LIB}";
 
 ###
 ### Determine the available perl library installation methods for perl dependencies.
@@ -249,7 +265,7 @@ push @methods, find_by_name('cpanm', $available_methods) unless $preferred_metho
 push @methods, find_by_name('cpan', $available_methods) unless $preferred_method eq 'cpan';
 
 foreach my $method (@methods) {
-  $method->set_install_path($cfg{MILTON_BASE});
+  $method->set_install_path($ENV{MILTON_BASE});
 }
 
 print "Perl installation methods: ". join(', ', map { $_->name() } @methods). "\n";

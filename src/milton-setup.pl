@@ -50,6 +50,30 @@ sub detect_module_installation_methods {
   return \@available;
 }
 
+=head2 system_exec(@command)
+
+Execute a command and return the exit code.
+
+=over
+
+=item @command
+
+The command and arguments to execute.
+
+=item Return Value
+
+The exit code of the command.
+
+=back
+
+=cut
+
+sub system_exec {
+  my (@command) = @_;
+  print join(' ', @command) ."\n";
+  return system(@command);
+}
+
 =head2 prompt($prompt, $default)
 
 Display a message to the user and wait for them to enter a value.
@@ -175,7 +199,7 @@ The destination file to copy to.
 
 sub copy_file {
   my ($source, $destination) = @_;
-  system 'cp', '-v', $source, $destination;
+  system_exec 'cp', '-v', $source, $destination;
 }
 
 sub startsWith {
@@ -217,9 +241,9 @@ if (startsWith($ENV{MILTON_BASE}, $ENV{HOME})) {
   ### Ensure that the target installation directory exists.
   ###
   if (!-d $MILTON_BASE) {
-    system 'sudo', 'mkdir', '-p', $ENV{MILTON_BASE};
-    system 'sudo', 'chown', $ENV{USER}, $ENV{MILTON_BASE};
-    system 'sudo', 'chmod', '755', $ENV{MILTON_BASE};
+    system_exec 'sudo', 'mkdir', '-p', $ENV{MILTON_BASE};
+    system_exec 'sudo', 'chown', $ENV{USER}, $ENV{MILTON_BASE};
+    system_exec 'sudo', 'chmod', '755', $ENV{MILTON_BASE};
   }
 }
 
@@ -304,7 +328,7 @@ if ( -f 'Makefile' && -f $config_mk && -f ! -f 'config.mk' ) {
 ### Install Milton Software if required
 ###
 if ( -e './install.sh' && -e './Makefile' ) {
-  system 'make', 'install-dirs', 'install', 'install-config';
+  system_exec 'make', 'install-dirs', 'install', 'install-config';
 }
 
 # Load required modules now that we can be confident that they're installed.
@@ -363,7 +387,7 @@ if ($choice == 1) {
 $template->render();
 
 if ($edit) {
-  system 'mledit';
+  system_exec 'mledit';
 }
 
 sub scan_for_power_supplies {

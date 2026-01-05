@@ -301,6 +301,7 @@ print "Perl installation methods: ". join(', ', map { $_->name() } @methods). "\
 ### Ensure that all perl dependencies are installed.
 ###
 foreach my $dependency (@$DEPS) {
+  my $installed = 0;
   METHOD: foreach my $method (@methods) {
     print 'Checking dependency: '.$dependency->{name}.'...  ';
 
@@ -311,8 +312,68 @@ foreach my $dependency (@$DEPS) {
       $method->install($dependency->{name});
     } else {
       print "found\n";
+      $installed = 1;
       last METHOD;
     }
+  }
+  if (!$installed) {
+    print <<"EOS";
+################################################################################
+FATAL ERROR: Unable to install dependency: $dependency->{name}.
+
+Possible solutions:
+
+1. Resolve missing dependencies. Some perl modules are not available in your
+distribution's standard package repositories and require installation from
+source using cpan or cpanm. Consider installing the following packages to ensure
+that these modules can be built and installed.
+
+On Debian based systems:
+
+    sudo apt install make gcc cpanminus liblocal-lib-perl
+
+On Arch based systems
+
+    sudo pacman -S make gcc cpanminus perl-local-lib
+
+2. If you are using cpan or cpanm as your primary installation method, you may
+have more success installing from the distribution repositories where possible.
+This requires that you have sudo access, but consider using the pacman or apt
+installation method as your primary installation method.
+
+3. Install the module manually, resolve any errors that occur and then retry the
+milton-setup again.
+
+EOS
+
+    if ($dependency->{apt}) {
+      print <<"EOS";
+On Debian based systems:
+
+    sudo apt install $dependency->{apt}
+
+EOS
+    }
+
+    if ($dependency->{pacman}) {
+      print <<"EOS";
+On Arch based systems:
+
+    sudo pacman -S $dependency->{pacman}
+
+EOS
+    }
+
+    print <<"EOS";
+Using cpan or cpanm, one of the following commands:
+
+    cpanm -L $ENV{MILTON_BASE} $dependency->{name}
+
+    perl -Mlocal::lib=$ENV{MILTON_BASE} -MCPAN -e "install $dependency->{name}"
+
+EOS
+
+    die "Unable to install dependency: ". $dependency->{name} .". Please install it manually and try again.\n";
   }
 }
 
@@ -538,6 +599,48 @@ if ($miltonenv) {
   $miltonenv->close;
 } else {
   warn "Failed to open $miltonenv_path for writing: $!";
+}
+
+if ($shared_install) {
+  my ($dev, $ino, $mode, $nlink, $uid, $gid) = stat($ENV{MILTON_BASE}/bin/milton);
+  my $user = getpwuid($uid);
+  my $group = getgrgid($gid);
+
+  print <<"EOS";
+The milton installation appears to be owned by $user:$group. What user and/or
+group should own the installation?
+EOS
+
+  my $default = "$user:$group";
+  my $choice;
+  while (!defined($choice) || $choice ne '') {
+    $choice = prompt('Enter the user:group that should own the installation', $default);
+    if ($choice eq $default) {
+      $choice = undef;
+      last;
+    }
+
+    my ($new_user, $new_group) = split(/:/, $choice, 2);
+    my $new_uid = getpwnam($new_user);
+    if (!$new_uid) {
+      print "Invalid user: $new_user\n";
+      $choice = undef;
+      next;
+    }
+
+    if ($choice =~ /:/) {
+      my $new_gid = getgrnam($new_group);
+      if (!$new_gid) {
+        print "Invalid group: $new_group\n";
+        $choice = undef;
+        next;
+      }
+    }
+  }
+
+  if ($choice) {
+    system_exec 'sudo', 'chown', '-R', $choice, $ENV{MILTON_BASE};
+  }
 }
 
 print <<'EOS';

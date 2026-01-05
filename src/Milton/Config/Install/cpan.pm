@@ -18,8 +18,10 @@ for the current user only.
 sub is_available {
   my ($self) = @_;
   # Check if cpan command exists
-  my $cpan = system 'command -v cpan >/dev/null 2>&1';
-  return !$cpan;
+
+  eval 'use local::lib;\nuse CPAN;';
+  return 1 if !$@;
+  return;
 }
 
 sub set_install_path {

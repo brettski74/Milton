@@ -6,4 +6,5 @@ sandbox/
 config.mk
 releases/
 milton-*/
-
+.attic/
+*.bak

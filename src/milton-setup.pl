@@ -190,7 +190,7 @@ sub startsWith {
 if (!defined $ENV{MILTON_BASE}) {
   my $milton_base = $RealBin;
   if ($milton_base =~ /\/bin$/) {
-    if (-f "$RealBin/milton-setup" -a -f "$RealBin/milton" -a -f "$RealBin/psc") {
+    if (-f "$RealBin/milton-setup" && -f "$RealBin/milton" && -f "$RealBin/psc") {
       $milton_base =~ s/\/bin$//;
       $ENV{MILTON_BASE} = $milton_base;
     }

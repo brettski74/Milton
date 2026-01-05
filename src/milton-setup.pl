@@ -2,7 +2,6 @@
 
 use strict refs;
 use FindBin qw($RealBin);
-use File::Spec
 
 my $DEPS = 
 [ { name => 'AnyEvent'                    , version => '70.17', pacman => 'perl-anyevent'         , apt => 'libanyevent-perl'          }

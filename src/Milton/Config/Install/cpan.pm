@@ -18,9 +18,8 @@ for the current user only.
 sub is_available {
   my ($self) = @_;
   # Check if cpan command exists
-  my $cpan = `which cpan 2>/dev/null`;
-  chomp $cpan;
-  return $cpan && -x $cpan;
+  my $cpan = system 'command -v cpan >/dev/null 2>&1';
+  return !$cpan;
 }
 
 sub set_install_path {

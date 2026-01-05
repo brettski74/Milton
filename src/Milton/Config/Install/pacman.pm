@@ -18,9 +18,8 @@ Requires sudo privileges.
 sub is_available {
   my ($self) = @_;
   # Check if pacman command exists and we're on an Arch-based system
-  my $pacman = `which pacman 2>/dev/null`;
-  chomp $pacman;
-  return $pacman && -x $pacman && -f '/etc/arch-release';
+  my $pacman = system 'command -v pacman >/dev/null 2>&1';
+  return !$pacman && -f '/etc/arch-release';
 }
 
 sub requires_sudo {

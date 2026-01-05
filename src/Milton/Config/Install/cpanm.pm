@@ -18,9 +18,8 @@ for the current user only.
 sub is_available {
   my ($self) = @_;
   # Check if cpanm command exists
-  my $cpanm = `which cpanm 2>/dev/null`;
-  chomp $cpanm;
-  return $cpanm && -x $cpanm;
+  my $cpanm = system 'command -v cpanm >/dev/null 2>&1';
+  return !$cpanm;
 }
 
 sub requires_sudo {

@@ -18,9 +18,8 @@ Requires sudo privileges.
 sub is_available {
   my ($self) = @_;
   # Check if apt command exists and we're on a Debian-based system
-  my $apt = `which apt 2>/dev/null`;
-  chomp $apt;
-  return $apt && -x $apt && -f '/etc/debian_version';
+  my $apt = system 'command -v apt >/dev/null 2>&1';
+  return !$apt && -f '/etc/debian_version';
 }
 
 sub requires_sudo {

@@ -74,11 +74,23 @@ In addition to configuration basic operation of Milton, which should mostly be h
 
 ## Using Milton
 
+Before using Milton to do any real work like reflowing PCBs or testing heat sink assemblies, you will probably need to [calibrate Milton](CALIBRATION.md). Your results may vary without proper calibration of at least the RTD temperature-resistance mapping.
+
 The command line interface uses the script `psc` to run commands. You can probably run something like:
 
 ```
 psc reflow
 ```
+
+to run a reflow cycle using the default reflow profile.
+
+OR 
+
+```
+psc power --duration 900 60
+```
+
+to run the hotplate at a constant power level of 60W for 900 seconds.
 
 TODO: Document more of the command-line options.
 

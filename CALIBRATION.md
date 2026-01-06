@@ -8,7 +8,7 @@ Tuning is similar to calibration, but refers to the practice of observing the op
 
 ## Quick Start For Those Who Hate Reading
 
-Most users building a hotplate similar to that describe in my [Setup](resources/HotplateSetup.md) and [Assembly](resources/HotplateAssembly.md) probably only need to calibrate the hotplate resistance to temperature mapping. The existing tuning for temperature prediction and control should be good enough to
+Most users building a hotplate similar to that described in my [Setup](resources/HotplateSetup.md) and [Assembly](resources/HotplateAssembly.md) probably only need to calibrate the hotplate resistance to temperature mapping. The existing tuning for temperature prediction and control should be good enough to
 work for any similar assembly and most power supplies. Note that, even without calibration, so long as you start with the hotplate at room temperature and your default room temperature is close to real, your hotplate should do pretty well on temperature already - probably within +/-5°C, but this won't be terribly reliable.
 
 ### Absolute Fastest 1-point Calibration

@@ -51,23 +51,26 @@ cd milton-<version>
 You should see a file called install.sh in your current directory. Run it using:
 
 ```
-bash install.sh
+./install.sh
 ```
 
 It should prompt your for a few things. If you are doing a global shared installation and/or using your system package manager to install perl dependencies, you may need to provide your password for sudo. If you don't trust me enough to let the installation script run sudo, then do a user local installation and use cpan or cpanm for installating your perl dependencies and it shouldn't be required. Alternatively, you can manually install all the perl dependencies and setup the required directories prior to running the installation.
 
-The installation script doesn't quite do everything yet. Some of the things that you may need to still handle after the installation script runs include, but are not limtied to:
+The installation should get you close to a working installation, however, after installation you will still need to take care of the following tasks manually:
 
-1. Copy configuration files into $HOME/.config/milton.
-1. Create an interface configuration file for your particular power supply.
-1. Set the $MILTON_BASE environment variable in your .profile or .bashrc.
-1. Add $MILTON_BASE/bin to the PATH and add it to your .profile or .bashrc.
-1. Add $MILTON_BASE/lib/perl5 to your PERL5LIB and add it to your .profile or .bashrc.
-1. Create hybrid-pi-gains.yaml and al-resistance.yaml files - TODO!
-1. Calibration requires a calibration device. TODO - RTD or Passthrough!
-1. Run a calibration cycle for your hotplate.
+1. Add $MILTON_BASE/bin to your PATH environment variable.
+1. Configure Milton for your power supply.
+1. Calibrate your system.
 
-I'll update this list as I find more and as I update the installation scripts to handle most of this automatically.
+### Configuring Milton
+
+The `mledit` script can be used for editing Milton configuration files. If no filenames are specified on the command line, then it assumes you want to edit the main psc.yaml file. Filenames should be relative to the Milton configuration search path, such as controller/hybrid-pi.yaml. mledit does the following things automatically for you:
+
+1. Find the configuration file in the Milton configuration search path.
+1. If the file being edited is in the shared configuration directory, it first makes a copy in your user configuration directory and edits that.
+1. Test load the file on exit to verify that it can be loaded without issue and warns you if errors are detected.
+
+In addition to configuration basic operation of Milton, which should mostly be handled during the installation process, you will also need to [calibrate milton](CALIBRATION.md) for your particular hotplate.
 
 ## Using Milton
 

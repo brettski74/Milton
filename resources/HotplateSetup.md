@@ -11,10 +11,10 @@ don't already have one. If you already have a working PCB hotplate, you can use 
 board to about 190°C and then you should be able to just solder the fuse link and power connections on
 with a soldering iron. This is also the easiest way to rebuild the thermal fuse if you blow one, so it's
 a good idea to set up at least two hotplates so if you do blow your thermal fuse, you have another one
-on the shelf ready to go to repair the thermal fuse if you ever trip one. If you're backup board isn't
-calibrated, for a 100x100mm aluminium hotplate PCB, constant power at 60W should provide good preheat
-for soldering the fuse link back on. For hotplate PCBs of a different size, scale the power level according
-to the area of your boards.
+on the shelf ready to go to repair the thermal fuse if you ever trip one. If your backup board isn't
+calibrated, don't panic! For a 100x100mm aluminium hotplate PCB, constant power at 60W should provide
+good preheat for soldering the fuse link back on. For hotplate PCBs of a different size, scale the power
+level according to the area of your boards.
 
 ## Power Connections and Thermal Fuse Setup
 

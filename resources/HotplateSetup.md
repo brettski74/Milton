@@ -4,6 +4,18 @@ There are two main stages to setting up your new Aluminium PCB Hotplate. First y
 the power connections and the thermal fuse link. Once that is done, you need to mount it on a base and
 connect the power leads to it.
 
+## Bootstrapping and Backup!
+
+The process below should be considered a bootstrapping process for setting up a hotplate PCB when you
+don't already have one. If you already have a working PCB hotplate, you can use it to pre-heat your new
+board to about 190°C and then you should be able to just solder the fuse link and power connections on
+with a soldering iron. This is also the easiest way to rebuild the thermal fuse if you blow one, so it's
+a good idea to set up at least two hotplates so if you do blow your thermal fuse, you have another one
+on the shelf ready to go to repair the thermal fuse if you ever trip one. If you're backup board isn't
+calibrated, for a 100x100mm aluminium hotplate PCB, constant power at 60W should provide good preheat
+for soldering the fuse link back on. For hotplate PCBs of a different size, scale the power level according
+to the area of your boards.
+
 ## Power Connections and Thermal Fuse Setup
 
 For this stage of the setup you'll need the following items:

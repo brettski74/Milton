@@ -29,7 +29,7 @@ For this stage of the setup you'll need the following items:
 * Soldering iron
 * A ruler or some other measuring instrument that can measure up to 80mm
 * High-temperature solder (preferably 0.8mm (0.031") flux-core wire)
-* A mild, tacky solde flux (eg. NC191)
+* A mild, tacky solder flux (eg. NC191)
 * A baking sheet
 * Aluminium foil
 * A kitchen oven

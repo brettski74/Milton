@@ -11,7 +11,7 @@ my $DEPS =
 , { name => 'EV'                          , version => '4.34' , pacman => 'perl-ev'               , apt => 'libev-perl'                }
 , { name => 'Hash::Merge'                 , version => '0.302', pacman => 'perl-hash-merge'       , apt => 'libhash-merge-perl'        }
 , { name => 'Math::Round'                 , version => '0.07' , pacman => 'perl-math-round'       , apt => 'libmath-round-perl'        }
-, { name => 'IO::Pty'                     }
+, { name => 'IO::Tty'                     }
 , { name => 'Mojolicious::Lite'           }
 , { name => 'Mojo::IOLoop::ReadWriteFork' }
 , { name => 'Path::Tiny'                  , version => '0.148', pacman => 'perl-path-tiny'        , apt => 'libpath-tiny-perl'         }

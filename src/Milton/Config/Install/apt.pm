@@ -49,7 +49,7 @@ sub _module_to_package {
   my $key = lc($module);
   $key =~ s/::/-/g;
   
-  return $module_map{$module} || $module_map{$key} || "lib${key}-perl";
+  return $module_map{$module} || $module_map{$key} || "lib$key-perl";
 }
 
 sub install {

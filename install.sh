@@ -98,6 +98,8 @@ if [ "$choice" == "Y" ]; then
   MILTON_BASE=/opt/milton
   cp -v config.mk.global config.mk
   sudo mkdir /opt/milton-HEAD
+  sudo chown $LOGNAME:$LOGNAME /opt/milton-HEAD
+  sudo chmod 0755 /opt/milton-HEAD
   sudo ln -s /opt/milton-HEAD /opt/milton
 elif [ "$choice" == "N" ]; then
   MILTON_BASE=$HOME/.local/milton

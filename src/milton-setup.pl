@@ -535,7 +535,7 @@ EOS
     $default = '1';
   }
   while ($choice ne 'S' && $choice ne 'M' && ($choice < 1 || $choice > @found)) {
-    $choice = uc(prompt('Selection (S or M'.$extra.')?', 'S'));
+    $choice = uc(prompt('Selection (S or M'.$extra.')?', $default));
   }
 
   if ($choice eq 'S') {

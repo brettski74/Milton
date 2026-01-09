@@ -13,6 +13,11 @@ device: /dev/usbtmc[0-9]*
 # The id string should being with Siglent SPD1305X
 id-pattern: ^Siglent .*SPD1305X
 
+# Ensure that we've set CH1 as the default output channel so that "standard" SCPI commands will work
+init-commands:
+  - "INST CH1"
+
+# Send the unlock command as the last thing you do so that the UI gets unlocked once we're done
 shutdown-commands:
   - "*UNLOCK"
 

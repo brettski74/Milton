@@ -213,7 +213,7 @@ sub _connect {
   $self->{'get-identity-command'} //= '*IDN?';
   $self->{'set-voltage-command'} //= 'VOLT ';
   $self->{'set-current-command'} //= 'CURR ';
-  $self->{'get-output-command'} //= 'MEAS:ALL?';
+
   $self->{'on-off-command'} //= 'OUTP ';
   if (!exists($self->{'on-off-query'})) {
     my $q = $self->{'on-off-command'};
@@ -226,6 +226,16 @@ sub _connect {
   }
   if (!exists($self->{'off-command'})) {
     $self->{'off-command'} = $self->{'on-off-command'} . 'OFF';
+  }
+
+  if (exists $self->{'get-voltage-command'}) {
+    if (!exists $self->{'get-current-command'}) {
+      croak ref($self) .': get-current-command must be provided if get-voltage-command is set';
+    }
+  } elsif (exists $self->{'get-current-command'}) {
+    croak ref($self) .': get-voltage-command must be provided if get-current-command is set';
+  } elsif (!exists $self->{'get-output-command'}) {
+    $self->{'get-output-command'} //= 'MEAS:ALL?';
   }
 
   $self->{'command-length'} //= 10000;
@@ -449,7 +459,15 @@ sub getOutputCommand {
 sub _poll {
   my ($self) = @_;
 
-  my ($volts, $amps, $power) = $self->sendCommand($self->getOutputCommand());
+  my $cmd = $self->{'get-output-command'};
+  my ($volts, $amps);
+
+  if ($cmd) {
+    ($volts, $amps) = $self->sendCommand($cmd);
+  } else {
+    ($volts) = $self->sendCommand($self->{'get-voltage-command'});
+    ($amps) = $self->sendCommand($self->{'get-current-command'});
+  }
 
   return ($volts, $amps);
 }

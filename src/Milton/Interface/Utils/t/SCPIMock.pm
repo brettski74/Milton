@@ -254,6 +254,10 @@ sub addSetpointMock {
   my $format = '%.'. ($attr{precision} // 2) .'f';
   my $default = sprintf($format, $attr{default} // 1.5);
 
+  if (!exists $attr{query}) {
+    $attr{query} = "$command?";
+  }
+
   $self->addMock($command, sub {
     my ($self, $request) = @_;
 
@@ -288,7 +292,7 @@ sub addSetpointMock {
     return $self->suffix // '';
   });
 
-  $self->addMock("$command?", sub {
+  $self->addMock($attr{query}, sub {
     my ($self, $request) = @_;
 
     return ($self->{setpoint}->{$command} // $default) . $self->{suffix};

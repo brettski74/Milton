@@ -17,6 +17,14 @@ id-pattern: ^Siglent .*SPD1305X
 init-commands:
   - "INST CH1"
 
+# Customize the command to query the output status of the power supply.
+# Returns a bit set with on-off status indicated in bit 4 of the response.
+on-off-query: SYST:STAT?
+on-off-bitmask: 0x10
+
+# Customize the output on/off commands for the power supply.
+on-off-command: "OUTP CH1,"
+
 # Send the unlock command as the last thing you do so that the UI gets unlocked once we're done
 shutdown-commands:
   - "*UNLOCK"

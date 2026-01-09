@@ -24,7 +24,7 @@ on-off-bitmask: 0x10
 
 # Customize the commands to query the output voltage and current.
 get-voltage-command: MEAS:VOLT?
-get-current-command: MEAS_CURR?
+get-current-command: MEAS:CURR?
 
 # Customize the output on/off commands for the power supply.
 on-off-command: "OUTP CH1,"

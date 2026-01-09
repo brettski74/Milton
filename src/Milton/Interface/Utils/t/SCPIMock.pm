@@ -13,8 +13,22 @@ use base qw(Milton::Interface::SCPICommon);
 
 sub new {
   my $class = shift;
+  my $config;
 
-  my $self = $class->SUPER::new({ logger => Milton::DataLogger->new({ enabled => 1, tee => 1 }) });
+  if (@_ && ref($_[0]) eq 'HASH') {
+    $config = $_[0];
+  } else {
+    $config = {};
+  }
+
+  if (!exists($config->{logger})) {
+    $config->{logger} = Milton::DataLogger->new({ enabled => 1, tee => 1 });
+  }
+
+  my $self = $class->SUPER::new($config);
+
+  # $self->{'request-history'} = [];
+  # $self->{'response-history'} = [];
 
   $self->addMock(@_);
 
@@ -24,7 +38,12 @@ sub new {
 sub initializeConnection {
   my ($self) = @_;
 
-  my $helper = Milton::Interface::Utils::t::SCPIMock::Mock::Helper->new({ logger => $self->{logger}, device => 'dummy' });
+  my $helper = Milton::Interface::Utils::t::SCPIMock::Mock::Helper->new({ logger =>$self->{logger}, device => 'dummy' });
+
+  $helper->addMock($self->voltageSetpointCommand(), '3.00');
+  $helper->addMock($self->currentSetpointCommand(), '1.000');
+  $helper->addMock($self->{'on-off-query'}, 0);
+  $helper->addMock($self->getOutputCommand(), '0.00,0.00');
 
   return $helper;
 }
@@ -57,6 +76,57 @@ sub setMaxCommandLength {
   return $self->{helper}->setMaxCommandLength(@_);
 }
 
+sub sendCommand {
+  my $self = shift;
+
+  my $command = shift;
+  my $requests = $self->{'request-history'};
+  my $responses = $self->{'response-history'};
+
+  if (!$requests) {
+    $self->{'request-history'} = $requests = [];
+  }
+
+  push @$requests, $command;
+
+  my @response = $self->SUPER::sendCommand($command, @_);
+
+  if (!$responses) {
+    $self->{'response-history'} = $responses = [];
+  }
+
+  push @$responses, \@response;
+
+  return @response;
+}
+
+sub checkRequestHistory {
+  my $self = shift;
+
+  return $self->checkHistory('request-history', @_);
+}
+
+sub checkResponseHistory {
+  my $self = shift;
+  
+  return @{$self->checkHistory('response-history', @_)};
+}
+
+sub checkHistory {
+  my ($self, $key, $which) = @_;
+
+  $which ||= 0;
+
+  my $history = $self->{$key};
+
+  return if ($which >= @$history);
+
+  $which = -1 - $which;
+
+  return $history->[$which];
+}
+
+
 package Milton::Interface::Utils::t::SCPIMock::Mock::Helper;
 
 use strict;
@@ -71,9 +141,6 @@ use constant RESPONSE_DEBUG => 100;
 
 sub new {
   my ($class, $self) = @_;
-
-  $self->{mock}->{'VOLT?'} //= '3.00';
-  $self->{mock}->{'CURR?'} //= '1.000';
 
   $self = $class->SUPER::new($self);
 

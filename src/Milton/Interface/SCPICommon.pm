@@ -177,16 +177,6 @@ sub new {
 
   my $self = $class->SUPER::new($config);
 
-  $self->{'voltage-setpoint-command'} //= 'VOLT?';
-  $self->{'current-setpoint-command'} //= 'CURR?';
-  $self->{'get-identity-command'} //= '*IDN?';
-  $self->{'set-voltage-command'} //= 'VOLT';
-  $self->{'set-current-command'} //= 'CURR';
-  $self->{'get-output-command'} //= 'MEAS:ALL?';
-  $self->{'on-off-command'} //= 'OUTP';
-
-  $self->{'command-length'} //= 10000;
-
   if (DEBUG_LEVEL >= 10) {
     foreach my $key (sort keys %$self) {
       $self->debug('Object %s: %s', $key, $self->{$key}) if !ref($self->{$key});
@@ -218,6 +208,28 @@ achieved in the initializeConnection method.
 sub _connect {
   my ($self) = @_;
 
+  $self->{'voltage-setpoint-command'} //= 'VOLT?';
+  $self->{'current-setpoint-command'} //= 'CURR?';
+  $self->{'get-identity-command'} //= '*IDN?';
+  $self->{'set-voltage-command'} //= 'VOLT ';
+  $self->{'set-current-command'} //= 'CURR ';
+  $self->{'get-output-command'} //= 'MEAS:ALL?';
+  $self->{'on-off-command'} //= 'OUTP ';
+  if (!exists($self->{'on-off-query'})) {
+    my $q = $self->{'on-off-command'};
+    $q =~ s/\s*$/?/;
+    $self->{'on-off-query'} = $q;
+  }
+
+  if (!exists($self->{'on-command'})) {
+    $self->{'on-command'} = $self->{'on-off-command'} . 'ON';
+  }
+  if (!exists($self->{'off-command'})) {
+    $self->{'off-command'} = $self->{'on-off-command'} . 'OFF';
+  }
+
+  $self->{'command-length'} //= 10000;
+
   $self->{helper} = $self->initializeConnection; 
 
   if ($self->{'init-commands'}) {
@@ -233,8 +245,8 @@ sub _connect {
   my ($iset) = $self->sendCommand($self->currentSetpointCommand());
   return unless $iset > 0;
 
-  my ($on) = $self->sendCommand($self->onOffCommand());
-  $on = ($on eq 'ON') ? 1 : 0;
+  my ($on) = $self->_is_on;
+  
   my ($volts, $amps) = $self->_poll;
 
   return ($vset, $iset, $on, $volts, $amps);
@@ -356,9 +368,9 @@ sub getIdentityCommand {
 
 sub setVoltageCommand {
   my ($self, $volts) = @_;
-  my $vcmd = $self->{'set-voltage-command'} // 'VOLT';
+  my $vcmd = $self->{'set-voltage-command'} // 'VOLT ';
   my $vfmt = $self->{'voltage-format'} // '.2f';
-  return sprintf("%s %$vfmt", $vcmd, $volts);
+  return sprintf("%s%$vfmt", $vcmd, $volts);
 }
 
 sub _setVoltage {
@@ -394,10 +406,10 @@ sub _setVoltage {
 
 sub setCurrentCommand {
   my ($self, $amps) = @_;
-  my $icmd = $self->{'set-current-command'} // 'CURR';
+  my $icmd = $self->{'set-current-command'} // 'CURR ';
   my $ifmt = $self->{'current-format'} // '.3f';
 
-  return sprintf("%s %$ifmt", $icmd, $amps);
+  return sprintf("%s%$ifmt", $icmd, $amps);
 }
 
 sub _setCurrent {
@@ -444,13 +456,31 @@ sub _poll {
 
 sub onOffCommand {
   my ($self, $on) = @_;
-  my $ocmd = $self->{'on-off-command'} // 'OUTP';
 
-  if (!defined $on) {
-    return "$ocmd?";
+  # Only turn off if we have something that clearly looks like it's "on".
+  if ($on != 0 || uc($on) eq 'ON') {
+    return $self->{'on-command'};
   }
 
-  return $ocmd .' '. ($on && uc($on) ne 'OFF' ? 'ON' : 'OFF');
+  return $self->{'off-command'};
+}
+
+sub _is_on {
+  my ($self) = @_;
+  my $mask = $self->{'on-off-bitmask'};
+  my $query = $self->{'on-off-query'};
+
+  my ($response) = $self->sendCommand($query);
+
+  if ($mask) {
+    if ($response =~ /^0x[0-9a-fA-F]+$/) {
+      $response = hex($response);
+    }
+
+    $response = $response & $mask;
+  }
+
+  return $response && uc($response) ne 'OFF';
 }
 
 sub _on {

@@ -297,25 +297,35 @@ print "Perl installation methods: ". join(', ', map { $_->name() } @methods). "\
 ### TODO: Ask which perl version check strategy to use - ignore/warn/install.
 ###
 
+sub check_dependency {
+  my ($dep) = @_;
+
+  print "Checking dependency: $dep...";
+  eval "use $dep";
+
+  if ($@) {
+    print "   not found\n";
+    return;
+  }
+
+  print "   found\n";
+  return 1;
+}
+
 ###
 ### Ensure that all perl dependencies are installed.
 ###
 foreach my $dependency (@$DEPS) {
-  my $installed = 0;
+  my $installed = check_dependency($dependency->{name});
+
   METHOD: foreach my $method (@methods) {
-    print 'Checking dependency: '.$dependency->{name}.'...  ';
 
-    eval "use $dependency->{name}";
-    if ($@) {
-      print "not found\n";
+    last METHOD if $installed;
 
-      $method->install($dependency->{name});
-    } else {
-      print "found\n";
-      $installed = 1;
-      last METHOD;
-    }
+    $method->install($dependency->{name});
+    $installed = check_dependency($dependency->{name});
   }
+
   if (!$installed) {
     print <<"EOS";
 ################################################################################

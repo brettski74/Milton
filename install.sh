@@ -84,7 +84,7 @@ cat <<EOS
 Installing a shared instance may require sudo access and prompt for your
 password once or more during setup.
 
-Install a shared instance (Y/[N])?
+Install a shared instance (Y/N)?
 EOS
 unset choice
 typeset -u choice

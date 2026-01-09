@@ -6,8 +6,8 @@ use FindBin qw($RealBin);
 my $DEPS = 
 [ { name => 'AnyEvent'                    , version => '70.17', pacman => 'perl-anyevent'         , apt => 'libanyevent-perl'          }
 , { name => 'Clone'                       , version => '0.46' , pacman => 'perl-clone'            , apt => 'libclone-perl'             }
-, { name => 'Device::Modbus::RTU::Client' }
 , { name => 'Device::SerialPort'          , version => '1.04' , pacman => 'perl-device-serialport', apt => 'libdevice-serialport-perl' }
+, { name => 'Device::Modbus::RTU::Client' }
 , { name => 'EV'                          , version => '4.34' , pacman => 'perl-ev'               , apt => 'libev-perl'                }
 , { name => 'Hash::Merge'                 , version => '0.302', pacman => 'perl-hash-merge'       , apt => 'libhash-merge-perl'        }
 , { name => 'Math::Round'                 , version => '0.07' , pacman => 'perl-math-round'       , apt => 'libmath-round-perl'        }

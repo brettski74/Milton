@@ -319,7 +319,10 @@ sub check_dependency {
   eval "use $dep";
 
   if ($@) {
-    print "   not found\n$@\n";
+    print "   not found\n";
+    if ($@ !~ /Can't locate .* in \@INC .*you may need to install/) {
+      print "$@\n";
+    }
     return;
   }
 

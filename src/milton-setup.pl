@@ -320,7 +320,7 @@ sub check_dependency {
 
   if ($@) {
     print "   not found\n";
-    if ($@ !~ /Can't locate .* in \@INC .*you may need to install/) {
+    if ($@ !~ /Can't locate .* in \@INC .*you may need to install the $dep module/) {
       print "$@\n";
     }
     return;

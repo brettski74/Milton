@@ -399,7 +399,7 @@ if ( -f 'Makefile' && -f $config_mk && -f ! -f 'config.mk' ) {
 ### Install Milton Software if required
 ###
 if ( -e './install.sh' && -e './Makefile' ) {
-  system_exec 'make', 'install-dirs', 'install', 'install-config';
+  system_exec 'make', "PREFIX=$ENV{MILTON_BASE}", 'install-dirs', 'install', 'install-config';
 }
 
 # Load required modules now that we can be confident that they're installed.

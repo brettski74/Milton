@@ -97,9 +97,13 @@ done
 if [ "$choice" == "Y" ]; then
   MILTON_BASE=/opt/milton
   cp -v config.mk.global config.mk
+  sudo mkdir /opt/milton-HEAD
+  sudo ln -s /opt/milton-HEAD /opt/milton
 elif [ "$choice" == "N" ]; then
   MILTON_BASE=$HOME/.local/milton
   cp -v config.mk.local config.mk
+  mkdir -p $HOME/.local/milton-HEAD
+  ln -s $HOME/.local/milton-HEAD $HOME/.local/milton
 fi
 export MILTON_BASE
 

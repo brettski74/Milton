@@ -122,6 +122,21 @@ sub prompt {
   return $choice;
 }
 
+sub yes_no {
+  my ($prompt, $default) = @_;
+  my $full_prompt = "$prompt (Y/N)";
+  
+  my $choice = uc(prompt($full_prompt, $default));
+
+  while ($choice ne 'Y' && $choice ne 'N') {
+    print "Invalid choice. Please answer Y or N.\n";
+
+    $choice = uc(prompt($full_prompt, $default));
+  }
+
+  return $choice eq 'Y';
+}
+
 =head2 find_by_name($value, $array)
 
 Find an item in an array of hashes based on the value associated with the name key.
@@ -621,9 +636,19 @@ The milton installation appears to be owned by $user:$group. What user and/or
 group should own the installation?
 EOS
 
+  # Is there a milton user defined? If so, use that.
+  if (getpwnam('milton')) {
+    $user = 'milton';
+  }
+
+  # Is there a milton group defined? If so, use that.
+  if (getgrnam('milton')) {
+    $group = 'milton';
+  }
+
   my $default = "$user:$group";
   my $choice;
-  while (!defined($choice) || $choice ne '') {
+  while (!defined($choice) || $choice eq '') {
     $choice = prompt('Enter the user:group that should own the installation', $default);
     if ($choice eq $default) {
       $choice = undef;
@@ -633,17 +658,37 @@ EOS
     my ($new_user, $new_group) = split(/:/, $choice, 2);
     my $new_uid = getpwnam($new_user);
     if (!$new_uid) {
-      print "Invalid user: $new_user\n";
-      $choice = undef;
-      next;
+      my $confirm = yes_no("Invalid user: $new_user. Create this user?");
+      if ($confirm) {
+        system_exec 'sudo', 'useradd', '-m', $new_user;
+        $new_uid = getpwnam($new_user);
+
+        warn "Unable to create user: $new_user\n" if !$new_uid;
+      }
+
+      if (!$new_uid) {
+        print "Invalid user: $new_user\n";
+        $choice = undef;
+        next;
+      }
     }
 
     if ($choice =~ /:/) {
       my $new_gid = getgrnam($new_group);
       if (!$new_gid) {
-        print "Invalid group: $new_group\n";
-        $choice = undef;
-        next;
+        my $confirm = yes_no("Invalid group: $new_group. Create this group?");
+        if ($confirm) {
+          system_exec 'sudo', 'groupadd', $new_group;
+          $new_gid = getgrnam($new_group);
+
+          warn "Unable to create group: $new_group\n" if !$new_gid;
+        }
+
+        if (!$new_gid) {
+          print "Invalid group: $new_group\n";
+          $choice = undef;
+          next;
+        }
       }
     }
   }

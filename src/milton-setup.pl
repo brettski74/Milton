@@ -319,7 +319,7 @@ sub check_dependency {
   eval "use $dep";
 
   if ($@) {
-    print "   not found\n";
+    print "   not found\n$@\n";
     return;
   }
 
@@ -630,6 +630,7 @@ if ($shared_install) {
   my ($dev, $ino, $mode, $nlink, $uid, $gid) = stat("$ENV{MILTON_BASE}/bin/milton");
   my $user = getpwuid($uid);
   my $group = getgrgid($gid);
+  my $current = "$user:$group";
 
   print <<"EOS";
 The milton installation appears to be owned by $user:$group. What user and/or
@@ -651,7 +652,6 @@ EOS
   while (!defined($choice) || $choice eq '') {
     $choice = prompt('Enter the user:group that should own the installation', $default);
     if ($choice eq $default) {
-      $choice = undef;
       last;
     }
 
@@ -693,7 +693,7 @@ EOS
     }
   }
 
-  if ($choice) {
+  if ($choice && $choice ne $current) {
     system_exec 'sudo', 'chown', '-R', $choice, $ENV{MILTON_BASE};
   }
 }

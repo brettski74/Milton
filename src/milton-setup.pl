@@ -602,7 +602,7 @@ if ($miltonenv) {
 }
 
 if ($shared_install) {
-  my ($dev, $ino, $mode, $nlink, $uid, $gid) = stat($ENV{MILTON_BASE}/bin/milton);
+  my ($dev, $ino, $mode, $nlink, $uid, $gid) = stat("$ENV{MILTON_BASE}/bin/milton");
   my $user = getpwuid($uid);
   my $group = getgrgid($gid);
 

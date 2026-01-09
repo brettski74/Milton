@@ -694,7 +694,7 @@ EOS
   }
 
   if ($choice && $choice ne $current) {
-    system_exec 'sudo', 'chown', '-R', $choice, $ENV{MILTON_BASE};
+    system_exec 'sudo', 'chown', '-R', '--dereference', $choice, $ENV{MILTON_BASE};
   }
 }
 

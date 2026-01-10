@@ -7,7 +7,7 @@ use Path::Tiny;
 use Carp qw(croak);
 
 use Exporter qw(import);
-our @EXPORT_OK = qw(find_config_files_by_path find_reflow_profiles get_device_names find_device_file get_yaml_parser);
+our @EXPORT_OK = qw(find_config_files_by_path find_reflow_profiles find_linear_profiles get_device_names find_device_file get_yaml_parser);
 
 use YAML::PP;
 use YAML::PP::Schema::Include;
@@ -41,6 +41,21 @@ Return a YAML parser.
 
 sub find_reflow_profiles {
   return find_config_files_by_path('command/profile');
+}
+
+=head2 find_linear_profiles
+
+Returns a list of linear reflow profile names.
+
+Linear profiles are assumed to be stored in YAML files that exist somewhere on the configuration
+file search path in the command/linear subdirectory. The list of names will be the basename of files
+that are found, with the .yaml file extension removed to make them comparible for use with the
+linear command.
+
+=cut
+
+sub find_linear_profiles {
+  return find_config_files_by_path('command/linear');
 }
 
 =head2 get_device_names

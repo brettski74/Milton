@@ -1,0 +1,16 @@
+stages:
+  - name: preheat
+    duration: 100
+    temperature: 100
+  - name: soak
+    duration: 200
+    temperature: 160
+  - name: reflow
+    duration: 60
+    temperature: 215
+  - name: dwell
+    duration: 20
+    temperature: 215
+  - name: cool
+    duration: 120
+    temperature: 100

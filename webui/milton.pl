@@ -11,7 +11,7 @@ use warnings qw(all -uninitialized);
 use strict;
 use warnings qw(all -uninitialized);
 
-use Milton::Config::Utils qw(find_reflow_profiles get_device_names);
+use Milton::Config::Utils qw(find_reflow_profiles find_linear_profiles get_device_names);
 use Milton::Config::Path qw(standard_search_path);
 
 use Mojolicious::Lite;
@@ -113,6 +113,18 @@ group {
                                                          }
                                                        , $PARAM_AMBIENT
                                                        , $PARAM_DEVICE
+                                                       ]
+                                       }
+                                     , { name => 'linear'
+                                       , description => 'Execute a linear reflow profile'
+                                       , parameters => [ { name => 'profile'
+                                                         , type => 'pdlist'
+                                                         , required => 1
+                                                         , description => 'Reflow Profile'
+                                                         , default => 'snpb-standard'
+                                                         , url => '/api/linear/profiles'
+                                                         }
+                                                       , $PARAM_AMBIENT
                                                        ]
                                        }
                                      , { name => 'setup'
@@ -362,6 +374,12 @@ group {
     my $c = shift;
     my @logfiles = $command_executor->getLogFiles();
     $c->render(json => { logfiles => \@logfiles });
+  };
+
+  get '/api/linear/profiles' => sub {
+    my $c = shift;
+    my @profiles = find_linear_profiles();
+    $c->render(json => { list => \@profiles });
   };
 
   get '/api/reflow/profiles' => sub {

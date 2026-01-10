@@ -14,7 +14,12 @@ sub new {
 
   die "Profile name is required" if !$profileName;
 
-  $self->{profile} = Milton::Config->new("command/linear/$profileName.yaml");
+  # Try the name directly, first
+  $self->{profile} = Milton::Config->new($profileName);
+  # if that doesn't work, try adding routine path elements to the name so users can be lazy
+  if (!$self->{profile}) {
+    $self->{profile} = Milton::Config->new("command/linear/$profileName.yaml");
+  }
   die "Profile '$profileName' not found" if !$self->{profile};
 
   $self->buildTransferFunction;

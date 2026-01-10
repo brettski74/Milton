@@ -140,6 +140,7 @@ sub executeLinear {
   my @cmd = $self->initializeCommand($params);
 
   push @cmd, 'linear';
+  push @cmd, $params->{profile};
 
   return $self->executeCommand('linear', @cmd);
 }

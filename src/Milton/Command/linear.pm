@@ -112,7 +112,7 @@ sub nextStage {
   return $stage->{next};
 }
 
-sub processTimerEvent {
+sub timerEvent {
   my ($self, $status) = @_;
 
   $self->{controller}->getTemperature($status);

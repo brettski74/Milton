@@ -4,6 +4,8 @@ use strict;
 use warnings qw(all -uninitialized);
 
 use base qw(Milton::Command);
+use Milton::Config;
+use Milton::Math::PiecewiseLinear;
 
 sub new {
   my ($class, $config, $interface, $controller, @args) = @_;
@@ -15,15 +17,12 @@ sub new {
   die "Profile name is required" if !$profileName;
 
   # Try the name directly, first
-  $self->{profile} = Milton::Config->new($profileName);
+  $self->{profile} = Milton::Config->new($profileName, 1);
   # if that doesn't work, try adding routine path elements to the name so users can be lazy
   if (!$self->{profile}) {
-    $self->{profile} = Milton::Config->new("command/linear/$profileName.yaml");
+    $self->{profile} = Milton::Config->new("command/linear/$profileName.yaml", 1);
   }
   die "Profile '$profileName' not found" if !$self->{profile};
-
-  $self->buildTransferFunction;
-  $self->buildProfile;
 
   return $self;
 }
@@ -44,14 +43,19 @@ sub buildTransferFunction {
     $transferFunction->addPoint(195.6, 60);
     $transferFunction->addPoint(224.7, 75);
   }
+
+  $self->{'transfer-function'} = $transferFunction;
+
+  return $transferFunction;
 }
 
 sub buildProfile {
   my ($self) = @_;
-  my $stages = $self->{profile}->{stages};
-  my $transferFunction = $self->{transferFunction};
+  my $profile = $self->{profile};
+  my $stages = $profile->{stages};
+  my $transferFunction = $self->{'transfer-function'};
 
-  my $prev = undef;
+  my $prev = { temperature => 25, power => 0 };
   foreach my $stage (@$stages) {
     if (defined $prev) {
       $prev->{next} = $stage;
@@ -77,10 +81,15 @@ sub buildProfile {
 
     $prev = $stage;
   }
+
+  return $profile;
 }
 
 sub preprocess {
   my ($self, $status) = @_;
+
+  $self->{'transfer-function'} = $self->buildTransferFunction;
+  $self->buildProfile;
 
   # Ensure that we have some current through the hotplate so we will be able to measure resistance and set output power.
   $self->{interface}->setCurrent($self->{config}->{current}->{startup});

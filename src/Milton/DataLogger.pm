@@ -237,9 +237,14 @@ sub error {
 sub debug {
   my ($self, $message, @args) = @_;
 
-  if (@args) {
-    $message = sprintf($message, @args);
+  my $level = 1;
+  my ($package, $filename, $line) = caller($level);
+  while ($package->isa('Milton::DataLogger')) {
+    $level++;
+    ($package, $filename, $line) = caller($level);
   }
+
+  $message = sprintf("%s:%d: $message", $filename, $line, @args);
   
   $self->consoleOutput('DEBUG', $message);
 }

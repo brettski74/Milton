@@ -7,6 +7,11 @@ use base qw(Milton::Command);
 use Milton::Config;
 use Milton::Math::PiecewiseLinear;
 
+use Milton::DataLogger qw(get_namespace_debug_level);
+
+use constant DEBUG_LEVEL => get_namespace_debug_level();
+use constant DEBUG_CALCULATIONS => 50;
+
 sub new {
   my ($class, $config, $interface, $controller, @args) = @_;
 
@@ -96,6 +101,8 @@ sub preprocess {
   sleep(0.5);
   $self->{interface}->poll;
 
+  $self->{'current-stage'} = $self->nextStage;
+
   return $status;
 }
 
@@ -120,8 +127,14 @@ sub processTimerEvent {
   return if !$stage;
   my $test_temp = $status->{temperature} * $stage->{direction};
 
+  $self->debug('Temperature: %.1f, Test-temperature: %.1f, test_temp: %.1f'
+             , $status->{temperature}
+             , $stage->{'test-temperature'}
+             , $test_temp
+             ) if DEBUG_LEVEL >= DEBUG_CALCULATIONS;
+
   if ($test_temp > $stage->{'test-temperature'}) {
-    $self->{stage} = $self->nextStage($status);
+    $self->{'current-stage'} = $self->nextStage($status);
     $self->beep;
   }
 

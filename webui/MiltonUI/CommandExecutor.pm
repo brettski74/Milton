@@ -141,6 +141,7 @@ sub executeLinear {
 
   push @cmd, 'linear';
   push @cmd, $params->{profile};
+  push @cmd, '--tune' if $params->{tune};
 
   return $self->executeCommand('linear', @cmd);
 }

@@ -47,17 +47,23 @@ or relative path. If the filename contains no path information, then this constr
 search several well-known paths for the matching filename and load the first matching file it
 finds. If $filename is undefined, then it will be defaulted to hp.yaml.
 
+=item $optional
+
+A boolean flag indicating whether the existence of the file is optional. If true, the existence of the
+file is not required and the function will return undef if the file is not found.
+
 =back
 
 =cut
 
 sub new {
-  my ($class, $filename) = @_;
+  my ($class, $filename, $optional) = @_;
 
   my $self;
 
   if(defined $filename) {
-    $self = _load_file($filename);
+    $self = _load_file($filename, $optional);
+    return if !$self;
   } else {
     $self = {};
   }
@@ -74,9 +80,10 @@ Load a YAML file and return the data as a reference.
 =cut
 
 sub _load_file {
-  my ($filename) = @_;
+  my ($filename, $optional) = @_;
   
-  my $path = resolve_file_path($filename);
+  my $path = resolve_file_path($filename, $optional);
+  return if !$path || !$path->is_file;
 
   my $pathstring = $path->stringify;
 
@@ -248,13 +255,10 @@ sub configFileExists {
   my ($class, $filename) = @_;
   my $rc = undef;
 
-  eval {
-    my $path = resolve_file_path($filename);
-    $rc = $path->is_file;
-  };
+  my $path = resolve_file_path($filename, 1);
+  return if !$path;
 
-  return $rc if $rc;
-  return;
+  return $path->is_file;
 }
 
 sub findConfigFile {

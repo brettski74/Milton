@@ -25,6 +25,14 @@ eval{
 };
 ok(!defined $cfg);
 
+subtest 'optional and empty constructor' => sub {
+  my $empty = Milton::Config->new;
+  isa_ok($empty, 'Milton::Config');
+  is(scalar(%$empty), 0, 'empty config should be empty');
+
+  is(Milton::Config->new('nonexistent.yaml', 1), undef, 'nonexistent.yaml should return undef');
+};
+
 # Simple basic load via search path
 is([ add_search_dir('t') ], [ "$ENV{HOME}/.config/milton", "$ENV{MILTON_BASE}/share/milton/config", 't' ], 'search_path');
 my $cfg2 = Milton::Config->new('testconfig.yaml');

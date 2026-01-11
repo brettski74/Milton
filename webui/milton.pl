@@ -125,6 +125,11 @@ group {
                                                          , url => '/api/linear/profiles'
                                                          }
                                                        , $PARAM_AMBIENT
+                                                       , { name => 'tune'
+                                                         , type => 'boolean'
+                                                         , required => 0
+                                                         , description => 'Tune the specified linear reflow profile.'
+                                                         }
                                                        ]
                                        }
                                      , { name => 'setup'
@@ -149,25 +154,6 @@ group {
                                                          , required => 0
                                                          , description => 'The name of the file where the predictor calibration data will be written'
                                                          , default => $command_executor->getConfigPath('controller', 'predictor')
-                                                         }
-                                                       ]
-                                       }
-                                     , { name => 'tune'
-                                       , description => 'Tune a Hybrid PI controller'
-                                       , parameters => [ $PARAM_AMBIENT
-                                                       , $PARAM_DEVICE
-                                                       , $PARAM_PROFILE
-                                                       , { name => 'predictor-calibration'
-                                                         , type => 'text'
-                                                         , required => 1
-                                                         , description => 'The name of the file where the predictor calibration data will be written'
-                                                         , default => $command_executor->getConfigPath('controller', 'predictor')
-                                                         }
-                                                       , { name => 'controller-calibration'
-                                                         , type => 'text'
-                                                         , required => 0
-                                                         , description => 'The name of the file where the controller calibration data will be written'
-                                                         , default => $command_executor->getConfigPath('controller')
                                                          }
                                                        ]
                                        }

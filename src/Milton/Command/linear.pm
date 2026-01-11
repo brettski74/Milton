@@ -147,7 +147,7 @@ sub trimPowerOutput {
   return if !$prev || !$prev->{name};
 
   # Only trim based on positive ramp stages
-  return if $prev->{'.direction'} <= 0;
+  return if $stage->{'.direction'} <= 0;
 
   # Only trim if we have samples for the stage
   return if !$stage->{'.samples'} || @{$stage->{'.samples'}} < 5;
@@ -221,7 +221,7 @@ sub nextStage {
 
   $self->{'current-stage'} = $stage;
 
-  $self->debug('profile pwl: %s', Dumper($self->{ideal})) if DEBUG_LEVEL >= DEBUG_DATA;
+  $self->debug('profile pwl: %s', Dumper($self->{ideal})) if DEBUG_LEVEL >= DEBUG_VERBOSE;
 
   return $stage;
 }
@@ -307,6 +307,7 @@ sub calculateNewPower {
   my ($self, $stage) = @_;
 
   my $samples = $stage->{'.samples'};
+  return $stage->{power} if @$samples <= 0;
 
   $self->debug('stage keys: '. join(' ', sort keys %$stage)) if DEBUG_LEVEL >= DEBUG_DATA;
   $self->debug('sample count: %d', scalar(@$samples)) if DEBUG_LEVEL >= DEBUG_DATA;
@@ -319,6 +320,9 @@ sub calculateNewPower {
       $average_power += $sample->{power};
     }
   }
+
+  return $stage->{power} if $count <= 0;
+
   $average_power /= $count;
   my $holding_power = $self->{'transfer-function'}->estimate($stage->{temperature});
   my $transition_power = $average_power - $holding_power;
@@ -349,13 +353,13 @@ sub calculateNewPower {
                );
     $self->debug('Expected duration: %.1f', $expected_duration);
     $self->debug('Start-temperature: %.1f, End-temperature: %.1f, Actual delta_T: %.1f',
-               , $stage->{'start-temperature'}
-               , $stage->{'end-temperature'}
+               , $stage->{'.start-temperature'}
+               , $stage->{'.end-temperature'}
                , $actual_delta_T
                );
     $self->debug('Start: %.1f, End: %.1f, Actual duration: %.1f'
-               , $stage->{'start'}
-               , $stage->{'end'}
+               , $stage->{'.start'}
+               , $stage->{'.end'}
                , $actual_duration
                );
   }
@@ -384,10 +388,12 @@ sub calculateNewPower {
     my $new_tp = $transition_power;
     if ($actual_delta_T != 0 && $expected_delta_T != 0) {
       $new_tp = $transition_power * $expected_delta_T / $actual_delta_T;
+    } else {
       $self->debug('Skipping transition power calculations due to delta_T zero condition.') if DEBUG_LEVEL >= DEBUG_CALCULATIONS;
     }
     if ($actual_duration != 0 && $expected_duration != 0) {
       $new_tp = $new_tp * $actual_duration / $expected_duration;
+    } else {
       $self->debug('Skipping transition power calculations due to duration zero condition.') if DEBUG_LEVEL >= DEBUG_CALCULATIONS;
     }
     $new_power = $holding_power + $new_tp;

@@ -37,6 +37,9 @@ sub new {
   }
   die "Profile '$profileName' not found" if !$self->{profile};
 
+  $self->{'ramp-trim'} = 1.0;
+  $self->{'flat-trim'} = 1.0;
+
   return $self;
 }
 
@@ -85,7 +88,7 @@ sub buildProfile {
   foreach my $stage (@$stages) {
     $when += $stage->{duration};
 
-    $ideal->addNamedPoint($when, $stage->{temperature}, $stage->{name});
+    #$ideal->addNamedPoint($when, $stage->{temperature}, $stage->{name});
 
     if (defined $prev) {
       $prev->{'.next'} = $stage;
@@ -121,7 +124,7 @@ sub preprocess {
   $self->debug('preprocess') if DEBUG_LEVEL >= DEBUG_METHOD_ENTRY;
 
   $self->{'transfer-function'} = $self->buildTransferFunction;
-  $self->buildProfile;
+  $self->buildProfile($status);
 
   # Ensure that we have some current through the hotplate so we will be able to measure resistance and set output power.
   $self->{interface}->setCurrent($self->{config}->{current}->{startup});
@@ -132,6 +135,36 @@ sub preprocess {
   $self->{'current-stage'} = $self->nextStage($self->{'profile'}->{stages}->[0], $status);
 
   return $status;
+}
+
+sub trimPowerOutput {
+  my ($self, $stage) = @_;
+
+  my $prev = $stage->{'.prev'};
+
+  # Only trim based on stages with well-defined start and end temperatures
+  # This condition should skip the warm-up stage, no matter what someone names it
+  return if !$prev || !$prev->{name};
+
+  # Only trim based on positive ramp stages
+  return if $prev->{'.direction'} <= 0;
+
+  # Only trim if we have samples for the stage
+  return if !$stage->{'.samples'} || @{$stage->{'.samples'}} < 5;
+
+  my $new_power = $self->calculateNewPower($stage);
+  my $trim_factor = $new_power / $stage->{power};
+
+  $self->{'ramp-trim'} = $trim_factor;
+
+  # Wild-arsed guess at this point, but it should push the trim factor closer to 1.0 for flat stages
+  # Which is probably what we want based on observations so far.
+  #$self->{'flat-trim'} = sqrt($trim_factor);
+  $self->{'flat-trim'} = $trim_factor;
+
+  $self->debug('ramp-trim: %.5f, flat-trim: %.5f', $self->{'ramp-trim'}, $self->{'flat-trim'}) if DEBUG_LEVEL >= DEBUG_CALCULATIONS;
+
+  return $trim_factor;
 }
 
 sub nextStage {
@@ -150,6 +183,7 @@ sub nextStage {
   my $end_time = $status->{now} + $stage->{duration};
   $self->{timeout} = $end_time;
   $ideal->setNamedPoint($end_time, $stage->{temperature}, $stage->{name});
+  $ideal->setNamedPoint($end_time + $status->{period}, $stage->{temperature}, '.nextStage');
 
   $stage->{'.start'} = $status->{now};
   $stage->{'.timeout'} = $self->{timeout};
@@ -170,6 +204,8 @@ sub nextStage {
     $self->{'hi-temp'} = min(220, $status->{temperature} + 50);
     $self->{timeout} += $stage->{duration};
   }
+
+  $self->trimPowerOutput($prev);
 
   $stage->{'.samples'} = [];
 
@@ -252,9 +288,16 @@ sub timerEvent {
 
   $status->{stage} = $stage->{name};
 
-  $self->{interface}->setPower($stage->{power});
-  $status->{'set-power'} = $stage->{power};
-  $self->debug('Set power: ' . $stage->{power}) if DEBUG_LEVEL >= DEBUG_CALCULATIONS;
+  my $trimmedPower = $stage->{power};
+  if ($stage->{'.direction'} == 0) {
+    $trimmedPower = $trimmedPower * $self->{'flat-trim'};
+  } elsif ($stage->{'.direction'} > 0) {
+    $trimmedPower = $trimmedPower * $self->{'ramp-trim'};
+  }
+
+  $self->{interface}->setPower($trimmedPower);
+  $status->{'set-power'} = $trimmedPower;
+  $self->debug('Stage power: %.1f, trimmed power: %.1f', $stage->{power}, $trimmedPower) if DEBUG_LEVEL >= DEBUG_CALCULATIONS;
 
   return $status;
 }

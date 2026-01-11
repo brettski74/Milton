@@ -43,6 +43,7 @@ sub new {
   my ($class, $config, $command, @args) = @_;
   my $self = { config => $config
              , args => \@args
+             , fan => {}
              , history => []
              };
 
@@ -56,6 +57,11 @@ sub new {
   eval "use $loggerPackage";
 
   $self->{logger} = $self->_initializeNamedObject($loggerPackage, $self->{config}->clone('logging'), command => $command);
+
+  # Ensure that the fan, if any, is stopped.
+  $self->fanStop(1);
+  # Give the fan time to stop, just in case it's running.
+  sleep(2);
 
   $self->_initializeObject('interface');
   $self->_initializeObject('controller', $self->{interface});
@@ -161,6 +167,55 @@ sub setAmbient {
   return;
 }
 
+=head2 fanConnect
+
+Connect to the fan interface.
+
+=cut
+
+sub fanConnect {
+  my ($self) = @_;
+  my $fan = $self->{fan};
+  my $config = $self->{config};
+  my $fanConfig = $config->{fan};
+
+  if (exists $fan->{interface}) {
+    return $fan->{interface};
+  }
+
+  boolify($fanConfig->{enabled});
+  if (!$fanConfig->{enabled}) {
+    $self->{logger}->info("Fan disabled, No fan cooling for you!") if !exists $fan->{'disable-logged'};
+    $fan->{'disable-logged'} = 1;
+    return;
+  }
+
+  eval {
+     my $ifConfig = $config->clone('fan', 'interface');
+
+     $fan->{interface} = $self->_initializeNamedObject($ifConfig->{package}, $ifConfig);
+   };
+
+   if ($@) {
+     $self->{logger}->warning('Failed to initialize fan interface: %s', $@);
+     $fanConfig->{enabled} = 0;
+   }
+   if (!defined $fan->{interface}) {
+     $self->{logger}->warning("No fan interface, so no fan cooling");
+     $fanConfig->{enabled} = 0;
+     return;
+   }
+
+   if (defined($fanConfig->{'shutdown-on-signal'})) {
+     boolify($fanConfig->{'shutdown-on-signal'});
+     if (!$fanConfig->{'shutdown-on-signal'}) {
+       $fan->{interface}->noOffOnShutdown(1);
+     }
+   }
+
+  return $fan->{interface};
+}
+
 =head2 fanStart
 
 If configured, cool down the hot plate by turning on a fan.
@@ -194,17 +249,15 @@ sub fanStart {
   my $config = $self->{config};
 
   my $fanConfig = $config->{fan};
+  my $fan = $self->{fan};
 
-  if (!exists $self->{fan}) {
-    my $fan = { started => $status->{now}
-              , ambient => $ambient
-              };
+  if (! $fan->{started}) {
+    $fan->{started} = $status->{now};
+    $ambient //= $status->{ambient};
+    $fan->{ambient} = $ambient;
 
-    boolify($fanConfig->{enabled});
-    if (!$fanConfig->{enabled}) {
-      $self->{logger}->info("Fan disabled, No fan cooling for you!");
-      return;
-    }
+    my $interface = $self->fanConnect;
+    return if !$interface;
 
     if ($fanConfig->{'finish-temperature'}) {
       # If specified in terms of ambient, then adjust accordingly
@@ -227,31 +280,9 @@ sub fanStart {
     }
     $fan->{'finish-time'} = $fan->{started} + $fanConfig->{'duration'};
 
-    eval {
-      my $ifConfig = $config->clone('fan', 'interface');
-
-      $fan->{interface} = $self->_initializeNamedObject($ifConfig->{package}, $ifConfig);
-    };
-
-    if ($@) {
-      cluck "Failed to initialize fan interface: $@";
-    }
-    if (!defined $fan->{interface}) {
-      cluck "No fan interface, so no fan cooling\n";
-      return;
-    }
-
-    if (defined($fanConfig->{'shutdown-on-signal'})) {
-      boolify($fanConfig->{'shutdown-on-signal'});
-      if (!$fanConfig->{'shutdown-on-signal'}) {
-        $fan->{interface}->noOffOnShutdown(1);
-      }
-    }
-
     # Turn on the fan!
-    $self->{fan} = $fan;
     $self->{logger}->info("Starting fan");
-    $fan->{interface}->setVoltage($fanConfig->{voltage}, $fanConfig->{current} || 10);
+    $interface->setVoltage($fanConfig->{voltage}, $fanConfig->{current} || 10);
     return 1;
   }
 
@@ -282,11 +313,12 @@ Otherwise, it returns true.
 sub fanComplete {
   my ($self, $status) = @_; 
 
-  if (!exists $self->{'fan'}) {
+  my $fan = $self->{fan};
+
+  if (! $fan->{started}) {
     return 1;
   }
 
-  my $fan = $self->{fan};
   my $stop = 0;
 
   # Have we reached the finish time?
@@ -312,14 +344,18 @@ sub fanComplete {
 }
 
 sub fanStop {
-  my ($self) = @_;
+  my ($self, $force) = @_;
+  my $fan = $self->{fan};
 
-  if (exists $self->{fan}) {
+  return if !$force && ! $fan->{started};
+
+  my $interface = $self->fanConnect;
+  if ($interface) {
     $self->{logger}->info("Stopping fan");
-    $self->{fan}->{interface}->on(0);
-    $self->{fan}->{interface}->shutdown;
-    delete $self->{fan};
+    $interface->on(0);
   }
+
+  delete $fan->{started};
 }
 
 sub isLineBuffering {
@@ -619,7 +655,7 @@ sub run {
 
   $self->{interface}->shutdown;
   $self->{controller}->shutdown;
-  $self->fanStop if ($self->{fan});
+  $self->fanStop;
 }
 
 =head2 getHistory

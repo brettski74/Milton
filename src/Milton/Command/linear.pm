@@ -205,7 +205,8 @@ sub nextStage {
     $self->{timeout} += $stage->{duration};
   }
 
-  $self->trimPowerOutput($prev);
+  # Trim the output to adjust for load, but only if we're not tuning!
+  $self->trimPowerOutput($prev) if !$self->{tune};
 
   $stage->{'.samples'} = [];
 

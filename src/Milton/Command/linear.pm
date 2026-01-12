@@ -456,6 +456,9 @@ sub tuneProfile {
 
   my $path = $profile->getPath->{fullpath};
   my $relpath = unresolve_file_path($path);
+  if (!$relpath) {
+    $relpath = path('command', 'linear', $relpath->basename);
+  }
   my $new_path = resolve_writable_config_path($relpath);
 
   my $fh = $self->replaceFile($new_path->stringify);

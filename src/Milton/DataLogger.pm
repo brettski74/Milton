@@ -239,10 +239,12 @@ sub debug {
 
   my $level = 1;
   my ($package, $filename, $line) = caller($level);
-  while ($package->isa('Milton::DataLogger')) {
+  while ($package && $package->isa('Milton::DataLogger')) {
     $level++;
     ($package, $filename, $line) = caller($level);
   }
+  $package //= '***UNKNOWN***';
+  $line //= 0;
 
   if (@args) {
     $message = sprintf("%s:%d: $message", $filename, $line, @args);

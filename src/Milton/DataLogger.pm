@@ -244,7 +244,12 @@ sub debug {
     ($package, $filename, $line) = caller($level);
   }
 
-  $message = sprintf("%s:%d: $message", $filename, $line, @args);
+  if (@args) {
+    $message = sprintf("%s:%d: $message", $filename, $line, @args);
+  } else {
+    # Safely cover the case where a message maybe contains a percent sign, but required no arguments (eg. 100$ done)
+    $message = sprintf("%s:%d: %s", $filename, $line, $message);
+  }
   
   $self->consoleOutput('DEBUG', $message);
 }

@@ -81,8 +81,20 @@ subtest 'debug method' => sub {
   $logger->debug("Multi-line\ndebug\nmessage");
   $capture->stop();
   my @output = $capture->read();
+  my $this_test = __FILE__;
+  my $line1 = __LINE__ - 7;
+  my $line2 = __LINE__ - 7;
+  my $line3 = __LINE__ - 7;
+  my $line4 = __LINE__ - 7;
   
-  is(join('', @output), "DEBUG: Test debug message level 1\nDEBUG: Test debug message level 5\nDEBUG: Test debug message level 10\nDEBUG: Multi-line\nDEBUG: debug\nDEBUG: message\n", 'debug method output');
+  is(join('', @output), <<"EOS", 'debug method output');
+DEBUG: $this_test:$line1: Test debug message level 1
+DEBUG: $this_test:$line2: Test debug message level 5
+DEBUG: $this_test:$line3: Test debug message level 10
+DEBUG: $this_test:$line4: Multi-line
+DEBUG: debug
+DEBUG: message
+EOS
 };
 
 # Test log method with tee enabled

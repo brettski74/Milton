@@ -146,6 +146,9 @@ sub trimPowerOutput {
   # This condition should skip the warm-up stage, no matter what someone names it
   return if !$prev || !$prev->{name};
 
+  # Need to divide by $stage->{power} later, so abort if zero
+  return if $stage->{power} <= 0;
+
   # Only trim based on positive ramp stages
   return if $stage->{'.direction'} <= 0;
 
@@ -352,7 +355,7 @@ sub calculateNewPower {
                , $expected_delta_T
                );
     $self->debug('Expected duration: %.1f', $expected_duration);
-    $self->debug('Start-temperature: %.1f, End-temperature: %.1f, Actual delta_T: %.1f',
+    $self->debug('Start-temperature: %.1f, End-temperature: %.1f, Actual delta_T: %.1f'
                , $stage->{'.start-temperature'}
                , $stage->{'.end-temperature'}
                , $actual_delta_T

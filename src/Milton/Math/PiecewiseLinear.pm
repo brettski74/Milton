@@ -91,7 +91,9 @@ sub setNamedPoint {
   my $point;
 
   for (my $i=0; $i < @$self; $i++) {
-    if ($self->[$i]->[2]->{name} eq $name) {
+    my $attributes = $self->[$i]->[2];
+
+    if ($attributes && $attributes->{name} eq $name) {
       ($point) = splice @$self, $i, 1;
       last;
     }

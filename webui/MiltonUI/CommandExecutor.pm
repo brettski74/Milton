@@ -134,6 +134,18 @@ sub executeReflow {
   return $self->executeCommand('reflow', @cmd);
 }
 
+sub executeLinear {
+  my ($self, $params) = @_;
+
+  my @cmd = $self->initializeCommand($params);
+
+  push @cmd, 'linear';
+  push @cmd, $params->{profile};
+  push @cmd, '--tune' if $params->{tune};
+
+  return $self->executeCommand('linear', @cmd);
+}
+
 sub executeSetup {
   my ($self, $params) = @_;
   

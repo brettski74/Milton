@@ -38,6 +38,8 @@ reallyclean: clean
 	@echo Removing release configuration installation directories...
 	rm -rf $(REL_CONFIG_DIRS)
 
+test:
+
 help:
 	@echo "Available targets:"
 	@echo "  install       - Install the configuration files"

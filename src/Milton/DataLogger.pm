@@ -237,8 +237,20 @@ sub error {
 sub debug {
   my ($self, $message, @args) = @_;
 
+  my $level = 1;
+  my ($package, $filename, $line) = caller($level);
+  while ($package && $package->isa('Milton::DataLogger')) {
+    $level++;
+    ($package, $filename, $line) = caller($level);
+  }
+  $package //= '***UNKNOWN***';
+  $line //= 0;
+
   if (@args) {
-    $message = sprintf($message, @args);
+    $message = sprintf("%s:%d: $message", $filename, $line, @args);
+  } else {
+    # Safely cover the case where a message maybe contains a percent sign, but required no arguments (eg. 100$ done)
+    $message = sprintf("%s:%d: %s", $filename, $line, $message);
   }
   
   $self->consoleOutput('DEBUG', $message);

@@ -37,6 +37,10 @@
       max-width: 25rem;
     }
 
+    #consoleOutput div {
+      white-space: pre-wrap;
+    }
+
     /* Chart container - responsive sizing */
     .chart-container {
       position: relative;
@@ -97,6 +101,33 @@
       .responsive-grid {
         grid-template-columns: 25rem 1fr;
       }
+    }
+    
+    /* Collapsible graph pane */
+    .collapsible-header {
+      cursor: pointer;
+      user-select: none;
+      transition: background-color 0.2s;
+    }
+    .collapsible-header:hover {
+      background-color: rgba(0, 0, 0, 0.02);
+    }
+    .collapsible-content {
+      overflow: hidden;
+      transition: max-height 0.3s ease-out, opacity 0.3s ease-out;
+      max-height: 2000px;
+      opacity: 1;
+    }
+    .collapsible-content.collapsed {
+      max-height: 0;
+      opacity: 0;
+    }
+    .collapse-indicator {
+      transition: transform 0.3s ease;
+      display: inline-block;
+    }
+    .collapse-indicator.collapsed {
+      transform: rotate(-90deg);
     }
   </style>
 </head>
@@ -190,12 +221,17 @@
       <!-- Main Content Area -->
       <div>
         <!-- Real-time Chart -->
-        <div class="bg-white rounded-lg shadow-md p-6 mb-6">
-          <h2 class="text-xl font-semibold mb-4">Temperature & Power</h2>
-          <div class="chart-container">
-          <canvas id="temperatureChart"></canvas>
+        <div class="bg-white rounded-lg shadow-md mb-6">
+          <div class="collapsible-header p-6 pb-4 flex items-center justify-between" id="graphHeader">
+            <h2 class="text-xl font-semibold">Temperature & Power</h2>
+            <span class="collapse-indicator text-gray-500 text-2xl" id="graphIndicator">▼</span>
+          </div>
+          <div class="collapsible-content px-6 pb-6" id="graphContent">
+            <div class="chart-container">
+              <canvas id="temperatureChart"></canvas>
+            </div>
+          </div>
         </div>
-      </div>
 
       <!-- Console Output -->
       <div class="bg-white rounded-lg shadow-md p-6">
@@ -205,7 +241,7 @@
             Clear
           </button>
         </div>
-        <div id="consoleOutput" class="bg-gray-900 text-green-400 p-4 rounded font-mono text-sm h-64 overflow-y-auto">
+        <div id="consoleOutput" class="bg-gray-900 text-green-400 p-4 rounded font-mono text-sm overflow-y-auto h-[64rem]">
         </div>
       </div>
     </div>
@@ -636,6 +672,31 @@
     console.scrollTop = console.scrollHeight;
   }
 
+  // Toggle graph pane collapse/expand
+  function toggleGraphPane() {
+    const header = document.getElementById('graphHeader');
+    const content = document.getElementById('graphContent');
+    const indicator = document.getElementById('graphIndicator');
+    
+    const isCollapsed = content.classList.contains('collapsed');
+    
+    if (isCollapsed) {
+      // Expand
+      content.classList.remove('collapsed');
+      indicator.classList.remove('collapsed');
+      // Resize chart after expansion to fix rendering
+      setTimeout(() => {
+        if (dataChart) {
+          dataChart.resize();
+        }
+      }, 300);
+    } else {
+      // Collapse
+      content.classList.add('collapsed');
+      indicator.classList.add('collapsed');
+    }
+  }
+
   // Setup event listeners
   function setupEventListeners() {
     // Command selection
@@ -656,6 +717,9 @@
 
     // Clear console button
     document.getElementById('clearConsoleBtn').addEventListener('click', clearConsole);
+    
+    // Graph pane collapse/expand
+    document.getElementById('graphHeader').addEventListener('click', toggleGraphPane);
   }
 
   // Show command parameters

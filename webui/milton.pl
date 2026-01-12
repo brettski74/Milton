@@ -11,7 +11,7 @@ use warnings qw(all -uninitialized);
 use strict;
 use warnings qw(all -uninitialized);
 
-use Milton::Config::Utils qw(find_reflow_profiles get_device_names);
+use Milton::Config::Utils qw(find_reflow_profiles find_linear_profiles get_device_names);
 use Milton::Config::Path qw(standard_search_path);
 
 use Mojolicious::Lite;
@@ -115,6 +115,23 @@ group {
                                                        , $PARAM_DEVICE
                                                        ]
                                        }
+                                     , { name => 'linear'
+                                       , description => 'Execute a linear reflow profile'
+                                       , parameters => [ { name => 'profile'
+                                                         , type => 'pdlist'
+                                                         , required => 1
+                                                         , description => 'Reflow Profile'
+                                                         , default => 'snpb-standard'
+                                                         , url => '/api/linear/profiles'
+                                                         }
+                                                       , $PARAM_AMBIENT
+                                                       , { name => 'tune'
+                                                         , type => 'boolean'
+                                                         , required => 0
+                                                         , description => 'Tune the specified linear reflow profile.'
+                                                         }
+                                                       ]
+                                       }
                                      , { name => 'setup'
                                        , description => 'Calibrate a new hotplate PCB'
                                        , parameters => [ $PARAM_AMBIENT
@@ -137,25 +154,6 @@ group {
                                                          , required => 0
                                                          , description => 'The name of the file where the predictor calibration data will be written'
                                                          , default => $command_executor->getConfigPath('controller', 'predictor')
-                                                         }
-                                                       ]
-                                       }
-                                     , { name => 'tune'
-                                       , description => 'Tune a Hybrid PI controller'
-                                       , parameters => [ $PARAM_AMBIENT
-                                                       , $PARAM_DEVICE
-                                                       , $PARAM_PROFILE
-                                                       , { name => 'predictor-calibration'
-                                                         , type => 'text'
-                                                         , required => 1
-                                                         , description => 'The name of the file where the predictor calibration data will be written'
-                                                         , default => $command_executor->getConfigPath('controller', 'predictor')
-                                                         }
-                                                       , { name => 'controller-calibration'
-                                                         , type => 'text'
-                                                         , required => 0
-                                                         , description => 'The name of the file where the controller calibration data will be written'
-                                                         , default => $command_executor->getConfigPath('controller')
                                                          }
                                                        ]
                                        }
@@ -362,6 +360,12 @@ group {
     my $c = shift;
     my @logfiles = $command_executor->getLogFiles();
     $c->render(json => { logfiles => \@logfiles });
+  };
+
+  get '/api/linear/profiles' => sub {
+    my $c = shift;
+    my @profiles = find_linear_profiles();
+    $c->render(json => { list => \@profiles });
   };
 
   get '/api/reflow/profiles' => sub {

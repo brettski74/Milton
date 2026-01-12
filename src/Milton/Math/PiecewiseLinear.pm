@@ -61,6 +61,47 @@ sub addNamedPoint {
   return $self->addHashPoints('x', 'y', @points);
 }
 
+=head2 setNamedPoint($x, $y, $name)
+
+Set the value for a named point.
+
+=over
+
+=item $name
+
+The name of the point to set.
+
+=item $x
+
+The x value of the point to set.
+
+=item $y
+
+The y value of the point to set.
+
+=item Return Value
+
+Returns the PiecewiseLinear estimator, so that method calls may be chained.
+
+=cut
+
+sub setNamedPoint {
+  my ($self, $x, $y, $name) = @_;
+
+  my $point;
+
+  for (my $i=0; $i < @$self; $i++) {
+    my $attributes = $self->[$i]->[2];
+
+    if ($attributes && $attributes->{name} eq $name) {
+      ($point) = splice @$self, $i, 1;
+      last;
+    }
+  }
+
+  return $self->addNamedPoint($x, $y, $name);
+}
+
 =head2 addHashPoints($xlabel, $ylabel, @points)
 
 Add one or more data points to this piecewise linear estimator.

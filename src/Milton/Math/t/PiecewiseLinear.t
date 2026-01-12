@@ -338,4 +338,25 @@ is($pwl->estimate(5), 4, 'Interpolate at x=5 should be y=4');
 is($pwl->estimate(15), 11.5, 'Interpolate at x=15 should be y=11.5');
 is($pwl->estimate(25), 18.5, 'Interpolate at x=25 should be y=18.5');
 
+subtest 'setNamedPoint' => sub {
+  my $pwl = Milton::Math::PiecewiseLinear->new();
+  $pwl->addNamedPoint(0, 0, 'A');
+  $pwl->addNamedPoint(10, 10, 'B');
+  $pwl->addNamedPoint(20, 30, 'C');
+
+  is($pwl->estimate(5), 5, 'y=5 when x=5, initial state');
+  is($pwl->estimate(15), 20, 'y=20 when x=15, initial state');
+
+  $pwl->setNamedPoint(18, 34, 'C');
+  is($pwl->estimate(5), 5, 'y=5 when x=5, C moved to 18,34');
+  is($pwl->estimate(15), 25, 'y=25 when x=15, C moved to 18,34');
+
+  $pwl->setNamedPoint(30, 46, 'B');
+  is($pwl->estimate(5), float(9.44444444444, tolerance => 0.0001), 'y=9.444 when x=5, B moved to 30,46');
+  is($pwl->estimate(15), float(28.3333333333, tolerance => 0.0001), 'y=28.333 when x=15, B moved to 30,46');
+  is($pwl->estimate(25), 41, 'y=41 when x=25, B moved to 30,46');
+
+  is(scalar($pwl->getPoints), 3, 'Should have 3 points');
+};
+
 done_testing(); 

@@ -7,7 +7,7 @@ use Path::Tiny;
 use Exporter qw(import);
 use Carp qw(croak);
 
-our @EXPORT_OK = qw(add_search_dir clear_search_path search_path resolve_file_path standard_search_path resolve_writable_config_path);
+our @EXPORT_OK = qw(add_search_dir clear_search_path search_path resolve_file_path unresolve_file_path standard_search_path resolve_writable_config_path);
 
 my @search_path;
 
@@ -187,6 +187,47 @@ sub resolve_file_path {
   }
 
   return $path;
+}
+
+=head2 unresolve_file_path($path)
+
+Do the reverse of resolve_file_path() - attempt to turn a resolved file path into a relative path relative
+to one of the serach path directories.
+
+The function works by stepping up the parent directories in the provided path and comparing to the set of
+directories in the configuration search path. As soon as a match is found, that path is trimmed from the
+beginning of the path and the remainder is returned.
+
+=over
+
+=item $path
+
+The full path of the file to unresolve.
+
+=item Return Value
+
+The relative path corresponding to the provided full path as a Path:Tiny object. If a match for the
+specified path was not found within the configuration search path, the function returns undef.
+
+=back
+
+=cut
+
+sub unresolve_file_path {
+  my $path = path(shift);
+
+  return if !$path->is_absolute;
+
+  my @search_path = search_path();
+
+  foreach my $dir (@search_path) {
+    my $dir_path = path($dir);
+    if ($dir_path->subsumes($path)) {
+      return $path->relative($dir_path);
+    }
+  }
+
+  return;
 }
 
 =head2 resolve_writable_config_path($path)

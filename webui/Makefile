@@ -62,6 +62,8 @@ clean:
 
 reallyclean: clean
 
+test:
+
 # Show help
 help:
 	@echo "Available targets:"

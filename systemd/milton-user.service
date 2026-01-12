@@ -1,0 +1,34 @@
+[Unit]
+Description=Milton Web Server (User Service)
+After=network.target
+
+[Service]
+Type=simple
+# The milton command should be in PATH after installation
+# Adjust the ExecStart path if milton is not in your PATH
+ExecStart=/usr/bin/env milton daemon
+# For custom port, use: ExecStart=/usr/bin/env milton daemon -l http://*:4000
+
+# Restart service if it crashes
+Restart=on-failure
+RestartSec=10
+
+# Standard output and error go to journal
+StandardOutput=journal
+StandardError=journal
+
+# Environment variables - adjust MILTON_BASE to match your installation
+# For user installation: ~/.local/milton
+# For system installation: /opt/milton or /usr
+Environment="MILTON_BASE=%h/.local/milton"
+Environment="PATH=%h/.local/milton/bin:/usr/local/bin:/usr/bin:/bin"
+
+# Working directory - adjust to match your configuration location
+WorkingDirectory=%h/.config/milton
+
+# User service runs as the user who enabled it
+# No User= directive needed for user services
+
+[Install]
+WantedBy=default.target
+

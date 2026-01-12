@@ -6,10 +6,43 @@ All sensors require calibration. If you're using a commercially produced sensor,
 
 Tuning is similar to calibration, but refers to the practice of observing the operation of the system and altering some of its operational parameters to make the system behave in a more desirable way.
 
+## Keep It Simple, Stupid!
+
+Good calibration improves the accuracy of your instruments and generally speaking, more accuracy is usually good.
+However, bad calibration can make your instruments less accurate and cause serious problems. If your hotplate is
+working well, you don't need to calibrate. If you don't **NEED** to calibrate, don't. If you plan to do any
+calibration of your hotplate:
+
+1. Make sure you have a good reason to calibrate or re-calibrate - such as:
+1.1. A newly built hotplate PCB.
+1.1. A newly rebuilt or repaired hotplate PCB.
+1.1. The hotplate you are using appears to be inaccurate.
+1. Make sure your calibration process is good.
+
+Measuring temperature is a tricky thing. Temperature measurement devices don't measure the temperature of your hotplate.
+They measure the temperature of their sensing element (probably a thermocouple hot junction, thermistor or RTD). To get good measurements, you need to ensure that you get that temperature sensing element to a temperature that is as close as possible to the temperature of the thing you want to measure - typically your hotplate. Where I mention that you should use **thermal compound**, I really mean you should use a commercial product specifically designed and marketed for use
+as a thermal compound. If you are considering substituting a good, or even a cheap thermal compound with household
+products like vegetable oil, lubricating grease, glue, wax, solder flux, solder paste, foams, powders or other materials
+not specifically designed to be a thermal interface material, don't. Best case scenario, you'll end up with
+significantly lower temperature readings than are really there - readings 20 celsius degrees or more lower are typical.
+You'll end up calibrating your hotplate to run significantly hotter than it should and blow your thermal fuse on your
+first reflow cycle. Some of those materials have additional bad side effects that you will want to avoid as well. For
+example, solder flux is corrosive, especially when you heat it up.
+
+Liquid metals are also likely a bad idea. These often contain gallium which does not play well with aluminium. So long as
+you keep the aluminium oxide layer intact between them, nothin bad happens and gallium has much higher thermal
+conductivity than non-metallic thermal grease, but the tiniest crack in that aluminium oxide coating and you expose the
+virgin aluminium metal to the metallic gallium and they will quickly alloy together into a brittle, crumbly mess and
+before you know it, your hotplate is no more. Mercury is another liquid metal that reacts badly with aluminium. Keep it away from anything aluminium.
+
+Trust me, thermal compound is cheap and effective and really a necessity for any multi-point calibration process
+described below that mentions it. Trying to get by without it is likely to end up in frustration, confusion, tears or
+worse. **YOU HAVE BEEN WARNED!!!**
+
 ## Quick Start For Those Who Hate Reading
 
 Most users building a hotplate similar to that described in my [Setup](resources/HotplateSetup.md) and [Assembly](resources/HotplateAssembly.md) probably only need to calibrate the hotplate resistance to temperature mapping. The existing tuning for temperature prediction and control should be good enough to
-work for any similar assembly and most power supplies. Note that, even without calibration, so long as you start with the hotplate at room temperature and your default room temperature is close to real, your hotplate should do pretty well on temperature already - probably within +/-5°C, but this won't be terribly reliable.
+work for any similar assembly and most power supplies. Note that, even without calibration, so long as you start with the hotplate at room temperature and your default room temperature is close to real, your hotplate should do pretty well on temperature already - probably within +/-5°C, but this can be unreliable. If you start your hotplate while it's still warm, the automatic calibration will assume the starting temperature of your hotplate is room temperature, measure the temperature of the hotplate far lower than it really is and as a result, run the hotplate far too hot. Recording some calibration data in your configuration files will address that.
 
 ### Absolute Fastest 1-point Calibration
 

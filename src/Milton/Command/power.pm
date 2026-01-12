@@ -6,8 +6,13 @@ use warnings qw(all -uninitialized);
 use Time::HiRes qw(sleep);
 
 use base qw(Milton::Command::ManualTuningCommand);
-use Milton::Math::SteadyStateDetector;
 use Carp;
+use Milton::Config::Path qw(resolve_writable_config_path);
+
+use Milton::DataLogger qw(get_namespace_debug_level);
+
+use constant DEBUG_LEVEL => get_namespace_debug_level();
+use constant DEBUG_DATA => 100;
 
 =head1 NAME
 
@@ -68,6 +73,7 @@ The time to run for in seconds. It set, the command will shut off power and exit
 sub options {
   return ( 'power=i'
          , 'duration=i'
+         , 'onepointcal'
          , 'run'
          );
 }
@@ -78,12 +84,59 @@ sub preprocess {
   $self->info("Power: $self->{power}");
   $self->info("Duration: $self->{duration}") if $self->{duration};
 
+  my $controller = $self->{controller};
+  $controller->resetTemperatureCalibration(0) if $self->{onepointcal};
+
   # Ensure that we have some current through the hotplate so we will be able to measure resistance and set output power.
   $self->{interface}->setCurrent($self->{config}->{current}->{startup});
   sleep(0.5);
-  $self->{interface}->poll;
+  $self->{interface}->poll($status);
+  $controller->getTemperature($status);
+
+  $self->writeOnePointCalibration($status) if $self->{onepointcal};
 
   return $status;
+}
+
+sub _write_data_line {
+  my ($self, $fh, $format, @args) = @_;
+
+  my $text = sprintf($format, @args);
+
+  $self->debug($text) if DEBUG_LEVEL >= DEBUG_DATA;
+  return $fh->print("$text\n");
+}
+
+sub writeOnePointCalibration {
+  my ($self, $status) = @_;
+
+  my $controller = $self->{controller};
+  my $calibration = $controller->{calibration};
+  my $calpath = $calibration->getPath;
+  if (!$calpath) {
+    $calpath = { filename => 'command/rtd_calibration.yaml' };
+  }
+
+  my @points = $controller->getTemperaturePoints;
+  my $fullpath = resolve_writable_config_path($calpath->{filename});
+
+  $self->info("Writing one-point calibration data to $fullpath");
+
+  my $fh = $self->replaceFile($fullpath);
+  $self->_write_data_line($fh, '---');
+  $self->_write_data_line($fh, 'temperatures:');
+
+  foreach my $point (@points) {
+    $self->_write_data_line($fh, '- resistance: %f', $point->[0]);
+    $self->_write_data_line($fh, '  temperature: %.1f', $point->[1]);
+
+    if (@$point > 2 && exists($point->[2]->{name})) {
+      $self->_write_data_line($fh, '  name: %s', $point->[2]->{name});
+    }
+  }
+  $fh->close;
+
+  return $self;
 }
 
 sub keyEvent {

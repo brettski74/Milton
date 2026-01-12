@@ -102,6 +102,18 @@ sub initializeCommand {
   return @cmd;
 }
 
+sub executeOnePointCal {
+  my ($self, $params) = @_;
+  
+  $params->{reset} = 1;
+
+  my @cmd = $self->initializeCommand($params);
+  
+  push @cmd, 'power', 2, '--duration', 10, '--onepointcal';
+  
+  return $self->executeCommand('onePointCal', @cmd);
+}
+
 sub executeTune {
   my ($self, $params) = @_;
 

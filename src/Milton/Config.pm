@@ -295,7 +295,52 @@ sub clone {
 
   my $node = $self->_descend(0, @keys);
 
-  return Clone::clone($node);
+  my $clone = Clone::clone($node);
+
+  copy_path_cache($clone, $node);
+
+  return $clone;
+}
+
+sub copy_path_cache {
+  my ($clone, $node, $done) = @_;
+
+  # Make sure we remember where we've already been
+  $done //= {};
+  $done->{refaddr($node)} = 1;
+
+  if (exists $path_cache{refaddr($node)}) {
+    my $ckey = refaddr($clone);
+    my $nkey = refaddr($node);
+    $path_cache{$ckey} = { fullpath => $path_cache{$nkey}->{fullpath}
+                         , filename => $path_cache{$nkey}->{filename}
+                         };
+  }
+
+  # Traverse all the children
+  if (reftype($node) eq 'HASH') {
+    foreach my $key (keys %$node) {
+      next if !exists $clone->{$key};
+
+      my $node_child = $node->{$key};
+      next if exists $done->{refaddr($node_child)};
+
+      if (reftype($clone->{$key}) eq reftype($node_child)) {
+        copy_path_cache($clone->{$key}, $node_child, $done);
+      }
+    }
+  } elsif (reftype($node) eq 'ARRAY') {
+    for (my $i=0; $i < @$node; $i++) {
+      last if $i >= @$clone;
+    
+      my $node_child = $node->[$i];
+      next if exists $done->{refaddr($node_child)};
+    
+      if (reftype($clone->[$i]) eq reftype($node_child)) {
+        copy_path_cache($clone->[$i], $node_child, $done);
+      }
+    }
+  }
 }
 
 =head2 merge($filename, @path)

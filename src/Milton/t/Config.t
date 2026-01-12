@@ -40,6 +40,11 @@ is($cfg2->{test1}, 'value1');
 is($cfg2->{test2}, 'value2');
 is($cfg2->{test3}, { colour => 'green', size => 'large' });
 is($cfg2->getPath, { filename => 'testconfig.yaml', fullpath => 't/testconfig.yaml' });
+my $clone2 = $cfg2->clone;
+is($clone2->{test1}, 'value1', 'Clone test1=value1');
+is($clone2->{test2}, 'value2', 'Clone test2=value2');
+is($clone2->{test3}, { colour => 'green', size => 'large' }, 'Clone test3={ colour => green, size => large }');
+is($clone2->getPath, { filename => 'testconfig.yaml', fullpath => 't/testconfig.yaml' }, 'Clone root getPath');
 
 # Test configFileExists method
 note("Testing configFileExists method");
@@ -152,6 +157,12 @@ is($cfg2->{crazy}->{path}->{that}->{does}->{not}->{exist}->{'command-value-1'}, 
 is($cfg2->{crazy}->{path}->{that}->{does}->{not}->{exist}->{'command-value-2'}, 'red', 'command-value-2 should be added');
 is($cfg2->getPath->{fullpath}, 't/testconfig.yaml');
 is($cfg2->getPath('crazy', 'path', 'that', 'does', 'not', 'exist')->{fullpath}, 't/command/test.yaml');
+
+# Verify path information is preserved throughout the hierarchy after cloning
+$clone2 = $cfg2->clone;
+is($clone2->getPath->{fullpath}, 't/testconfig.yaml', 'Clone root getPath again');
+is($clone2->getPath('command', 'nonexistent')->{fullpath}, 't/command/test.yaml', 'Cloned command.nonexistent getPath');
+is($clone2->getPath('crazy', 'path', 'that', 'does', 'not', 'exist')->{fullpath}, 't/command/test.yaml', 'Cloned crazy.path.that.does.not.exist getPath');
 
 # Test merging with pre-existing keys (deep merge)
 note("Testing merge with pre-existing keys");

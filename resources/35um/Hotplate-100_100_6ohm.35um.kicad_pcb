@@ -762,16 +762,27 @@
 		)
 		(embedded_fonts no)
 	)
-	(gr_rect
-		(start 55 102.5805)
-		(end 56.6505 107.4195)
+	(gr_arc
+		(start 56.6505 104.3655)
+		(mid 56.016 103.731)
+		(end 56.6505 103.096499)
 		(stroke
-			(width 0.237)
-			(type default)
+			(width 0.772)
+			(type solid)
 		)
-		(fill yes)
 		(layer "F.Mask")
-		(uuid "2c26ef8f-0a24-4f31-81e0-5a318e309df2")
+		(uuid "04c1850a-c751-41f4-890a-8fc376556d07")
+	)
+	(gr_arc
+		(start 56.6505 106.9035)
+		(mid 56.016 106.268999)
+		(end 56.6505 105.634499)
+		(stroke
+			(width 0.772)
+			(type solid)
+		)
+		(layer "F.Mask")
+		(uuid "8803b87b-30f3-429a-86bf-3431f7f80cdb")
 	)
 	(gr_arc
 		(start 55 59)

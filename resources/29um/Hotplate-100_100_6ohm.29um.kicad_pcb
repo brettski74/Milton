@@ -74,7 +74,7 @@
 			(mirror no)
 			(drillshape 0)
 			(scaleselection 1)
-			(outputdirectory "Al_HotPlate_V0")
+			(outputdirectory "Hotplate-100_100_6ohm.29um/")
 		)
 	)
 	(net 0 "")
@@ -762,16 +762,27 @@
 		)
 		(embedded_fonts no)
 	)
-	(gr_rect
-		(start 55 102.378499)
-		(end 56.8565 107.621499)
+	(gr_arc
+		(start 56.8565 107.047499)
+		(mid 56.173999 106.365)
+		(end 56.8565 105.6825)
 		(stroke
-			(width 0.217)
-			(type default)
+			(width 0.9)
+			(type solid)
 		)
-		(fill yes)
 		(layer "F.Mask")
-		(uuid "1dfac282-3dcd-45d9-98e7-f4a0b676c675")
+		(uuid "6dc2b960-03cc-4010-8846-d206b4a11047")
+	)
+	(gr_arc
+		(start 56.8565 104.3175)
+		(mid 56.174 103.635)
+		(end 56.8565 102.952499)
+		(stroke
+			(width 0.9)
+			(type solid)
+		)
+		(layer "F.Mask")
+		(uuid "fc88a625-8ef8-4cb8-a3ec-36c5e96778c8")
 	)
 	(gr_arc
 		(start 55 59)

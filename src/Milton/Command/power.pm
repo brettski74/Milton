@@ -85,15 +85,38 @@ sub preprocess {
   $self->info("Duration: $self->{duration}") if $self->{duration};
 
   my $controller = $self->{controller};
-  $controller->resetTemperatureCalibration(0) if $self->{onepointcal};
+  if ($self->{onepointcal}) {
+    $controller->resetTemperatureCalibration(0);
+
+    if (!exists($status->{ambient})) {
+      if ($controller->hasTemperatureDevice) {
+        my ($device_temperature, $device_ambient) = $controller->getDeviceTemperature;
+        $status->{ambient} = $device_temperature // $device_ambient;
+      }
+    }
+    my $ambient = $status->{ambient};
+    my $message = "Ambient temperature not available, please enter it manually: ";
+    my $error = '';
+
+    while (!defined($ambient) || $ambient eq '' || $ambient !~ /^\d+(\.\d+)?$/ || $ambient <= 0) {
+      $ambient = $self->prompt($message, error => $error);
+      
+      $error = "Invalid ambient temperature: $ambient\n\n";
+    }
+    $status->{ambient} = $ambient;
+  }
 
   # Ensure that we have some current through the hotplate so we will be able to measure resistance and set output power.
   $self->{interface}->setCurrent($self->{config}->{current}->{startup});
   sleep(0.5);
   $self->{interface}->poll($status);
+  
+  # Trigger auto-calibration
   $controller->getTemperature($status);
 
-  $self->writeOnePointCalibration($status) if $self->{onepointcal};
+  if ($self->{onepointcal}) {
+    $self->writeOnePointCalibration($status);
+  }
 
   return $status;
 }

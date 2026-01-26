@@ -349,9 +349,14 @@ the default value will be returned.
 =cut
 
 sub prompt {
-  my ($self, $prompt, $default) = @_;
+  my $self = shift;
 
-  return Milton::Command::ValueTools::prompt($prompt, $default);
+  # Use logger's prompt method if available, otherwise fall back to ValueTools
+  if (defined $self->{logger}) {
+    return $self->{logger}->prompt(@_);
+  }
+  
+  return Milton::ValueTools::prompt(@_);
 }
 
 =head2 setLogger($logger)

@@ -9,7 +9,6 @@ use Time::HiRes qw(time);
 use IO::Pipe;
 use Storable qw(store_fd fd_retrieve);
 use POSIX qw(ceil);
-use Data::Dumper;
 
 our @EXPORT_OK = qw(
   maximum
@@ -772,7 +771,6 @@ EOS
   
   $code .= <<"EOS";
 $indent  my \$y = \$fn->(\@args);
-#$indent  print '[ '. join(', ', map { sprintf('%.6f', \$_) } \@args) . " ], y: \$y\\n";
 
 $indent  if (\$y < \$best_y) {
 $indent    \$best_y = \$y;

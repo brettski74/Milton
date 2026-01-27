@@ -122,7 +122,7 @@ sub info {
   } elsif (@_) {
     printf "EEVBlog121GW: $message\n", @_;
   } else {
-    print $message, "\n";
+    print 'EEVBlog121GW: ', $message, "\n";
   }
 }
 
@@ -135,7 +135,7 @@ sub warning {
   } elsif (@_) {
     printf "EEVBlog121GW: $message\n", @_;
   } else {
-    warn $message, "\n";
+    warn 'EEVBlog121GW: ', $message, "\n";
   }
 }
 

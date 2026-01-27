@@ -294,8 +294,6 @@ group {
     my $command_name = $c->param('name');
     my $params = $c->req->json;
 
-    print "command params: ". join(', ', %$params) ."\n";
-
     my $method = 'execute'. ucfirst($command_name);
 
     if ($command_executor->can($method)) {

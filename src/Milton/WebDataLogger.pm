@@ -2,8 +2,6 @@ package Milton::WebDataLogger;
 
 use base 'Milton::DataLogger';
 
-use Data::Dumper qw(Dumper);
-
 sub consoleProcess {
   my ($self, $type, $output) = @_;
 
@@ -68,8 +66,6 @@ sub prompt {
   } else {
     $attr = { default => shift };
   }
-
-  print "Prompt attributes: ". Dumper($attr) ."\n";
 
   if ($attr->{error}) {
     $self->consoleGroupProcess('PROMPT-ERROR', $attr->{error});

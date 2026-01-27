@@ -36,7 +36,7 @@ sub info {
     if (@_) {
       printf "CommandExecutor: $message\n", @_;
     } else {
-      print $message, "\n";
+      print 'CommandExecutor: ', $message, "\n";
     }
   }
 

@@ -2,9 +2,22 @@
 
 ## Overview
 
-All sensors require calibration. If you're using a commercially produced sensor, they are usually calibrated or at least validated by the manufacturer to perform within certain specifications, obviating the need for you to do your own calibration. For Milton, we will mostly be relying on custom RTDs to perform temperature measurements, so we will need to do our own calibration of these devices to ensure that we get accurate temperature measurements from our hotplate. Calibration is merely the practice of making one or more measurements from our sensor against accepted measurement standards and recording those measurements so that we can estimate the state of the system (ie. it's temperature in this case) based on measurements we record from our sensor at a later time. The main calibration that we will need to do is calibrating the RTD used to measure the hotplate temperature. This RTD is probably also your heating element on your hotplate.
+All sensors require calibration. If you're using a commercially produced sensor, they are usually calibrated or at
+least validated by the manufacturer to perform within certain specifications, obviating the need for you to do your
+own calibration. For Milton, we will mostly be relying on custom RTDs to perform temperature measurements, so we
+will need to do our own calibration of these devices to ensure that we get accurate temperature measurements from
+our hotplate. When it comes to calibration, there are two key concepts that you need to understand: *precision* and
+*accuracy*. I won't bore you with defining these terms here. There are plenty of resources on the internet that
+describe what these words mean in the context of science, physics and metrology. We assume that our power supply
+and heating element are reasonably precise. Calibration involves taking some measurements in order to convert the
+resistance measurements we can get from them into reasonably accurate measurements of the temperature of the
+hotplate.
 
-Tuning is similar to calibration, but refers to the practice of observing the operation of the system and altering some of its operational parameters to make the system behave in a more desirable way.
+Tuning is similar to calibration, but refers to the practice of observing the operation of the system and altering
+some of its operational parameters to make the system behave in a more desirable way. In our case, *desirable*
+generally refers to having the system respond sufficiently quickly to changes in set-point or load while minimizing
+offset errors and oscillations. In reality, there is usually some amount of trade-off between those behaviours so a
+good tuning algorithm tries to strike a balance between fast response time and avoiding overshoot and oscillation.
 
 ## Keep It Simple, Stupid!
 
@@ -19,109 +32,183 @@ calibration of your hotplate:
 1.1. The hotplate you are using appears to be inaccurate.
 1. Make sure your calibration process is good.
 
-Measuring temperature is a tricky thing. Temperature measurement devices don't measure the temperature of your hotplate.
-They measure the temperature of their sensing element (probably a thermocouple hot junction, thermistor or RTD). To get good measurements, you need to ensure that you get that temperature sensing element to a temperature that is as close as possible to the temperature of the thing you want to measure - typically your hotplate. Where I mention that you should use **thermal compound**, I really mean you should use a commercial product specifically designed and marketed for use
-as a thermal compound. If you are considering substituting a good, or even a cheap thermal compound with household
-products like vegetable oil, lubricating grease, glue, wax, solder flux, solder paste, foams, powders or other materials
-not specifically designed to be a thermal interface material, don't. Best case scenario, you'll end up with
-significantly lower temperature readings than are really there - readings 20 celsius degrees or more lower are typical.
-You'll end up calibrating your hotplate to run significantly hotter than it should and blow your thermal fuse on your
-first reflow cycle. Some of those materials have additional bad side effects that you will want to avoid as well. For
-example, solder flux is corrosive, especially when you heat it up.
+Measuring temperature is a tricky thing. Good calibration relies on getting good measurements of the heating element
+temperature. This is not going to be the same as the temperature of your calibration sensor unless you carefully
+control the environment in which those measurements are made. For the most practical methods of measuring the
+temperature of your hotplate, the measurement from your calibration sensor will be lower than the heating element
+temperature. If you're not willing to invest in some thermal compound, some reasonable means of securing the sensor
+in contact with the hotplate and being very careful to eliminate all drafts in the room (this includes avoiding fast
+movements) it's probably best that you stick with the 1-point calibration. Without careful attention to detail and
+control of the calibration environment, your measurements can be off by a surprising amount.
 
-Liquid metals are also likely a bad idea. These often contain gallium which does not play well with aluminium. So long as
-you keep the aluminium oxide layer intact between them, nothin bad happens and gallium has much higher thermal
-conductivity than non-metallic thermal grease, but the tiniest crack in that aluminium oxide coating and you expose the
-virgin aluminium metal to the metallic gallium and they will quickly alloy together into a brittle, crumbly mess and
-before you know it, your hotplate is no more. Mercury is another liquid metal that reacts badly with aluminium. Keep it away from anything aluminium.
+Don't think you can save a few bucks and substitute something else for a proper thermal interface compound. This is
+the same goop that you buy to put between a CPU and a CPU cooler. Products like vegetable oil, lubricating grease,
+glue, wax, solder flux, solder paste, foams, powders or anything else not specifically designed for use as a thermal
+interface compound will make a significant difference. Offset errors as large as 20°C or more are likely. Even a
+cheap thermal interface compound will vastly outperform any of these and with appropriate setup should enable offset
+errors as low as 2-3°C or better possible. A suggested minimal setup probably includes thermal compound, kapton tape
+and one or more gooseneck clamps to hold the sensor and/or leads in place.
 
-Trust me, thermal compound is cheap and effective and really a necessity for any multi-point calibration process
-described below that mentions it. Trying to get by without it is likely to end up in frustration, confusion, tears or
-worse. **YOU HAVE BEEN WARNED!!!**
+Liquid metals are also a bad idea here. While their thermal conductivity is almost certainly far superior to most
+non-conductive thermal interface compounds, they do not mix well with aluminium. Small amounts of gallium or mercury
+can quickly destroy aluminium metal if they manage to breach the oxide layer on the surface. It may only take a small
+scratch on the surface of your hotplate and it's all over. This is not worth the risk.
 
 ## Quick Start For Those Who Hate Reading
 
-Most users building a hotplate similar to that described in my [Setup](resources/HotplateSetup.md) and [Assembly](resources/HotplateAssembly.md) probably only need to calibrate the hotplate resistance to temperature mapping. The existing tuning for temperature prediction and control should be good enough to
-work for any similar assembly and most power supplies. Note that, even without calibration, so long as you start with the hotplate at room temperature and your default room temperature is close to real, your hotplate should do pretty well on temperature already - probably within +/-5°C, but this can be unreliable. If you start your hotplate while it's still warm, the automatic calibration will assume the starting temperature of your hotplate is room temperature, measure the temperature of the hotplate far lower than it really is and as a result, run the hotplate far too hot. Recording some calibration data in your configuration files will address that.
+Most users building a hotplate similar to that described in my [Setup](resources/HotplateSetup.md) and
+[Assembly](resources/HotplateAssembly.md) probably only need to calibrate the hotplate resistance to temperature
+mapping. The existing tuning for temperature prediction and control should be good enough to work for any similar
+assembly and most power supplies. Just do the [Absolute Fastest 1-point Calibration](#absolute-fastest-1-point-calibration)
+and move on with your life.
 
-### Absolute Fastest 1-point Calibration
+## Absolute Fastest 1-point Calibration
 
-Make sure your hotplate is cold (ie. at room temperature). The best way to do this is to have it set up, plugged in and not touch it, breath on it or do anything to it for a while. Maybe go and take in your favourite movie about time-travelling cars or something. Have a thermometer in the room near tht hotplate this whole time as well. If you want to be really fancy, maybe even place the probe of your thermometer on the hotplate. We want that thermometer to also be at room temperature when we come back. After seeing your hero help his parents fall in love and make it back home, head back into your lab. Record room temperature as measured by your thermometer. Now run a comman - any command - on your hotplate. A good option would be constant power at a low power level for a short time - maybe 4 watts for 10 seconds. (From the command line this would be `psc power --duration 10 4`)
+Make sure your hotplate is cold (ie. at room temperature). The best way to do this is to have it set
+up, plugged in and not touch it, breath on it or do anything to it for a while. Maybe go and take in
+your favourite movie about time-travelling cars or something. Have a thermometer (the reference
+sensor)in the room near the hotplate this whole time as well - preferably with the sensor touching
+the hotplate or as close as practical to touching the hotplate. The goal here is for the temperature
+of both the hotplate and your reference sensor to be the same as the surrounding ambient air
+temperature to within a very small margin of error. After seeing your hero help his parents fall in
+love and make it back home, head back into your lab.
 
-Look in the console output for a couple of lines that look like:
+### Using the Web Interface
 
-```
-[8:36:50 p.m.] Auto-adding calibration point at T=27, R=5.83583583583584
-[8:36:50 p.m.] Auto-adding calibration point at T=20, R=5.67959030650391
-```
+If you're using the web interface - which I highly recommend - select the *One-point calibration*
+command.
 
-Ignore the second one that says T=20. That one is just extrapolated from the first point and the known properties of copper. The first one contains a real resistance measurement taken by your power supply connected to your hotplate at the current room temperature. Let's say your room temperature measurement was 25.6°C. At the shell prompt, run:
+If your reference sensor is integrated with Milton (eg. you have a supported multimeter with a serial
+or bluetooth communications interface), you can simply select the appropriate calibration device
+from the list in the calibration device field.
 
-```
-mledit controller/hotplate-resistance.yaml
-```
+If you wish, you can take a reading from your thermometer and enter that value into the ambient
+temperature field.
 
-For a new installation, the file will be blank. Put the data into the file like shown below and save it:
+Alternatively, you can just be lazy and hit execute and you will be prompted to provide the ambient
+temperature when it's needed in a few seconds or so.
 
-```
-temperatures:
-  - temperature: 25.6
-    resistance: 5.83583583583584
-```
+### Using the Command-Line Interface
 
-Of course replace the 25.6 with the room temperature measurement you actually took and the 5.83583583583584 with the resistance measurement for that first line in the console output. Again , ignore the T=20 line. That's extrapolated data and will be inaccurate for calibration purposes.
-
-This will give you as good of a temperature-resistance calibration as the actual hotplate calibration routine provided in the GUI.
-
-### More Accurate 2-4 Point Calibration
-
-This kind of calibration can produce much better accuracy in your temperature measurements, but it will take longer and require more manual effort on your part. Expect to spend up to a couple of hours doing this kind of calibration. You can strive for more or less precision by how many data points you decide to capture. 2 points is good. 4 points is probably better. More than 4 points is probably overkill and not worth the time investment.
-
-For this kind of calibration, you'll want some kind of digital thermometer with a probe that can be thermally coupled reasonably well to the top-centre surface of your hotplate. A multimeter with a K-type thermocouple is an idea choice. Failing that, you could also use a fairly cheap, digital kitchen thermometer or you could build a temperature sensing rig using a commercial thermistor in a voltage divider and a prototyping board like an Arduino Nano or STM32 Blue Pill. I typically use my 121GW multimeter and a K-type thermocouple. I put a small blob of thermal compound in the centre of my hotplate, push the thermocouple hot junction down into it and tape it firmly to the hotplate with some kapton tape. I also typically use a goosneck clamp to hold the thermocouple cable to help ensure it doesn't come loose during calibration. If your temperature sensing device is integrated with Milton (eg. a 121GW thermometer), consider including that in your command as it makes the data capture easier and more accurate.
-
-If you do a lot of temperature measurement, you start to realize that there is no such thing as "the temperature" of a system. Various parts of the system will be at different temperatures at different times depending on where the heat is coming from, where it's going and how it's flowing from place to place as the system goes through whatever process it's going through. In out hotplate, the temperature at the surface of the hotplate can be different form the temperature of the heating element, which may be different from the temperature of your hotplate load (the PCB to be reflow or heat sink to be tested or whatever). The resistance we measure for the heating element is telling us about the temperature of the heating element, but it's difficult to really measure the temperature of the heating element directly. The temperature we measure on the surface of the hotplate will often be different than that of the heating element. When we're actively heating the hotplate, the difference could be several celsius degrees. However, when the hotplate temperature is
-held steady for a reasonable period of time, the temperature of the hotplate and the temperature of the heating element can become very close indeed. So the goal for this calibration will be to bring the hotplate to several different temperatures and attempt to keep the temperature steady for a few minutes while we record the resistance of the hotplate as measured by your power supply. The best way to do this is with the constant power command. In theory, you can also use the constant temperature command, but constant power tends to produce much steadier results which is more important than the speed advantage you can get with constant temperature. I recommand up to 4 runs, in the following order. If you're happy enough with the results, you can stop after 2 or 3 points if you don't want to spend the time for all four suggested calibration points.
-
-1. 4W
-1. 60W
-1. 40W
-1. 20W
-
-This is for a hotplate that is 100x100mm. If your hotplate is larger or smaller than this, I would suggest scaling those values in proportion to the area of your hotplate versus mine.
-
-We will run a constant power command for 900 seconds for each successive power level. (`psc power --duration 900 <power level>`) Look in the console output for lines that look like:
+While all the options available in the web interface are also available here, to keep this process
+simple, we'll just focus on one way to run this from the command line. Run the following command:
 
 ```
-[9:14:48 p.m.] resistance: 5.88542371567465, temperature: 0, power: 5.948008, counts: [ 10, 0, 10 ]
-[9:15:03 p.m.] resistance: 5.91385606020301, temperature: 0, power: 3.993948, counts: [ 10, 0, 10 ]
-[9:15:18 p.m.] resistance: 5.94048177400063, temperature: 0, power: 3.992426, counts: [ 10, 0, 10 ]
+psc power 2 --duration 10 --onepointcal
 ```
 
-If you're using an integrated calibration device, then the temperature values will be recorded automatically from your device and averaged to give you an oversampled temperature reading that corresponds with the resistance measurement. If you're lucky enough to have a supported device for this, that is the best way to do this and you can mostly just copy and paste the resistance and temperature readings into `controller/hotplate-resistanceyaml` directly. You'll only be copying one resistance-temperature pair per run and it should be one from near the end of your cycle when the temperature has been fairly steady for several minutes. Recording these early values while the hotplate is still heating up and far from its equilibrium temperature will lead to inaccuracies, so don't do that.
+Once it has connected to your power supply, it should prompt you to provide the ambient temperature.
+Enter the temperature reading from your thermometer in celsius. You should see a few more lines of
+output before the command shuts down the power supply output and exits.
 
-If you don't have an integrated temperature sensor, then you'll need to read the record off your thermometer and look for the resistance measurement that was produced at around the same time. Again, use a resistance and temperature measurement taken from near the end of the 15 minute cycle when the temperature has been fairly stable for several minutes. If you do this for all four points, you may end up with a controller/hotplate-resistance.yaml file that looks something like this:
+### Finishing Up
+
+It's a good idea to check the output to verify that it worked and the results make sense. In the
+web interface, you can check this information in the console output pane. You should see three
+lines similar to the following in your output:
 
 ```
-temperatures:
-  - resistance: 2.74416666666667
-    temperature: 42.84
-  - resistance: 3.26373943675687
-    temperature: 95.93
-  - resistance: 3.7671570992258
-    temperature: 145.42
-  - resistance: 4.16422212507384
-    temperature: 181.54
+Auto-adding calibration point at T=24.3, R=5.78578578578579 (name: ambient)
+Auto-adding calibration point at T=20, R=5.68963661660183 (name: interpolated)
+Writing one-point calibration data to /home/yourusername/.config/milton/controller/hotplate-resistance.yaml
 ```
+
+The resistance values should be reasonably close to the expected cold resistance of your heating
+element. If you're using one of my layouts, the expected value should be printed on the PCB. Note
+that the resistance won't be exactly as specified, but will probably be within about +/-5% of the
+expected value. If not, then verify that the hotplate was actually at room temperature and if so,
+maybe check the resistance of the heating element using a multimeter.
+
+Note that the calibration process does send some power into the hotplate in order to measure its
+resistance. If for some reason you mess up the calibration, it is recommended to give the hotplate
+time to cool. Without knowing your specific setup it's difficult to day how much error could be
+introduced by redoing the calibration multiple times in short succession. It's important to get
+the calibration right, so if in doubt, give the hotplate time to cool and equilibrate before retrying
+the calibration.
+
+### For Those Willing To Read A Little More...
+
+Note that even with an uncalibrated hotplate, Milton will ***probably*** produce reasonably good results provided that you
+start every time with the hotplate at ambient temperature. Don't let this lull you into a false sense of security and
+thinking that calibration is only for paranoid losers who don't have anything better to do. Calibration is a hedge against
+that one day somwhere in the future where you have multiple boards to reflow and you forget to let the hotplate completely
+cool between jobs and so Milton starts out thinking that your hotplate is at 27°C when it's actually at 87°C and promptly
+proceeds to overheat everything. If you have a thermal fuse on your board, this may just cause the annoyance of having to
+rebuild your hotplate. If you don't have a thermal fuse, then the fallout could be worse - scorched board, damaged
+components, irreparably damaged hotplate PCB, fire, homelessness, insurance adjusters and even awkward questions from your
+local fire marshall! Taking a few minutes to calibrate your hotplate when it is new or newly rebuilt helps ensure we have a
+reliable baseline resistance and temperature measurement so that when that day comes, Milton knows that the hotplate is
+starting out warm and still measures the hotplate temperature accurately anyway.
+
+## Want More Accuracy?
+
+I used to have information here for a suggested process to create a multi-point calibration curve for your heating element's
+double life as an RTD. Based on further experience with this process and the results that it can produce, I no longer
+recommend this process. The results appear to be too variable and in general, lower than reality. After a few unintended
+trips of thermal fuses on boards calibrated in this way, I've realized that the variability of metallurgy is almost
+certainly lower than that of the makeshift measurements practices of a hobbyist. I strongly recommend sticking with the
+simple, quick 1-point calibration and depending on the well known physics of copper to extrapolate out from there. This
+has proven more reliable in my experience so far.
 
 ## Tuning the Models
 
-If you have a hotplate that is substantially different than the 100x100mm hotplate assembly that the default release was based on, you may need to tune the system for your hotplate. Maybe it's larger or smaller. Maybe it is mounted in a different way that alters airflow or other characteristics of the hotplate. Or maybe you're just not happy with the performance and accuracy of your hotplate and want to see if re-tuning the models can help it do better.
+If you have a hotplate that is substantially different than the 100x100mm hotplate assembly that the default release was
+based on, you may need to tune the system for your hotplate. Maybe it's larger or smaller. Maybe it is mounted in a
+different way that alters airflow or other characteristics of the hotplate. Or maybe you're just not happy with the
+performance and accuracy of your hotplate and want to see if re-tuning the models can help it do better.
 
-Tuning is highly recommended to be done via the web UI. It is technically possible to do from the command line, but the command can be a little more complicated and the web UI takes out some of the guesswork and just makes it easier to run. You will need an integrated temperature sensing device for this, such as an EEVBlog 121GW multimeter. We need to be able to accurately measure the hotplate temperature during the calibration cycle. This will vary from the heating element temperature by varying amounts through the calibration. It's not possible to measure this using the heating element resistance. In fact, the tuning is intentionally measuring the difference between these two temperatures in order to tune the models to better characterize how heat flows from your heating element into your hotplate during active heating and passive cooling of the hotplate. If you don't have an integrated temperature sensing device, you'll need to either acquire one or make do with whatever tuning you can obtain from others that maybe have something more similar to your setup.
+Tuning is highly recommended to be done via the web UI. It is technically possible to do from the command line, but the
+command can be a little more complicated and the web UI takes out some of the guesswork and just makes it easier to run.
+You will need an integrated temperature sensing device for this, such as an EEVBlog 121GW multimeter. We need to be able
+to accurately measure the hotplate temperature during the calibration cycle. This will vary from the heating element
+temperature by varying amounts through the calibration. It's not possible to measure this using the heating element
+resistance. In fact, the tuning is intentionally measuring the difference between these two temperatures in order to
+tune the models to better characterize how heat flows from your heating element into your hotplate and subsequently into
+your load during active heating and passive cooling of the hotplate. If you don't have an integrated temperature sensing
+device, you'll need to either acquire one or make do with whatever tuning you can obtain from others that maybe have
+something more similar to your setup.
 
-The setup of your hotplate for the tuning is much the same as for calibration above. You want the probe of your temperature sensor firmly secured to the centre of the hotplate with a little thermal compound to ensure a good thermal coupling between the temperature probe and the hotplate surface. In the web UI, select the *Calibrate a new hotplate PCB* command. The reflow profile should automatically default to *calibration*, which is the profile you need to use. Select your calibration device (eg. 121gw). The command should also default the values for the name of the file where the RTD calibration data will be written and where the predictor tuning will be written as well. If either of these fields is set to blank, that part of teh calibration command is omitted. If you have already calibrated your resistance-temperature mapping using the process described above, then it is a good idea to blank the field for the RTD calibration data so that doesn't get overwritten. If you are happy to do a 1 point calibration only, you can leave the default value in there and this command will automatically do the 1-ponit calibration for you and write the results into the `controller/hotplate-resistance.yaml` file for you. If you forget to blank out the field and end up replacing your nice, 4-point calibration with a quick and dirty 1-point calibration from this command, don't fret! The previous version of the file will be backed up with a timestamp appended to the filename. You can manually go into $HOME/.config/milton/controller and restore the old file.
+To setup for the calibration cycle you want to ensure that your reference temperature sensor is in excellent thermal
+contact with the hotplate surface. The recommended setup would be using a K-type thermocouple secured in place on the
+hotplate surface with some kapton tape, with a small amount of thermal interface compound to ensure good heat transfer
+from the hotplate to the reference sensor and a gooseneck clamp to hold the thermocouple lead to further ensure that the
+sensor does not move off the hotplate mid-cycle. There are likely other equally suitable setups. The main elements to
+aim for are:
 
-The calibration cycle takes about 15 minutes to run. You should see the temperature going up and down several times at different rates and different temperatures. Once it's complete, it will use all of the data collected to tune the models. This can take a while, depending on your hardware. On my lab PC that runs on a Celeron J6413 processor, the tuning doesn't take more than a minute or three, but if you're running on something slower like a Raspberry Pi 3B or an older Celeron or similar processor, expect it to take longer. The tuning does run several processes in parallel, so you can take advantage of extra cores if you have them in order to complete the tuning faster. The default configuration leaves this blank and tries to determine the number of floating point capable cores and creates a corresponding number of parallel processes, but if you want to set it explicitly, you can set by editing the tuning.parallel parameter using the following command:
+1. Some light pressure pressing the reference sensor's probe against the hotplate.
+1. Some thermal interface compound to ensure efficient heat transfer
+1. Protecting the sensor probe from drafts that may form as the hotplate heats up.
+1. Protection from sensor movement across or off the hotplate.
+
+In the web UI, select the *Calibrate a new hotplate PCB* command. The reflow profile should automatically default to
+*calibration*. This is the profile you need to use. Select your calibration device (eg. 121gw). The command should also
+default the values for the name of the file where the RTD calibration data will be written and where the predictor
+tuning will be written as well. Note that the RTD calibration is effectively the same as the 1-point calibration
+described above. If you are planning to run this tuning cyclem you can skip a separate one-point calibration and just
+do it as part of this command. It should default to the current path to the configuration file where the RTD calibration
+was loaded from. If you want to recalibrate the RTD, you should probably just leave it as the default value. If you
+don't need/want to redo the RTD calibration, set that filename blank and no RTD calibration data will be written by this
+command.
+
+The predictor calibration is the primary output of this calibration cycle. This field should default to the current
+configuration file path from which the current predictor calibration was loaded from. You should probably leave this
+at the default value. You can set it to a different file name if you want to redo the calibration without making it
+effective. You can even set it to nothing and that will disable the tuning calculations at the end of the calibration
+cycle and prevent it from writing out new predictor calibration. However, this command is rather pointless without
+doing this, so it's probably best to just leave it at the default value. Note that any previously existing predictor
+calibration data will be backed up in a timestamped file prior to writing out the new calibration data.
+
+Note that this command takes a while to run. Just running through the calibration profile alone takes almost 15
+minutes. Once that's done, there is a lot of number crunching to do to find an optimal set of parameters based on
+the data collected. How long this takes will depend on how powerful your computer is. For most modern x86 based CPUs,
+it should be pretty quick. The optimization processing is written to take advantage of multiple processor cores and
+should probably only take 10s of seconds to maybe a few minutes for slower Celeron/Atom or similar processors. If
+running on a Raspberry Pi or similar low-power ARM based hardware, expect several minutes or more to complete the
+optimization processing and write out the predictor calibration data. The default configuration does not specify how
+many parallel processes to run for this processing. This allows Milton to attempt to detect the number of CPU cores
+you have and start up that many processes to process the data in parallel. If this is not working well, you can
+manually set the value in the command/defaults.yaml file under `tuning.parallel`. You can edit this from the command
+line with the following command:
 
 ```
 mledit command/defaults.yaml

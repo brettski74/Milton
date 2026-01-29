@@ -2,7 +2,7 @@
 
 # Current levels - minimum, default and maximum in amps.
 current:
-  startup: 2
+  startup: 0.1
 
 # Current levels - minimum, default and maximum in amps.
 voltage:

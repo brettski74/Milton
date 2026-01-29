@@ -89,18 +89,14 @@ group {
                                                          , required => 0
                                                          , description => 'Duration of power application in seconds (optional)'
                                                          }
-                                                       , { name => 'r0'
-                                                         , type => 'text'
-                                                         , required => 0
-                                                         , description => 'Cold resistance:temperature in Ω or mΩ and °C (optional)'
-                                                         }
                                                        , $PARAM_AMBIENT
                                                        , $PARAM_DEVICE
-                                                       , { name => 'resetCalibration'
-                                                         , type => 'boolean'
-                                                         , required => 0
-                                                         , description => 'Treat as new hotplate PCB'
-                                                         }
+                                                       ]
+                                       }
+                                     , { name => 'onePointCal'
+                                       , description => 'One-point calibration'
+                                       , parameters => [ $PARAM_AMBIENT
+                                                       , $PARAM_DEVICE
                                                        ]
                                        }
                                      , { name => 'reflow'
@@ -297,8 +293,6 @@ group {
     my $c = shift;
     my $command_name = $c->param('name');
     my $params = $c->req->json;
-
-    print "command params: ". join(', ', %$params) ."\n";
 
     my $method = 'execute'. ucfirst($command_name);
 

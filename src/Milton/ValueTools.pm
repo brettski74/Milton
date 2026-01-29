@@ -168,7 +168,7 @@ sub hexToNumber {
   }
 }
 
-=hedd2 prompt($message, $default)
+=head2 prompt($message, $default)
 
 Prompt the user for a value.
 

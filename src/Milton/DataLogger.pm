@@ -7,6 +7,7 @@ use IO::File;
 use Path::Tiny qw(path);
 use Milton::Config::Path qw(resolve_file_path search_path standard_search_path);
 use Readonly;
+use Milton::ValueTools;
 use mro;
 
 use Exporter qw(import);
@@ -282,6 +283,46 @@ sub consoleOutput {
   my ($self, $type, $output) = @_;
 
   print $self->consoleProcess($type, $output);
+}
+
+=head2 prompt($message, $default)
+
+Prompt the user for a value.
+
+=over
+
+=item $message
+
+The prompt message to display to the user. Can be a multi-line string.
+
+=item $default
+
+The default value to return if the user enters a blank response.
+
+=item Return Value
+
+The value entered by the user, or the default value if nothing was entered.
+
+=back
+
+=cut
+
+sub prompt {
+  my $self = shift;
+  my $message = shift;
+  
+  my $attr;
+  if (@_ > 1) {
+    $attr = { @_ };
+  } else {
+    $attr = { default => shift };
+  }
+
+  if ($attr->{error}) {
+    $self->error($attr->{error});
+  }
+
+  return Milton::ValueTools::prompt($message, $attr->{default});
 }
 
 =head2 logFilename

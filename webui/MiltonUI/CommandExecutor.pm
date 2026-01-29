@@ -36,7 +36,25 @@ sub info {
     if (@_) {
       printf "CommandExecutor: $message\n", @_;
     } else {
-      print $message, "\n";
+      print 'CommandExecutor: ', $message, "\n";
+    }
+  }
+
+  return 1;
+}
+
+sub error {
+  my $self = shift;
+
+  if ($self->{logger}) {
+    $self->{logger}->error(@_);
+  } else {
+    my $message = shift;
+
+    if (@_) {
+      printf STDERR "ERROR: $message\n", @_;
+    } else {
+      print STDERR "ERROR: $message\n";
     }
   }
 
@@ -100,6 +118,18 @@ sub initializeCommand {
   }
 
   return @cmd;
+}
+
+sub executeOnePointCal {
+  my ($self, $params) = @_;
+  
+  $params->{reset} = 1;
+
+  my @cmd = $self->initializeCommand($params);
+  
+  push @cmd, 'power', 2, '--duration', 10, '--onepointcal';
+  
+  return $self->executeCommand('onePointCal', @cmd);
 }
 
 sub executeTune {
@@ -308,6 +338,36 @@ sub parseOutputLine {
 
   return if $line =~ /^\s*$/;
 
+  # Check for PROMPT: lines (multi-line prompt support)
+  if ($line =~ /^(PROMPT|PROMPT-ERROR):(\d+): (.*)$/) {
+    my $type = lc($1);
+    my $remaining = $2;
+    my $prompt_line = $3;
+    
+    # Initialize prompt buffer if needed
+    $self->{"$type-buffer"} = [] unless defined $self->{"$type-buffer"};
+    push @{$self->{"$type-buffer"}}, $prompt_line;
+    
+    # If this is the last line (remaining == 0), send the complete prompt
+    if ($remaining == 0 && $type eq 'prompt') {
+      my $pbuf = $self->{'prompt-buffer'};
+      my $pebuf = $self->{'prompt-error-buffer'};
+
+      my $message = { text => join("\n", @{$pbuf}) };
+      @$pbuf = ();
+
+      if ($pebuf && @$pebuf) {
+        $message->{error} = join("\n", @{$pebuf});
+        @$pebuf = ();
+      }
+
+      $self->{'waiting-for-prompt'} = 1;
+      $self->_wsSendMessage('prompt', $message);
+    }
+    
+    return;
+  }
+
   my ($type, $data) = $line =~ /^(\w+): (.*)$/;
 
   if (!defined $type) {
@@ -428,6 +488,8 @@ sub commandFinished {
   $self->{status} = 'idle';
   delete $self->{columnNames};
   delete $self->{latestData};
+  delete $self->{'waiting-for-prompt'};
+  delete $self->{'prompt-buffer'};
 }
 
 sub getConfigPath {
@@ -438,6 +500,11 @@ sub getConfigPath {
 
 sub executeCommand {
   my ($self, $command, @cmd) = @_;
+
+  if ($self->{rwf}) {
+    $self->error("$command request rejected: command already running");
+    return;
+  }
   
   # Check if command is already running
   if ($self->{status} ne 'idle') {
@@ -445,6 +512,8 @@ sub executeCommand {
   }
 
   $self->{status} = 'starting';
+  $self->{'waiting-for-prompt'} = 0;
+  $self->{'prompt-buffer'} = [];
 
   my $rwf = Mojo::IOLoop::ReadWriteFork->new();
 
@@ -489,8 +558,49 @@ sub executeCommand {
 
 sub receiveMessage {
   my ($self, $ws, $message) = @_;
+
+  $self->info("Received message: ". Mojo::JSON::encode_json($message));
+  
+  # Handle prompt response
+  if ($message->{type} eq 'prompt-response' && defined $message->{value}) {
+    return $self->handlePromptResponse($message->{value});
+  }
   
   return;
+}
+
+=head2 handlePromptResponse($value)
+
+Handle a prompt response from the web client and write it to the command's stdin.
+
+=over
+
+=item $value
+
+The value entered by the user in response to the prompt.
+
+=back
+
+=cut
+
+sub handlePromptResponse {
+  my ($self, $value) = @_;
+
+  if (!$self->{rwf}) {
+    $self->warning("Received prompt response \"$value\" but no command is running");
+    return;
+  }
+
+  if (!$self->{'waiting-for-prompt'}) {
+    $self->info("Received prompt response \"$value\" but no command is waiting for input");
+    return;
+  }
+
+  # Write the value plus newline to command's stdin
+  $self->{rwf}->write("$value\n");
+  $self->{'waiting-for-prompt'} = 0;
+  
+  return 1;
 }
 
 sub getLogFiles {

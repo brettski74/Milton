@@ -75,6 +75,15 @@ sub _initializeDevice {
 Reset the calibration of this controller. This may be called during hotplate calibration if it is desired to ignore the old
 calibration data and start fresh from some (hopefully) sane defaults.
 
+=over
+
+=item $flag
+
+Defaults to true.
+
+If true, calbration will be reset and auto-calibration will be disabled.
+If false, auto-calibration will be enabled.
+
 =cut
 
 sub resetTemperatureCalibration {
@@ -130,8 +139,8 @@ sub getTemperature {
   # If the estimator is empty, give it some sane defaults assuming a copper heating element
   if ($est->length() == 0 && !$self->{reset}) {
     my $ambient = $self->getAmbient($status);
-    $est->addPoint($resistance, $ambient);
-    $self->warning("Auto-adding calibration point at T=$ambient, R=$resistance");
+    $est->addNamedPoint($resistance, $ambient, 'ambient');
+    $self->warning("Auto-adding calibration point at T=$ambient, R=$resistance (name: ambient)");
   }
   
   # If the estimator has only one point, add a second point to make it a linear estimator
@@ -148,8 +157,8 @@ sub getTemperature {
       $t1 = 20;
       $r1 = ($r0 / (1 + $ALPHA_CU * ($t0 - $t1)));
     }
-    $self->warning("Auto-adding calibration point at T=$t1, R=$r1");
-    $est->addPoint($r1, $t1);
+    $self->warning("Auto-adding calibration point at T=$t1, R=$r1 (name: interpolated)");
+    $est->addNamedPoint($r1, $t1, 'interpolated');
   }
 
   my $temperature = $est->estimate($resistance);

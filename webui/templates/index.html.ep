@@ -248,6 +248,23 @@
   </div>
 </div>
 
+<!-- Prompt Dialog -->
+<div id="promptDialog" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center">
+  <div class="bg-white rounded-lg shadow-xl p-6 max-w-md w-full mx-4">
+    <h3 class="text-xl font-semibold mb-4">Input Required</h3>
+    <div id="promptErrorText" class="mb-4 text-red-400 whitespace-pre-wrap"></div>
+    <div id="promptText" class="mb-4 text-gray-700 whitespace-pre-wrap"></div>
+    <div class="mb-4">
+      <input type="text" id="promptInput" class="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Enter value...">
+    </div>
+    <div class="flex justify-end space-x-2">
+      <button id="promptSubmit" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700">
+        Submit
+      </button>
+    </div>
+  </div>
+</div>
+
 <script>
   // Global variables
   let commands = [];
@@ -436,6 +453,8 @@
 
     if (message.type === 'console' && message.data) {
       handleConsoleMessage(message.data);
+    } else if (message.type === 'prompt' && message.data) {
+      showPromptDialog(message.data.text, message.data.error);
     } else if (message.type === 'data' && message.data) {
       console.log('Updating chart with data:', message.data);
       updateChart(message.data);
@@ -452,8 +471,52 @@
   // Handle console messages from WebSocket
   function handleConsoleMessage(message) {
     if (typeof message.severity !== 'undefined' && typeof message.text !== 'undefined') {
+      // Check if this is a PROMPT: line (should be handled by server, but check just in case)
+      if (message.text.match(/^PROMPT:\d+:/)) {
+        // This should have been handled by the server, but if it got through, ignore it
+        return;
+      }
       addConsoleMessage(message.text, message.severity);
     } 
+  }
+
+  // Show prompt dialog
+  function showPromptDialog(promptText, promptErrorText) {
+    const dialog = document.getElementById('promptDialog');
+    const textDiv = document.getElementById('promptText');
+    const errorDiv = document.getElementById('promptErrorText');
+    const input = document.getElementById('promptInput');
+    
+    textDiv.textContent = promptText;
+    if (promptErrorText) {
+      errorDiv.textContent = promptErrorText;
+    } else {
+      errorDiv.textContent = '';
+    }
+    input.value = '';
+    dialog.classList.remove('hidden');
+    
+    // Focus the input
+    setTimeout(() => {
+      input.focus();
+    }, 100);
+  }
+
+  // Hide prompt dialog and send response
+  function submitPromptResponse() {
+    const dialog = document.getElementById('promptDialog');
+    const input = document.getElementById('promptInput');
+    const value = input.value.trim();
+    
+    dialog.classList.add('hidden');
+    
+    // Send response back to server via WebSocket
+    if (dataSocket && dataSocket.readyState === WebSocket.OPEN) {
+      dataSocket.send(JSON.stringify({
+        type: 'prompt-response',
+        value: value
+      }));
+    }
   }
 
   function handleFinishMessage(message) {
@@ -720,6 +783,14 @@
     
     // Graph pane collapse/expand
     document.getElementById('graphHeader').addEventListener('click', toggleGraphPane);
+    
+    // Prompt dialog
+    document.getElementById('promptSubmit').addEventListener('click', submitPromptResponse);
+    document.getElementById('promptInput').addEventListener('keypress', function(e) {
+      if (e.key === 'Enter') {
+        submitPromptResponse();
+      }
+    });
   }
 
   // Show command parameters

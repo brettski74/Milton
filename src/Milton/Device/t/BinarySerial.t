@@ -4,7 +4,7 @@ use lib '.';
 use strict;
 use warnings qw(all -uninitialized);
 use Test2::V0;
-use Milton::Controller::Device::BinarySerial;
+use Milton::Device::BinarySerial;
 
 # ---------------------------------------------------------------------------
 # Mock SerialPortHelper: provides canned data when READ is called.
@@ -50,7 +50,7 @@ use Milton::Controller::Device::BinarySerial;
 # ---------------------------------------------------------------------------
 sub make_device {
   my (%opts) = @_;
-  my $device = Milton::Controller::Device::BinarySerial->new(
+  my $device = Milton::Device::BinarySerial->new(
     device => $opts{device} // '/dev/ttyTEST',
     (exists $opts{handler} ? (handler => $opts{handler}) : ()),
   );

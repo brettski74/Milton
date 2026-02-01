@@ -1,4 +1,4 @@
-package Milton::Controller::Device;
+package Milton::Device;
 
 use strict;
 use warnings qw(all -uninitialized);
@@ -7,13 +7,13 @@ use base qw(Exporter);
 
 =head1 NAME
 
-Milton::Controller::Device - A base class for external measurement devices.
+Milton::Device - A base class for external measurement devices.
 
 =head1 SYNOPSIS
 
-  use Milton::Controller::Device;
+  use Milton::Device;
 
-  my $device = Milton::Controller::Device->new();
+  my $device = Milton::Device->new();
 
   $device->startListening();
 

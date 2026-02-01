@@ -1,8 +1,8 @@
-package Milton::Controller::Device::Brymen::BM2257;
+package Milton::Device::Brymen::BM2257;
 
 use strict;
 use warnings qw(all -uninitialized);
-use base qw(Milton::Controller::Device::BinarySerial);
+use base qw(Milton::Device::BinarySerial);
 
 use Time::HiRes qw(sleep);
 

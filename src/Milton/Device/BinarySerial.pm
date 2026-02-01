@@ -1,8 +1,8 @@
-package Milton::Controller::Device::BinarySerial;
+package Milton::Device::BinarySerial;
 
 use strict;
 use warnings qw(all -uninitialized);
-use base qw(Milton::Controller::Device);
+use base qw(Milton::Device);
 use Carp qw(croak);
 use Milton::Interface::SerialPortHelper;
 use AnyEvent;

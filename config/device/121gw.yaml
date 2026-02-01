@@ -1,5 +1,5 @@
 
-package: Milton::Controller::Device::EEVBlog121GW
+package: Milton::Device::EEVBlog121GW
 name: 121gw
 description: EEV Blog 121GW Multimeter
 

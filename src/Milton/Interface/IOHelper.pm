@@ -4,6 +4,7 @@ use strict;
 use warnings qw(all -uninitialized);
 use Device::SerialPort;
 use Carp qw(croak);
+use IO::Pipe;
 
 use Exporter qw(import);
 our @EXPORT_OK = qw(device_compare check_device_readable check_device_writable);
@@ -288,6 +289,44 @@ sub tryConnection {
   die ref($self) .": tryConnection method not implemented.\n";
 }
 
+my $LSOF_PATH;
+sub __open_files {
+  my ($device) = @_;
+
+  if (!defined $LSOF_PATH) {
+    $LSOF_PATH = 0;
+    my $which = IO::Pipe->new;
+    $which->reader('sh', '-c', 'command -v lsof 2>&1');
+
+    my $line = $which->getline;
+    chomp $line;
+    $line =~ s/\s+//;
+    if ($line) {
+      $LSOF_PATH = $line;
+    }
+
+    $which->close;
+  }
+
+  my $count = 0;
+
+  if ($LSOF_PATH) {
+    my $lsof = IO::Pipe->new;
+    $lsof->reader($LSOF_PATH, $device);
+
+    while (my $line = $lsof->getline) {
+      chomp $line;
+      if (index($line, $device) >= 0) {
+        $count++;
+      }
+    }
+
+    $lsof->close;
+  }
+
+  return $count;
+}
+
 =head2 connect($id)
 
 Connect to a device. This may include trying multiple devices identified by a glob pattern
@@ -331,6 +370,12 @@ sub connect {
   my $failureMessage = undef;
   foreach my $device (@devices) {
     next if !$self->validateDevice($device);
+
+    # Skip this device if something already has an open file descriptor on it
+    if (__open_files($device)) {
+      $self->warning("Device $device is already in use by another process. Skipping.");
+      next;
+    }
 
     if ($self->tryConnection($device)) {
       $self->{'connected-device'} = $device;

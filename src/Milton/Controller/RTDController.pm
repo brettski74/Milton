@@ -258,6 +258,7 @@ sub shutdown {
   my ($self) = @_;
 
   if ($self->hasTemperatureDevice) {
+    $self->info('Shutting down %s device', $self->{device}->deviceName);
     $self->{device}->stopListening;
     $self->{device}->shutdown;
   }

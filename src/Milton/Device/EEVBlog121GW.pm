@@ -1,4 +1,4 @@
-package Milton::Controller::Device::EEVBlog121GW;
+package Milton::Device::EEVBlog121GW;
 
 use strict;
 use warnings qw(all -uninitialized);
@@ -19,13 +19,13 @@ Readonly our $INDICATION_SERVICE => '121GW:/service0006/char0007';
 
 =head1 NAME
 
-Milton::Controller::Device::EEVBlog121GW - EEVBlog 121GW Multimeter Interface
+Milton::Device::EEVBlog121GW - EEVBlog 121GW Multimeter Interface
 
 =head1 SYNOPSIS
 
-  use Milton::Controller::Device::EEVBlog121GW;
+  use Milton::Device::EEVBlog121GW;
   
-  my $meter = Milton::Controller::Device::EEVBlog121GW->new();
+  my $meter = Milton::Device::EEVBlog121GW->new();
   
   $meter->connect() || die "Failed to connect to 121GW\n";
 

@@ -1,0 +1,45 @@
+
+name: bm2257
+description: Brymen BM2257 Multimeter
+
+#package: Milton::Device::SpawnTemperatureDevice
+#spawn:
+package: Milton::Device::Brymen::BM2257
+# Serial device to use for connection.
+# By default, automatically scans all commonly used serial devices.
+# Specifying an explicit port device may lead to faster connection times.
+device: /dev/tty{S,USB}[0-9]*
+
+# Use polling strategy for temperature reading. Causes serial port reads to happen at a
+# specific time during each timer tick, avoiding problems with interrupted reads due to
+# interrupts or similar triggers. If not set, the device will use an IO event watcher
+# to reach the serial port as soon as data becomes available.
+poll: 1
+
+# Baud rate for connection.
+# Should be 9600. Documentation suggests that this cannot be changed.
+# baudrate: 9600
+
+# Data bits for serial data transmission.
+# Should be 8. Documentation suggests that this cannot be changed.
+# databits: 8
+
+# Parity bit for serial data transmission.
+# Should be 'none'. Documentation suggests that this cannot be changed.
+#parity: 'none'
+
+# Stop bits for serial data transmission.
+# Should be 1. Documentation suggests that this cannot be changed.
+#stopbits: 1
+
+# Number of milliseconds between reading successive bytes to wait before assuming that the
+# current read is complete. Defaults to 1 millisecond. Given that 9600 baud means that each
+# bit is transmitted in about 0.1 milliseconds, this should be more than sufficient but can
+# be increased if you're seeing lots of incomplete reads.
+#char-timeout: 1
+
+# Number of milliseconds to wait for the first byte of a response to be received. Defaults
+# to 10 milliseconds. This should be more than sufficient as this is the time required to
+# transmit almost 10 bytes at 9600 baud. Note that increasing this may increase the amount
+# of blocking IO time in each timer tick.
+#response-timeout: 10

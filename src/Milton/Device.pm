@@ -1,4 +1,4 @@
-package Milton::Controller::Device;
+package Milton::Device;
 
 use strict;
 use warnings qw(all -uninitialized);
@@ -7,13 +7,13 @@ use base qw(Exporter);
 
 =head1 NAME
 
-Milton::Controller::Device - A base class for external measurement devices.
+Milton::Device - A base class for external measurement devices.
 
 =head1 SYNOPSIS
 
-  use Milton::Controller::Device;
+  use Milton::Device;
 
-  my $device = Milton::Controller::Device->new();
+  my $device = Milton::Device->new();
 
   $device->startListening();
 
@@ -60,6 +60,43 @@ sub setLogger {
   $self->{logger} = $logger;
 }
 
+sub info {
+  my $self = shift;
+
+  if ($self->{logger}) {
+    $self->{logger}->info(@_);
+  } else {
+    print 'Device: ', @_, "\n";
+  }
+}
+
+sub warning {
+  my $self = shift;
+  if ($self->{logger}) {
+    $self->{logger}->warning(@_);
+  } else {
+    print 'Device:WARN: ', @_, "\n";
+  }
+}
+
+sub error {
+  my $self = shift;
+  if ($self->{logger}) {
+    $self->{logger}->error(@_);
+  } else {
+    print 'Device:ERROR: ', @_, "\n";
+  }
+}
+
+sub debug {
+  my $self = shift;
+  if ($self->{logger}) {
+    $self->{logger}->debug(@_);
+  } else {
+    print 'Device:DEBUG: ', @_, "\n";
+  }
+}
+
 =head2 getTemperature
 
 Get the latest temperature reading from the device.
@@ -75,7 +112,16 @@ The most recent temperature reading in celsius.
 =cut
 
 sub getTemperature {
-  croak ref(shift) .'->getTemperature not implemented.';
+  my ($self) = @_;
+
+  return $self->{temperature};
+}
+
+sub setTemperature {
+  my ($self, $temperature) = @_;
+  my $rc = $self->{temperature};
+  $self->{temperature} = $temperature;
+  return $rc;
 }
 
 =head2 listenNow
@@ -126,6 +172,12 @@ Shutdown the device.
 
 sub shutdown {
   croak ref(shift) .'->shutdown not implemented.';
+}
+
+sub setHandler {
+  my ($self, $handler) = @_;
+  $self->{handler} = $handler;
+  return $self;
 }
 
 1;

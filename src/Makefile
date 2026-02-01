@@ -19,7 +19,7 @@ REL_TOOL_SCRIPTS=$(patsubst %.pl,$(BINDIR)/%,$(TOOL_SCRIPTS))
 
 # Perl modules to install
 # Hacky - need better way to do arbitrary depth subdirectories, but this works for now
-PERL_MODULES=$(wildcard */*.pm) $(wildcard */[A-Z]*/*.pm) $(wildcard */*/[A-Z]*/*.pm)
+PERL_MODULES=$(wildcard */*.pm) $(wildcard */[A-Z]*/*.pm) $(wildcard */*/[A-Z]*/*.pm) $(wildcard */*/*/[A-Z]*/*.pm)
 
 REL_PERL_MODULES=$(patsubst %,$(LIBDIR)/%,$(PERL_MODULES))
 

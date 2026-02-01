@@ -12,6 +12,7 @@ use constant DEBUG_LEVEL => get_namespace_debug_level();
 use constant CONNECTION_DEBUG => 10;
 use constant REQUEST_DEBUG => 50;
 use constant RESPONSE_DEBUG => 100;
+use constant DATA_DEBUG => 120;
 
 use Milton::Math::PiecewiseLinear;
 
@@ -223,6 +224,8 @@ sub poll {
   my ($self, $status) = @_;
   my $raw = $self->{raw};
   my $cooked = $self->{cooked};
+
+  $self->debug("Raw values: vout=%s, iout=%s", $raw->{vout}, $raw->{iout}) if DEBUG_LEVEL >= DATA_DEBUG;
 
   # Save the time of the last sample for measuring update delays.
   $self->{'last-update-delay'} = 0;

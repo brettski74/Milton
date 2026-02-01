@@ -21,7 +21,7 @@ function check_for {
   shift
 
   echo -n "Checking for $CMD... "
-  if which "$CMD"; then
+  if command -v "$CMD"; then
     if [ -n "$1" ]; then
       "$@"
     fi

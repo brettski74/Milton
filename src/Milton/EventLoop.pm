@@ -446,6 +446,8 @@ sub _signalWatcher {
   $self->_eventsDone;
 
   $self->{interface}->shutdown;
+  $self->{controller}->shutdown;
+
   if ($self->{fan}) {
     my $shutdown_on_signal = $self->{config}->{fan}->{'shutdown-on-signal'};
     if (!defined($shutdown_on_signal) || $shutdown_on_signal) {

@@ -30,7 +30,7 @@ sub readDevice {
 
 sub readBuffer {
   my $self = shift;
-  my $helper = shift // $self->{helper};
+  my $helper = shift // $self->_connect;
 
   return if !$helper;
 
@@ -148,17 +148,35 @@ sub startListening {
   my $helper = $self->_connect;
   return if !$helper;
 
-  $self->{watcher} = AnyEvent->io(fh => $helper->get_fileno, poll => 'r', cb => sub {
-    if ($self->readBuffer > 0) {
-      my $rc = $self->receiveData;
-
-      if ($rc && ref($self->{handler}) eq 'CODE') {
-        $self->{handler}->($self);
-      }
-    }
-  });
+  if (!$self->{poll}) {
+    $self->{watcher} = AnyEvent->io(fh => $helper->get_fileno, poll => 'r', cb => sub {
+      $self->listenNow;
+    });
+  }
 
   $self->{helper} = $helper;
+}
+
+sub getTemperature {
+  my ($self) = @_;
+
+  if ($self->{poll}) {
+    $self->listenNow;
+  }
+
+  return $self->SUPER::getTemperature;
+}
+
+sub listenNow {
+  my ($self, $helper) = @_;
+
+  if ($self->readBuffer($helper) > 0) {
+    my $rc = $self->receiveData;
+
+    if ($rc && ref($self->{handler}) eq 'CODE') {
+      $self->{handler}->($self);
+    }
+  }
 }
 
 sub isListening {

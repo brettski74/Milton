@@ -17,6 +17,10 @@ sub new {
   return $self;
 }
 
+sub deviceName {
+  return 'Brymen BM2257 Multimeter';
+}
+
 sub identify {
   my ($self, $helper) = @_;
   my $packet = undef;
@@ -29,7 +33,6 @@ sub identify {
     }
 
     $i--;
-    print "Identification failed. $i attempts remaining\n";
     sleep 0.5 if $i;
   }
 

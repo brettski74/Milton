@@ -9,3 +9,4 @@ milton-*/
 .attic/
 *.bak
 fp-info-cache
+_autosave*

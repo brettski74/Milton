@@ -117,6 +117,13 @@ sub getTemperature {
   return $self->{temperature};
 }
 
+sub setTemperature {
+  my ($self, $temperature) = @_;
+  my $rc = $self->{temperature};
+  $self->{temperature} = $temperature;
+  return $rc;
+}
+
 =head2 listenNow
 
 Listen for at least one temperature reading from the device and then return.
@@ -165,6 +172,12 @@ Shutdown the device.
 
 sub shutdown {
   croak ref(shift) .'->shutdown not implemented.';
+}
+
+sub setHandler {
+  my ($self, $handler) = @_;
+  $self->{handler} = $handler;
+  return $self;
 }
 
 1;

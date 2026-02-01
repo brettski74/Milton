@@ -279,4 +279,30 @@ sub disconnect {
   return $self;
 }
 
+=head2 get_serial_port
+
+Return the serial port object if currently connected.
+
+=cut
+
+sub get_serial_port {
+  my ($self) = @_;
+  return $self->{serial};
+}
+
+=head2 get_filehandle
+
+Get the filehandle representing to the connection to the serial port, if connected.
+
+=cut
+
+sub get_fileno {
+  my ($self) = @_;
+
+  my $serial = $self->get_serial_port;
+  return if !$serial;
+
+  return $serial->FILENO;
+}
+
 1;

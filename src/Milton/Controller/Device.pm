@@ -60,6 +60,43 @@ sub setLogger {
   $self->{logger} = $logger;
 }
 
+sub info {
+  my $self = shift;
+
+  if ($self->{logger}) {
+    $self->{logger}->info(@_);
+  } else {
+    print 'Device: ', @_, "\n";
+  }
+}
+
+sub warning {
+  my $self = shift;
+  if ($self->{logger}) {
+    $self->{logger}->warning(@_);
+  } else {
+    print 'Device:WARN: ', @_, "\n";
+  }
+}
+
+sub error {
+  my $self = shift;
+  if ($self->{logger}) {
+    $self->{logger}->error(@_);
+  } else {
+    print 'Device:ERROR: ', @_, "\n";
+  }
+}
+
+sub debug {
+  my $self = shift;
+  if ($self->{logger}) {
+    $self->{logger}->debug(@_);
+  } else {
+    print 'Device:DEBUG: ', @_, "\n";
+  }
+}
+
 =head2 getTemperature
 
 Get the latest temperature reading from the device.
@@ -75,7 +112,9 @@ The most recent temperature reading in celsius.
 =cut
 
 sub getTemperature {
-  croak ref(shift) .'->getTemperature not implemented.';
+  my ($self) = @_;
+
+  return $self->{temperature};
 }
 
 =head2 listenNow

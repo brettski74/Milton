@@ -5,6 +5,11 @@ use Milton::Math::PiecewiseLinear;
 use base qw(Milton::Controller);
 use Readonly;
 use Carp qw(croak);
+use Data::Dumper;
+use Milton::DataLogger qw(get_namespace_debug_level);
+
+use constant DEBUG_LEVEL => get_namespace_debug_level();
+use constant DEBUG_STATUS => 150;
 
 Readonly my $ALPHA_CU => 0.00393;
 
@@ -172,6 +177,12 @@ sub getTemperature {
   }
   $self->{'last-temperature'} = $temperature;
   $status->{temperature} = $temperature;
+  $self->debug("status: ". Dumper($status)) if DEBUG_LEVEL >= DEBUG_STATUS;
+
+  # If we have a predictor, use it now
+  if (defined $self->{predictor}) {
+    $self->{'predict-temperature'} = $self->{predictor}->predictTemperature($status);
+  }
 
   return $temperature;
 }

@@ -88,8 +88,6 @@ sub buildProfile {
   foreach my $stage (@$stages) {
     $when += $stage->{duration};
 
-    #$ideal->addNamedPoint($when, $stage->{temperature}, $stage->{name});
-
     if (defined $prev) {
       $prev->{'.next'} = $stage;
       $stage->{'.prev'} = $prev;
@@ -183,34 +181,40 @@ sub nextStage {
   delete $self->{'hi-temp'};
   delete $self->{'lo-temp'};
 
+  # Stage end time is based on the expected duration of the stage, so need to calculate based on current time.
   my $end_time = $status->{now} + $stage->{duration};
   $self->{timeout} = $end_time;
   $ideal->setNamedPoint($end_time, $stage->{temperature}, $stage->{name});
   $ideal->setNamedPoint($end_time + $status->{period}, $stage->{temperature}, '.nextStage');
 
+  my $temperature = $status->{'predict-temperature'} // $status->{temperature};
+
   $stage->{'.start'} = $status->{now};
   $stage->{'.timeout'} = $self->{timeout};
-  $stage->{'.start-temperature'} = $status->{temperature};
+  $stage->{'.start-temperature'} = $temperature;
 
+  # Also store the previous stage's end time to use for trimming and/or tuning calculations
   if ($prev && $prev->{name}) {
     $prev->{'.end'} = $status->{now};
     $prev->{'.end-temperature'} = $status->{temperature};
     $ideal->setNamedPoint($prev->{'.end'}, $prev->{temperature}, $prev->{name});
   }
 
+  # Detect stage direction and normalize temperature limits to make calculations easier
   if ($stage->{'.direction'} > 0) {
     $self->{'hi-temp'} = $stage->{temperature};
-    $self->{'lo-temp'} = ($status->{temperature} // $status->{ambient}) - 20;
+    $self->{'lo-temp'} = ($temperature // $status->{ambient}) - 20;
     $self->{timeout} += $stage->{duration};
   } elsif ($stage->{'.direction'} <0) {
     $self->{'lo-temp'} = $stage->{temperature};
-    $self->{'hi-temp'} = min(220, $status->{temperature} + 50);
+    $self->{'hi-temp'} = min(220, $temperature + 50);
     $self->{timeout} += $stage->{duration};
   }
 
   # Trim the output to adjust for load, but only if we're not tuning!
   $self->trimPowerOutput($prev) if !$self->{tune};
 
+  # Initialize the samples array for this stage
   $stage->{'.samples'} = [];
 
   # Make sure we have an event loop - may not be the case in some unit tests!
@@ -248,9 +252,10 @@ sub timerEvent {
   $self->debug('timerEvent') if DEBUG_LEVEL >= DEBUG_METHOD_ENTRY;
 
   $self->{controller}->getTemperature($status);
+  my $temperature = $status->{'predict-temperature'} // $status->{temperature};
 
   # We don't need it for control, but getting the predicted temperature is useful for web UI display and data logging.
-  $status->{'predict-temperature'} = $status->{temperature};
+  #$status->{'predict-temperature'} = $status->{temperature};
 
   my $stage = $self->{'current-stage'};
   push @{$stage->{'.samples'}}, $status;
@@ -266,14 +271,14 @@ sub timerEvent {
   if ($status->{now} >= $self->{timeout}) {
     $self->debug('Timeout reached!') if DEBUG_LEVEL >= DEBUG_CALCULATIONS;
     $stage = $self->nextStage($stage->{'.next'}, $status);
-  } elsif (defined($self->{'hi-temp'}) && $status->{temperature} >= $self->{'hi-temp'}) {
+  } elsif (defined($self->{'hi-temp'}) && $temperature >= $self->{'hi-temp'}) {
     $self->debug('Reached stage high temperature!') if DEBUG_LEVEL >= DEBUG_CALCULATIONS;
     if ($stage->{'.direction'} < 0) {
       $self->error('Reached stage high temperature during cooling stage! Aborting!');
       return;
     }
     $stage = $self->nextStage($stage->{'.next'}, $status);
-  } elsif (defined($self->{'lo-temp'}) && $status->{temperature} <= $self->{'lo-temp'}) {
+  } elsif (defined($self->{'lo-temp'}) && $temperature <= $self->{'lo-temp'}) {
     $self->debug('Reached stage low temperature!') if DEBUG_LEVEL >= DEBUG_CALCULATIONS;
     if ($stage->{'.direction'} > 0) {
       $self->error('Reached stage low temperature during heating stage! Aborting!');

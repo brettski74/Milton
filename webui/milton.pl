@@ -93,6 +93,22 @@ group {
                                                        , $PARAM_DEVICE
                                                        ]
                                        }
+                                     , { name => 'voltage'
+                                       , description => 'Constant voltage'
+                                       , parameters => [ { name => 'voltage'
+                                                         , type => 'number'
+                                                         , required => 1
+                                                         , description => 'Voltage to apply in volts'
+                                                         }
+                                                       , { name => 'duration'
+                                                         , type => 'number'
+                                                         , required => 0
+                                                         , description => 'Duration of voltage application in seconds (optional)'
+                                                         }
+                                                       , $PARAM_AMBIENT
+                                                       , $PARAM_DEVICE
+                                                       ]
+                                       }
                                      , { name => 'onePointCal'
                                        , description => 'One-point calibration'
                                        , parameters => [ $PARAM_AMBIENT
@@ -121,6 +137,7 @@ group {
                                                          , url => '/api/linear/profiles'
                                                          }
                                                        , $PARAM_AMBIENT
+                                                       , $PARAM_DEVICE
                                                        , { name => 'tune'
                                                          , type => 'boolean'
                                                          , required => 0

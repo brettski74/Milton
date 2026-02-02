@@ -574,15 +574,22 @@ sub _timerWatcher {
   my $cmd = $self->{command};
   my $status;
   my $rc;
+  my $now = $self->_now;
 
   eval {
     $status = $self->poll('timerEvent'
                         , now => $self->_now
                         , ambient => $self->{ambient}
                         );
+    if (defined $self->{past}) {
+      $status->{past} = $self->{past};
+      $status->{elapsed} = $now - $self->{past};
+    }
 
     $rc = $cmd->timerEvent($status);
   };
+  $self->{past} = $now;
+
   if ($@) {
     $self->{logger}->error("Error in timerEvent: $@");
     $evl->send;

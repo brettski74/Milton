@@ -212,6 +212,20 @@ sub executeReplay {
   return $self->executeCommand('replay', @cmd);
 }
 
+sub executeVoltage {
+  my ($self, $params) = @_;
+
+  # Build command line
+  my @cmd = $self->initializeCommand($params);
+  
+  # Add replay command and file
+  push @cmd, 'voltage';
+  push @cmd, '--duration', $params->{duration} if defined $params->{duration};
+  push @cmd, $params->{voltage};
+
+  return $self->executeCommand('voltage', @cmd);
+}
+
 sub executePower {
   my ($self, $params) = @_;
 

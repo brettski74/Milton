@@ -6,6 +6,10 @@ use warnings qw(all -uninitialized);
 use base qw(Milton::Predictor);
 use Milton::Math::PiecewiseLinear;
 
+use Milton::DataLogger qw(get_namespace_debug_level);
+use constant DEBUG_LEVEL => get_namespace_debug_level();
+use constant DEBUG_DATA => 100;
+
 =encoding utf8
 
 =head1 NAME
@@ -694,6 +698,22 @@ sub predictPower {
   return $plo + ($phi - $plo) * ($target_temp - $tlo) / ($thi - $tlo);
 }
 
+# Return period unless the elapsed time is significantly different.
+sub _period {
+  my ($self, $status) = @_;
+  my $period = $status->{period};
+  my $elapsed = $status->{elapsed};
+
+  if (defined $elapsed) {
+    if (abs($elapsed / $period - 1) > 0.02) {
+      $self->debug('Period mismatch: elapsed=%03f, period=%03f', $elapsed, $period) if DEBUG_LEVEL >= DEBUG_DATA;
+      return $elapsed;
+    }
+  }
+
+  return $period;
+}
+
 sub _predictTemperature {
   my ($self, $status, $last_prediction) = @_;
 
@@ -701,7 +721,7 @@ sub _predictTemperature {
 
   if (defined $last_prediction) {
     my $ambient = $status->{ambient};
-    my $period = $status->{period};
+    my $period = $self->_period($status);
 
     # Pull hotplate temperature towards heating element temperature
     my $inner_tau = $self->{'inner-tau'}->estimate($last_prediction);

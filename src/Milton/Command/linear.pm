@@ -11,6 +11,7 @@ use Milton::Math::PiecewiseLinear;
 use Data::Dumper;
 use Math::Round qw(round);
 use Milton::Config::Path qw(resolve_writable_config_path unresolve_file_path);
+use Carp qw(croak);
 
 use Milton::DataLogger qw(get_namespace_debug_level);
 
@@ -88,8 +89,6 @@ sub buildProfile {
   foreach my $stage (@$stages) {
     $when += $stage->{duration};
 
-    #$ideal->addNamedPoint($when, $stage->{temperature}, $stage->{name});
-
     if (defined $prev) {
       $prev->{'.next'} = $stage;
       $stage->{'.prev'} = $prev;
@@ -127,11 +126,8 @@ sub preprocess {
   $self->buildProfile($status);
 
   # Ensure that we have some current through the hotplate so we will be able to measure resistance and set output power.
-  $self->{interface}->setCurrent($self->{config}->{current}->{startup});
-  sleep(0.5);
-  $self->{interface}->poll;
+  $self->startupCurrent($status);
 
-  $self->{controller}->getTemperature($status);
   $self->{'current-stage'} = $self->nextStage($self->{'profile'}->{stages}->[0], $status);
 
   return $status;
@@ -170,6 +166,36 @@ sub trimPowerOutput {
   return $trim_factor;
 }
 
+sub _calculate_voltage_for_power {
+  my ($self, $power, $rmin, $rmax) = @_;
+  my $log_mean = ($rmax - $rmin) / log($rmax / $rmin);
+  
+  if ($log_mean < $rmin || $log_mean > $rmax) {
+    croak "Log Mean Out of Bounds: %03f <= %03f <= %03f", $rmin, $log_mean, $rmax;
+  }
+
+  return sqrt($power * $log_mean);
+}
+
+sub _get_resistance {
+  my ($self, $status) = @_;
+
+  if (exists $status->{resistance}) {
+    return $status->{resistance};
+  }
+
+  if (exists($status->{current}) && exists($status->{voltage}) && $status->{current} > 0 && $status->{voltage} > 0) {
+    return $status->{voltage} / $status->{current};
+  }
+
+  my $temperature = $status->{temperature} // $status->{'device-temperature'} // $status->{ambient};
+  if (defined $temperature) {
+    return $self->{controller}->estimateResistance($temperature);
+  }
+
+  croak "Unable to determine hotplate resistance";
+}
+
 sub nextStage {
   my ($self, $stage, $status) = @_;
 
@@ -183,34 +209,52 @@ sub nextStage {
   delete $self->{'hi-temp'};
   delete $self->{'lo-temp'};
 
+  # Stage end time is based on the expected duration of the stage, so need to calculate based on current time.
   my $end_time = $status->{now} + $stage->{duration};
   $self->{timeout} = $end_time;
   $ideal->setNamedPoint($end_time, $stage->{temperature}, $stage->{name});
   $ideal->setNamedPoint($end_time + $status->{period}, $stage->{temperature}, '.nextStage');
 
+  my $temperature = $status->{'predict-temperature'} // $status->{temperature};
+
   $stage->{'.start'} = $status->{now};
   $stage->{'.timeout'} = $self->{timeout};
-  $stage->{'.start-temperature'} = $status->{temperature};
+  $stage->{'.start-temperature'} = $temperature;
 
+  # Also store the previous stage's end time to use for trimming and/or tuning calculations
   if ($prev && $prev->{name}) {
     $prev->{'.end'} = $status->{now};
     $prev->{'.end-temperature'} = $status->{temperature};
     $ideal->setNamedPoint($prev->{'.end'}, $prev->{temperature}, $prev->{name});
   }
 
-  if ($stage->{'.direction'} > 0) {
-    $self->{'hi-temp'} = $stage->{temperature};
-    $self->{'lo-temp'} = ($status->{temperature} // $status->{ambient}) - 20;
-    $self->{timeout} += $stage->{duration};
-  } elsif ($stage->{'.direction'} <0) {
-    $self->{'lo-temp'} = $stage->{temperature};
-    $self->{'hi-temp'} = min(220, $status->{temperature} + 50);
-    $self->{timeout} += $stage->{duration};
-  }
-
   # Trim the output to adjust for load, but only if we're not tuning!
   $self->trimPowerOutput($prev) if !$self->{tune};
 
+  # Detect stage direction and normalize temperature limits to make calculations easier
+  if ($stage->{'.direction'} > 0) {
+    $self->{'hi-temp'} = $stage->{temperature};
+    $self->{'lo-temp'} = ($temperature // $status->{ambient}) - 20;
+    $self->{timeout} += $stage->{duration};
+
+    $stage->{'.trimmed-power'} = $stage->{power} * $self->{'ramp-trim'};
+  } elsif ($stage->{'.direction'} < 0) {
+    $self->{'lo-temp'} = $stage->{temperature};
+    $self->{'hi-temp'} = min(220, $temperature + 50);
+    $self->{timeout} += $stage->{duration};
+  } else {
+    $stage->{'.trimmed-power'} = $stage->{power} * $self->{'flat-trim'};
+  }
+
+  # Calculate the mean resistance for the stage
+  my $r_now = $self->_get_resistance($status);
+  my $r_end = $self->{controller}->estimateResistance($stage->{temperature});
+  my $voltage = $self->_calculate_voltage_for_power($stage->{'.trimmed-power'}, min($r_now, $r_end), max($r_now, $r_end));
+  $stage->{'.start-resistance'} = $r_now;
+  $stage->{'.end-resistance'} = $r_end;
+  $stage->{'.voltage'} = $voltage;
+
+  # Initialize the samples array for this stage
   $stage->{'.samples'} = [];
 
   # Make sure we have an event loop - may not be the case in some unit tests!
@@ -248,9 +292,10 @@ sub timerEvent {
   $self->debug('timerEvent') if DEBUG_LEVEL >= DEBUG_METHOD_ENTRY;
 
   $self->{controller}->getTemperature($status);
+  my $temperature = $status->{'predict-temperature'} // $status->{temperature};
 
   # We don't need it for control, but getting the predicted temperature is useful for web UI display and data logging.
-  $status->{'predict-temperature'} = $status->{temperature};
+  #$status->{'predict-temperature'} = $status->{temperature};
 
   my $stage = $self->{'current-stage'};
   push @{$stage->{'.samples'}}, $status;
@@ -266,14 +311,14 @@ sub timerEvent {
   if ($status->{now} >= $self->{timeout}) {
     $self->debug('Timeout reached!') if DEBUG_LEVEL >= DEBUG_CALCULATIONS;
     $stage = $self->nextStage($stage->{'.next'}, $status);
-  } elsif (defined($self->{'hi-temp'}) && $status->{temperature} >= $self->{'hi-temp'}) {
+  } elsif (defined($self->{'hi-temp'}) && $temperature >= $self->{'hi-temp'}) {
     $self->debug('Reached stage high temperature!') if DEBUG_LEVEL >= DEBUG_CALCULATIONS;
     if ($stage->{'.direction'} < 0) {
       $self->error('Reached stage high temperature during cooling stage! Aborting!');
       return;
     }
     $stage = $self->nextStage($stage->{'.next'}, $status);
-  } elsif (defined($self->{'lo-temp'}) && $status->{temperature} <= $self->{'lo-temp'}) {
+  } elsif (defined($self->{'lo-temp'}) && $temperature <= $self->{'lo-temp'}) {
     $self->debug('Reached stage low temperature!') if DEBUG_LEVEL >= DEBUG_CALCULATIONS;
     if ($stage->{'.direction'} > 0) {
       $self->error('Reached stage low temperature during heating stage! Aborting!');
@@ -292,16 +337,17 @@ sub timerEvent {
 
   $status->{stage} = $stage->{name};
 
-  my $trimmedPower = $stage->{power};
-  if ($stage->{'.direction'} == 0) {
-    $trimmedPower = $trimmedPower * $self->{'flat-trim'};
-  } elsif ($stage->{'.direction'} > 0) {
-    $trimmedPower = $trimmedPower * $self->{'ramp-trim'};
+  $status->{'set-power'} = $stage->{'.trimmed-power'} // $stage->{power};
+  if (defined $stage->{'.voltage'}) {
+    $self->{interface}->setVoltage($stage->{'.voltage'});
+  } else {
+    $self->{interface}->setPower($status->{'set-power'});
   }
 
-  $self->{interface}->setPower($trimmedPower);
-  $status->{'set-power'} = $trimmedPower;
-  $self->debug('Stage power: %.1f, trimmed power: %.1f', $stage->{power}, $trimmedPower) if DEBUG_LEVEL >= DEBUG_CALCULATIONS;
+  $self->debug('Stage power: %.1f, Stage Voltage: %.1f, trimmed power: %.1f'
+             , $stage->{power}
+             , $stage->{'.voltage'}
+             , $stage->{'.trimmed-power'}) if DEBUG_LEVEL >= DEBUG_CALCULATIONS;
 
   return $status;
 }

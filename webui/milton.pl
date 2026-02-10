@@ -74,6 +74,11 @@ group {
                       , description => 'Reflow Profile (optional)'
                       , url => '/api/reflow/profiles'
                       };
+  my $PARAM_RESET = { name => 'reset'
+                       , type => 'boolean'
+                       , required => 0
+                       , description => 'Ignore existing temperature calibration'
+                       };
   # List available commands
   get '/api/commands' => sub {
     my $c = shift;
@@ -91,6 +96,24 @@ group {
                                                          }
                                                        , $PARAM_AMBIENT
                                                        , $PARAM_DEVICE
+                                                       , $PARAM_RESET
+                                                       ]
+                                       }
+                                     , { name => 'voltage'
+                                       , description => 'Constant voltage'
+                                       , parameters => [ { name => 'voltage'
+                                                         , type => 'number'
+                                                         , required => 1
+                                                         , description => 'Voltage to apply in volts'
+                                                         }
+                                                       , { name => 'duration'
+                                                         , type => 'number'
+                                                         , required => 0
+                                                         , description => 'Duration of voltage application in seconds (optional)'
+                                                         }
+                                                       , $PARAM_AMBIENT
+                                                       , $PARAM_DEVICE
+                                                       , $PARAM_RESET
                                                        ]
                                        }
                                      , { name => 'onePointCal'
@@ -121,6 +144,7 @@ group {
                                                          , url => '/api/linear/profiles'
                                                          }
                                                        , $PARAM_AMBIENT
+                                                       , $PARAM_DEVICE
                                                        , { name => 'tune'
                                                          , type => 'boolean'
                                                          , required => 0
@@ -198,6 +222,7 @@ group {
                                                          , order => 8
                                                          }
                                                        , $PARAM_DEVICE
+                                                       , $PARAM_RESET
                                                        ]
                                        }
                                      , { name => 'rth'

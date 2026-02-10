@@ -5,6 +5,11 @@ use Milton::Math::PiecewiseLinear;
 use base qw(Milton::Controller);
 use Readonly;
 use Carp qw(croak);
+use Data::Dumper;
+use Milton::DataLogger qw(get_namespace_debug_level);
+
+use constant DEBUG_LEVEL => get_namespace_debug_level();
+use constant DEBUG_STATUS => 150;
 
 Readonly my $ALPHA_CU => 0.00393;
 
@@ -27,9 +32,13 @@ sub new {
 
   my $self = $class->SUPER::new($config, $interface);
 
-  # Convert the temperature/resistance values into a piecewise linear estimator
+  # Convert the resistance/temperature values into a piecewise linear estimator
   $self->{rt_estimator} = Milton::Math::PiecewiseLinear->new
           ->addHashPoints('resistance', 'temperature', @{$config->{calibration}->{temperatures}});
+
+  # Convert the temperature/resistance values into a piecewise linear estimator for reverse estimation
+  $self->{tr_estimator} = Milton::Math::PiecewiseLinear->new
+          ->addHashPoints('temperature', 'resistance', @{$config->{calibration}->{temperatures}});
 
   if ($config->{'device'}) {
     $self->_initializeDevice($config->{'device'});
@@ -139,7 +148,7 @@ sub getTemperature {
   # If the estimator is empty, give it some sane defaults assuming a copper heating element
   if ($est->length() == 0 && !$self->{reset}) {
     my $ambient = $self->getAmbient($status);
-    $est->addNamedPoint($resistance, $ambient, 'ambient');
+    $self->setTemperaturePoint($ambient, $resistance, 'ambient');
     $self->warning("Auto-adding calibration point at T=$ambient, R=$resistance (name: ambient)");
   }
   
@@ -157,8 +166,8 @@ sub getTemperature {
       $t1 = 20;
       $r1 = ($r0 / (1 + $ALPHA_CU * ($t0 - $t1)));
     }
+    $self->setTemperaturePoint($t1, $r1, 'interpolated');
     $self->warning("Auto-adding calibration point at T=$t1, R=$r1 (name: interpolated)");
-    $est->addNamedPoint($r1, $t1, 'interpolated');
   }
 
   my $temperature = $est->estimate($resistance);
@@ -172,6 +181,12 @@ sub getTemperature {
   }
   $self->{'last-temperature'} = $temperature;
   $status->{temperature} = $temperature;
+  $self->debug("status: ". Dumper($status)) if DEBUG_LEVEL >= DEBUG_STATUS;
+
+  # If we have a predictor, use it now
+  if (defined $self->{predictor}) {
+    $self->{'predict-temperature'} = $self->{predictor}->predictTemperature($status);
+  }
 
   return $temperature;
 }
@@ -195,8 +210,14 @@ The measured resistance of the hotplate at this calibration point.
 =cut
 
 sub setTemperaturePoint {
-  my ($self, $temperature, $resistance) = @_;
-  $self->{rt_estimator}->addPoint($resistance, $temperature);
+  my ($self, $temperature, $resistance, $name) = @_;
+  if (defined $name) {
+    $self->{rt_estimator}->addNamedPoint($resistance, $temperature, $name);
+    $self->{tr_estimator}->addNamedPoint($temperature, $resistance, $name);
+  } else {
+    $self->{rt_estimator}->addPoint($resistance, $temperature);
+    $self->{tr_estimator}->addPoint($temperature, $resistance);
+  }
 }
 
 =head2 getTemperaturePoints
@@ -208,6 +229,29 @@ Get the list of temperature calibration points.
 sub getTemperaturePoints {
   my ($self) = @_;
   return $self->{rt_estimator}->getPoints();
+}
+
+=head2 estimateResistance($temperature)
+
+Estimate the resistance of the hotplate at a given temperature.
+
+=over
+
+=item $temperature
+
+The temperature in celsius for which an exstimated resistance is desired.
+
+=item Return Value
+
+The estimated resistance of the heating element at the specified temperature, specified in ohms.
+
+=back
+
+=cut
+
+sub estimateResistance {
+  my ($self, $temperature) = @_;
+  return $self->{tr_estimator}->estimate($temperature);
 }
 
 =head2 temperatureEstimatorLength()

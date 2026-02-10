@@ -188,11 +188,6 @@ sub processTimerEvent {
 
   $self->{controller}->getTemperature($status);
 
-  # We don't need it for control, but getting the predicted temperature is useful for web UI display and data logging.
-  my $predictor = $self->{controller}->getPredictor;
-  if ($predictor) {
-    $predictor->predictTemperature($status);
-  }
   $status->{'set-power'} = $self->{power};
 
   # If we've passed the set duration, then power off and exit.

@@ -29,7 +29,10 @@ sub identify {
   while ($i > 0) {
     if ($self->readBuffer($helper) > 0) {
       $packet = $self->receiveData($helper);
-      return if $packet;
+      if ($packet) {
+        $self->info("BM2257 Multimeter connected on $helper->{'connected-device'}");
+        return;
+      }
     }
 
     $i--;

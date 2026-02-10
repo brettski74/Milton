@@ -74,6 +74,11 @@ group {
                       , description => 'Reflow Profile (optional)'
                       , url => '/api/reflow/profiles'
                       };
+  my $PARAM_RESET = { name => 'reset'
+                       , type => 'boolean'
+                       , required => 0
+                       , description => 'Ignore existing temperature calibration'
+                       };
   # List available commands
   get '/api/commands' => sub {
     my $c = shift;
@@ -91,6 +96,7 @@ group {
                                                          }
                                                        , $PARAM_AMBIENT
                                                        , $PARAM_DEVICE
+                                                       , $PARAM_RESET
                                                        ]
                                        }
                                      , { name => 'voltage'
@@ -107,6 +113,7 @@ group {
                                                          }
                                                        , $PARAM_AMBIENT
                                                        , $PARAM_DEVICE
+                                                       , $PARAM_RESET
                                                        ]
                                        }
                                      , { name => 'onePointCal'
@@ -215,6 +222,7 @@ group {
                                                          , order => 8
                                                          }
                                                        , $PARAM_DEVICE
+                                                       , $PARAM_RESET
                                                        ]
                                        }
                                      , { name => 'rth'

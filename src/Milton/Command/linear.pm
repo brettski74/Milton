@@ -11,6 +11,7 @@ use Milton::Math::PiecewiseLinear;
 use Data::Dumper;
 use Math::Round qw(round);
 use Milton::Config::Path qw(resolve_writable_config_path unresolve_file_path);
+use Carp qw(croak);
 
 use Milton::DataLogger qw(get_namespace_debug_level);
 
@@ -125,11 +126,8 @@ sub preprocess {
   $self->buildProfile($status);
 
   # Ensure that we have some current through the hotplate so we will be able to measure resistance and set output power.
-  $self->{interface}->setCurrent($self->{config}->{current}->{startup});
-  sleep(0.5);
-  $self->{interface}->poll;
+  $self->startupCurrent($status);
 
-  $self->{controller}->getTemperature($status);
   $self->{'current-stage'} = $self->nextStage($self->{'profile'}->{stages}->[0], $status);
 
   return $status;
@@ -168,6 +166,36 @@ sub trimPowerOutput {
   return $trim_factor;
 }
 
+sub _calculate_voltage_for_power {
+  my ($self, $power, $rmin, $rmax) = @_;
+  my $log_mean = ($rmax - $rmin) / log($rmax / $rmin);
+  
+  if ($log_mean < $rmin || $log_mean > $rmax) {
+    croak "Log Mean Out of Bounds: %03f <= %03f <= %03f", $rmin, $log_mean, $rmax;
+  }
+
+  return sqrt($power * $log_mean);
+}
+
+sub _get_resistance {
+  my ($self, $status) = @_;
+
+  if (exists $status->{resistance}) {
+    return $status->{resistance};
+  }
+
+  if (exists($status->{current}) && exists($status->{voltage}) && $status->{current} > 0 && $status->{voltage} > 0) {
+    return $status->{voltage} / $status->{current};
+  }
+
+  my $temperature = $status->{temperature} // $status->{'device-temperature'} // $status->{ambient};
+  if (defined $temperature) {
+    return $self->{controller}->estimateResistance($temperature);
+  }
+
+  croak "Unable to determine hotplate resistance";
+}
+
 sub nextStage {
   my ($self, $stage, $status) = @_;
 
@@ -200,19 +228,31 @@ sub nextStage {
     $ideal->setNamedPoint($prev->{'.end'}, $prev->{temperature}, $prev->{name});
   }
 
+  # Trim the output to adjust for load, but only if we're not tuning!
+  $self->trimPowerOutput($prev) if !$self->{tune};
+
   # Detect stage direction and normalize temperature limits to make calculations easier
   if ($stage->{'.direction'} > 0) {
     $self->{'hi-temp'} = $stage->{temperature};
     $self->{'lo-temp'} = ($temperature // $status->{ambient}) - 20;
     $self->{timeout} += $stage->{duration};
-  } elsif ($stage->{'.direction'} <0) {
+
+    $stage->{'.trimmed-power'} = $stage->{power} * $self->{'ramp-trim'};
+  } elsif ($stage->{'.direction'} < 0) {
     $self->{'lo-temp'} = $stage->{temperature};
     $self->{'hi-temp'} = min(220, $temperature + 50);
     $self->{timeout} += $stage->{duration};
+  } else {
+    $stage->{'.trimmed-power'} = $stage->{power} * $self->{'flat-trim'};
   }
 
-  # Trim the output to adjust for load, but only if we're not tuning!
-  $self->trimPowerOutput($prev) if !$self->{tune};
+  # Calculate the mean resistance for the stage
+  my $r_now = $self->_get_resistance($status);
+  my $r_end = $self->{controller}->estimateResistance($stage->{temperature});
+  my $voltage = $self->_calculate_voltage_for_power($stage->{'.trimmed-power'}, min($r_now, $r_end), max($r_now, $r_end));
+  $stage->{'.start-resistance'} = $r_now;
+  $stage->{'.end-resistance'} = $r_end;
+  $stage->{'.voltage'} = $voltage;
 
   # Initialize the samples array for this stage
   $stage->{'.samples'} = [];
@@ -297,16 +337,17 @@ sub timerEvent {
 
   $status->{stage} = $stage->{name};
 
-  my $trimmedPower = $stage->{power};
-  if ($stage->{'.direction'} == 0) {
-    $trimmedPower = $trimmedPower * $self->{'flat-trim'};
-  } elsif ($stage->{'.direction'} > 0) {
-    $trimmedPower = $trimmedPower * $self->{'ramp-trim'};
+  $status->{'set-power'} = $stage->{'.trimmed-power'} // $stage->{power};
+  if (defined $stage->{'.voltage'}) {
+    $self->{interface}->setVoltage($stage->{'.voltage'});
+  } else {
+    $self->{interface}->setPower($status->{'set-power'});
   }
 
-  $self->{interface}->setPower($trimmedPower);
-  $status->{'set-power'} = $trimmedPower;
-  $self->debug('Stage power: %.1f, trimmed power: %.1f', $stage->{power}, $trimmedPower) if DEBUG_LEVEL >= DEBUG_CALCULATIONS;
+  $self->debug('Stage power: %.1f, Stage Voltage: %.1f, trimmed power: %.1f'
+             , $stage->{power}
+             , $stage->{'.voltage'}
+             , $stage->{'.trimmed-power'}) if DEBUG_LEVEL >= DEBUG_CALCULATIONS;
 
   return $status;
 }
